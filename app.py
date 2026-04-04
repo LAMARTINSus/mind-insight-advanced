@@ -15,7 +15,16 @@ def get_openai_client():
     if not api_key:
         return None
     return OpenAI(api_key=api_key)
+from openai import OpenAI
 
+client = OpenAI(api_key="PASTE_YOUR_FULL_KEY_HERE")
+
+response = client.responses.create(
+    model="gpt-4.1-mini",
+    input="Say hello"
+)
+
+print(response.output[0].content[0].text)
 # =========================
 # SESSION STATE
 # =========================
