@@ -227,7 +227,7 @@ if st.session_state.current_question <= 80:
 else:
     st.title("🪞 Seu Relatório")
 
-    perfil = engine_v2(st.session_state.responses)
+    perfil = gerar_perfil(st.session_state.responses)
 
     with st.spinner("🧠 Gerando leitura profunda..."):
         relatorio = gerar_relatorio(perfil)
