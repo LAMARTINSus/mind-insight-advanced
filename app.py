@@ -196,31 +196,33 @@ Escreva em português.
 st.title("🧠 Mind Insight Advanced AI")
 
 if st.session_state.current_question <= 80:
-
     q = st.session_state.current_question
 
     st.subheader(f"Pergunta {q}/80")
     st.write(questions[q])
 
-    resposta = st.radio("Resposta:", scale, index=None, key=f"q_{q}")
+    resposta = st.radio(
+        "Resposta:",
+        scale,
+        index=None,
+        key=f"q_{q}"
+    )
 
-   if st.button("Próxima"):
-    if resposta is not None:
+    if st.button("Próxima"):
+        if resposta is not None:
 
-        # CONVERTE TEXTO → NÚMERO
-        if isinstance(resposta, str):
-            valor = int(resposta.split(" - ")[0])
+            if isinstance(resposta, str):
+                valor = int(resposta.split(" - ")[0])
+            else:
+                valor = int(resposta)
+
+            st.session_state.responses[q] = valor
+            st.session_state.current_question += 1
+            st.rerun()
         else:
-            valor = int(resposta)
+            st.warning("Selecione uma resposta")
 
-        st.session_state.responses[q] = valor
-        st.session_state.current_question += 1
-        st.rerun()
-
-    else:
-        st.warning("Selecione uma resposta")
 else:
-
     st.title("🪞 Seu Relatório")
 
     perfil = gerar_perfil(st.session_state.responses)
