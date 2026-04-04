@@ -103,7 +103,13 @@ questions = {
     79: "Dinheiro 'circula' naturalmente na minha vida.",
     80: "Gastei impulsivamente nos últimos 6 meses."
 }
-scale = [1, 2, 3, 4, 5]
+scale = [
+    "1 - Discordo totalmente",
+    "2 - Discordo",
+    "3 - Neutro",
+    "4 - Concordo",
+    "5 - Concordo totalmente"
+]
 
 # =========================
 # ENGINE (SIMPLIFICADA)
