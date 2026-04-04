@@ -7,7 +7,14 @@ from openai import OpenAI
 # =========================
 st.set_page_config(page_title="Mind Insight Advanced AI", layout="wide")
 
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# =========================
+# OPENAI CLIENT
+# =========================
+def get_openai_client():
+    api_key = st.secrets.get("OPENAI_API_KEY", "")
+    if not api_key:
+        return None
+    return OpenAI(api_key=api_key)
 
 # =========================
 # SESSION STATE
@@ -103,94 +110,102 @@ questions = {
     79: "Dinheiro 'circula' naturalmente na minha vida.",
     80: "Gastei impulsivamente nos últimos 6 meses."
 }
+
 scale = [
     "1 - Discordo totalmente",
     "2 - Discordo",
     "3 - Neutro",
     "4 - Concordo",
-    "5 - Concordo totalmente"
+    "5 - Concordo totalmente",
 ]
 
 # =========================
-# ENGINE (SIMPLIFICADA)
+# ENGINE
 # =========================
-def gerar_relatorio(perfil):
+def gerar_perfil(respostas: dict) -> dict:
+    df = pd.DataFrame(list(respostas.items()), columns=["Q", "Score"])
+
+    df["Score"] = df["Score"].apply(
+        lambda x: int(str(x).split(" - ")[0]) if isinstance(x, str) else int(x)
+    )
+
+    blocos = {
+        "Abertura": (1, 15),
+        "Consciencia": (16, 27),
+        "Extroversao": (28, 37),
+        "Amabilidade": (38, 49),
+        "Neuroticismo": (50, 61),
+        "Seguranca": (62, 71),
+        "Abundancia": (72, 80),
+    }
+
+    medias = {
+        k: round(df[(df["Q"] >= i) & (df["Q"] <= f)]["Score"].mean(), 2)
+        for k, (i, f) in blocos.items()
+    }
+
+    perfil = {
+        "energia_social": "baixa" if medias["Extroversao"] < 3 else "alta",
+        "forma_decisao": "mais reflexiva" if medias["Abertura"] >= 3 else "mais prática",
+        "nivel_estrutura": "alto" if medias["Consciencia"] >= 3.5 else "baixo",
+        "sensibilidade_emocional": "alta" if medias["Neuroticismo"] >= 3 else "baixa",
+        "tendencia_relacional": "adaptativa" if medias["Amabilidade"] >= 3 else "direta",
+        "relacao_dinheiro": "segurança" if medias["Seguranca"] > medias["Abundancia"] else "expansão",
+        "medias": medias,
+    }
+
+    return perfil
+
+# =========================
+# AI REPORT
+# =========================
+def gerar_relatorio(perfil: dict) -> str:
+    client = get_openai_client()
+    if client is None:
+        return "Erro: OPENAI_API_KEY não encontrada em Secrets."
+
     prompt = f"""
-Você é um especialista em comportamento humano.
+Você é um especialista em comportamento humano, com escrita profundamente humana, precisa e emocionalmente inteligente.
 
-Escreva um relatório profundo, humano e altamente preciso.
+Sua tarefa é escrever um relatório que faça a pessoa se reconhecer de verdade.
 
-IMPORTANTE:
-- Não use frases genéricas
-- Não escreva como teste
-- Fale diretamente com a pessoa
-- Traga nuances e contradições
-- Gere identificação emocional real
+REGRAS IMPORTANTES:
+- Não use linguagem genérica.
+- Não escreva como um teste de personalidade.
+- Não repita frases vazias.
+- Fale diretamente com a pessoa, em português.
+- Traga nuances, contradições, dores silenciosas e potenciais reais.
+- Seja humano, claro, profundo e emocionalmente preciso.
+- Evite jargão técnico.
+- Não invente traços que não estejam apoiados no perfil.
+- Prefira exemplos concretos de como a pessoa funciona na vida.
 
-Perfil:
+Perfil estruturado:
 {perfil}
 
-Estrutura:
-1. Como essa pessoa funciona
-2. Como pensa e decide
-3. Como se relaciona
-4. Dinâmica interna
-5. Conflitos principais
-6. Forças reais
-7. Pontos de atenção
+Escreva com esta estrutura:
+1. Como você funciona
+2. Como você pensa e decide
+3. Como você se relaciona
+4. Sua dinâmica interna
+5. O conflito principal que parece existir em você
+6. Suas forças reais
+7. Seus pontos de atenção
 8. Direção de crescimento
 
-Escreva em português.
+Escreva um relatório robusto, com substância.
 """
+
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.8
+            temperature=0.8,
+            timeout=60,
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"Erro ao gerar relatório com a OpenAI: {str(e)}"
-# =========================
-# AI REPORT
-# =========================
-def gerar_relatorio(perfil):
-
-    prompt = f"""
-Você é um especialista em comportamento humano.
-
-Escreva um relatório profundo, humano e altamente preciso.
-
-IMPORTANTE:
-- Não use frases genéricas
-- Não escreva como teste
-- Fale diretamente com a pessoa
-- Traga nuances e contradições
-- Gere identificação emocional real
-
-Perfil:
-{perfil}
-
-Estrutura:
-1. Como essa pessoa funciona
-2. Como pensa e decide
-3. Como se relaciona
-4. Dinâmica interna
-5. Conflitos principais
-6. Forças reais
-7. Pontos de atenção
-8. Direção de crescimento
-
-Escreva em português.
-"""
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.8
-    )
-
-    return response.choices[0].message.content
+        return f"Erro ao gerar relatório com a OpenAI:\n\n{str(e)}"
 
 # =========================
 # UI
@@ -207,17 +222,12 @@ if st.session_state.current_question <= 80:
         "Resposta:",
         scale,
         index=None,
-        key=f"q_{q}"
+        key=f"q_{q}",
     )
 
     if st.button("Próxima"):
         if resposta is not None:
-
-            if isinstance(resposta, str):
-                valor = int(resposta.split(" - ")[0])
-            else:
-                valor = int(resposta)
-
+            valor = int(resposta.split(" - ")[0]) if isinstance(resposta, str) else int(resposta)
             st.session_state.responses[q] = valor
             st.session_state.current_question += 1
             st.rerun()
