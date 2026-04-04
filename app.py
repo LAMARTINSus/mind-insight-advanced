@@ -114,41 +114,43 @@ scale = [
 # =========================
 # ENGINE (SIMPLIFICADA)
 # =========================
-def gerar_perfil(respostas):
+def gerar_relatorio(perfil):
+    prompt = f"""
+Você é um especialista em comportamento humano.
 
-    df = pd.DataFrame(list(respostas.items()), columns=["Q", "Score"])
+Escreva um relatório profundo, humano e altamente preciso.
 
-    # Corrige respostas salvas como texto e transforma tudo em número
-    df["Score"] = df["Score"].apply(
-        lambda x: int(str(x).split(" - ")[0]) if isinstance(x, str) else int(x)
-    )
+IMPORTANTE:
+- Não use frases genéricas
+- Não escreva como teste
+- Fale diretamente com a pessoa
+- Traga nuances e contradições
+- Gere identificação emocional real
 
-    blocos = {
-        "Abertura": (1, 15),
-        "Consciencia": (16, 27),
-        "Extroversao": (28, 37),
-        "Amabilidade": (38, 49),
-        "Neuroticismo": (50, 61),
-        "Seguranca": (62, 71),
-        "Abundancia": (72, 80),
-    }
+Perfil:
+{perfil}
 
-    medias = {
-        k: round(df[(df["Q"] >= i) & (df["Q"] <= f)]["Score"].mean(), 2)
-        for k, (i, f) in blocos.items()
-    }
+Estrutura:
+1. Como essa pessoa funciona
+2. Como pensa e decide
+3. Como se relaciona
+4. Dinâmica interna
+5. Conflitos principais
+6. Forças reais
+7. Pontos de atenção
+8. Direção de crescimento
 
-    perfil = {
-        "energia_social": "baixa" if medias["Extroversao"] < 3 else "alta",
-        "forma_decisao": "analitica" if medias["Abertura"] >= 3 else "pratica",
-        "nivel_estrutura": "alto" if medias["Consciencia"] >= 3.5 else "baixo",
-        "sensibilidade_emocional": "alta" if medias["Neuroticismo"] >= 3 else "baixa",
-        "tendencia_relacional": "adaptativa" if medias["Amabilidade"] >= 3 else "direta",
-        "relacao_dinheiro": "seguranca" if medias["Seguranca"] > medias["Abundancia"] else "expansao"
-    }
-
-    return perfil
-
+Escreva em português.
+"""
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.8
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Erro ao gerar relatório com a OpenAI: {str(e)}"
 # =========================
 # AI REPORT
 # =========================
