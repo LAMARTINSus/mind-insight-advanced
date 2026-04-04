@@ -165,45 +165,66 @@ def gerar_relatorio(perfil: dict) -> str:
         return "Erro: OPENAI_API_KEY não encontrada em Secrets."
 
     prompt = f"""
-Você é um especialista em comportamento humano, com escrita profundamente humana, precisa e emocionalmente inteligente.
+Você é um especialista em análise comportamental com foco em precisão psicológica.
 
-Sua tarefa é escrever um relatório que faça a pessoa se reconhecer de verdade.
+Sua missão NÃO é escrever bonito.
+Sua missão é DESCREVER COM PRECISÃO.
 
-REGRAS IMPORTANTES:
-- Não use linguagem genérica.
-- Não escreva como um teste de personalidade.
-- Não repita frases vazias.
-- Fale diretamente com a pessoa, em português.
-- Traga nuances, contradições, dores silenciosas e potenciais reais.
-- Seja humano, claro, profundo e emocionalmente preciso.
-- Evite jargão técnico.
-- Não invente traços que não estejam apoiados no perfil.
-- Prefira exemplos concretos de como a pessoa funciona na vida.
+REGRAS CRÍTICAS (OBRIGATÓRIAS):
 
-Perfil estruturado:
+1. Você DEVE basear TODAS as afirmações nos dados do perfil fornecido.
+2. NÃO suavize extremos.
+3. NÃO crie equilíbrio artificial.
+4. NÃO use frases genéricas.
+5. Se houver inconsistências ou intensidade exagerada, você DEVE apontar.
+6. Se os dados sugerirem um padrão extremo (como pontuação alta em tudo), você DEVE dizer isso explicitamente.
+7. Você NÃO pode ignorar nenhum eixo relevante do perfil.
+
+PERFIL:
 {perfil}
 
-Escreva com esta estrutura:
-1. Como você funciona
-2. Como você pensa e decide
-3. Como você se relaciona
-4. Sua dinâmica interna
-5. O conflito principal que parece existir em você
-6. Suas forças reais
-7. Seus pontos de atenção
-8. Direção de crescimento
+INSTRUÇÕES:
 
-Escreva um relatório robusto, com substância.
+Analise os dados e produza um relatório direto, preciso e humano.
+
+Se perceber padrões como:
+- intensidade exagerada
+- contradições internas
+- possível idealização de respostas
+- falta de discriminação nas escolhas
+
+VOCÊ DEVE EXPLICITAR ISSO.
+
+ESTRUTURA:
+
+1. Como você realmente funciona (baseado nos dados)
+2. Como você toma decisões (sem romantizar)
+3. Como você se comporta nas relações
+4. Dinâmica emocional real
+5. Principais tensões internas (se existirem)
+6. Forças reais (baseadas em evidência)
+7. Riscos comportamentais
+8. Observação crítica sobre a consistência das respostas
+9. Direção prática de evolução
+
+LINGUAGEM:
+- direta
+- humana
+- sem clichês
+- sem floreios desnecessários
+- sem “texto bonito vazio”
+
+Seja honesto. Mesmo que a resposta não soe confortável.
 """
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.8,
-            timeout=60,
+            temperature=0.4
         )
         return response.choices[0].message.content
+
     except Exception as e:
         return f"Erro ao gerar relatório com a OpenAI:\n\n{str(e)}"
 
