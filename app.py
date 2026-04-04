@@ -118,6 +118,11 @@ def gerar_perfil(respostas):
 
     df = pd.DataFrame(list(respostas.items()), columns=["Q", "Score"])
 
+    # Corrige respostas salvas como texto e transforma tudo em número
+    df["Score"] = df["Score"].apply(
+        lambda x: int(str(x).split(" - ")[0]) if isinstance(x, str) else int(x)
+    )
+
     blocos = {
         "Abertura": (1, 15),
         "Consciencia": (16, 27),
@@ -199,14 +204,21 @@ if st.session_state.current_question <= 80:
 
     resposta = st.radio("Resposta:", scale, index=None, key=f"q_{q}")
 
-    if st.button("Próxima"):
-        if resposta is not None:
-            st.session_state.responses[q] = resposta
-            st.session_state.current_question += 1
-            st.rerun()
-        else:
-            st.warning("Selecione uma resposta")
+   if st.button("Próxima"):
+    if resposta is not None:
 
+        # CONVERTE TEXTO → NÚMERO
+        if isinstance(resposta, str):
+            valor = int(resposta.split(" - ")[0])
+        else:
+            valor = int(resposta)
+
+        st.session_state.responses[q] = valor
+        st.session_state.current_question += 1
+        st.rerun()
+
+    else:
+        st.warning("Selecione uma resposta")
 else:
 
     st.title("🪞 Seu Relatório")
