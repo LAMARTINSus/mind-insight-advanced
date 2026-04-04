@@ -125,6 +125,7 @@ scale = [
 def gerar_perfil(respostas: dict) -> dict:
     df = pd.DataFrame(list(respostas.items()), columns=["Q", "Score"])
 
+    # Garante que tudo vire número
     df["Score"] = df["Score"].apply(
         lambda x: int(str(x).split(" - ")[0]) if isinstance(x, str) else int(x)
     )
@@ -144,14 +145,47 @@ def gerar_perfil(respostas: dict) -> dict:
         for k, (i, f) in blocos.items()
     }
 
+    def faixa(score: float) -> str:
+        if score >= 4.5:
+            return "extremamente alto"
+        elif score >= 4.0:
+            return "alto"
+        elif score >= 3.0:
+            return "médio"
+        elif score >= 2.0:
+            return "baixo"
+        return "extremamente baixo"
+
+    faixas = {k: faixa(v) for k, v in medias.items()}
+
+    # Testes de consistência simples
+    todos_iguais = len(set(medias.values())) == 1
+    todos_muito_altos = all(v >= 4.5 for v in medias.values())
+    todos_muito_baixos = all(v <= 1.5 for v in medias.values())
+
+    conflitos_detectados = []
+    if medias["Seguranca"] >= 4 and medias["Abundancia"] >= 4:
+        conflitos_detectados.append("expansão versus segurança")
+    if medias["Extroversao"] >= 4 and medias["Neuroticismo"] >= 4:
+        conflitos_detectados.append("alta exposição com alta reatividade emocional")
+    if medias["Consciencia"] >= 4 and medias["Abertura"] >= 4:
+        conflitos_detectados.append("estrutura alta com abertura alta")
+    if medias["Amabilidade"] >= 4 and medias["Extroversao"] >= 4:
+        conflitos_detectados.append("forte orientação relacional com presença social intensa")
+
     perfil = {
-        "energia_social": "baixa" if medias["Extroversao"] < 3 else "alta",
-        "forma_decisao": "mais reflexiva" if medias["Abertura"] >= 3 else "mais prática",
-        "nivel_estrutura": "alto" if medias["Consciencia"] >= 3.5 else "baixo",
-        "sensibilidade_emocional": "alta" if medias["Neuroticismo"] >= 3 else "baixa",
-        "tendencia_relacional": "adaptativa" if medias["Amabilidade"] >= 3 else "direta",
-        "relacao_dinheiro": "segurança" if medias["Seguranca"] > medias["Abundancia"] else "expansão",
         "medias": medias,
+        "faixas": faixas,
+        "energia_social": "alta" if medias["Extroversao"] >= 4 else "baixa" if medias["Extroversao"] < 3 else "moderada",
+        "forma_decisao": "mais reflexiva" if medias["Abertura"] >= 3 else "mais prática",
+        "nivel_estrutura": "alto" if medias["Consciencia"] >= 4 else "baixo" if medias["Consciencia"] < 3 else "moderado",
+        "sensibilidade_emocional": "alta" if medias["Neuroticismo"] >= 4 else "baixa" if medias["Neuroticismo"] < 3 else "moderada",
+        "tendencia_relacional": "adaptativa" if medias["Amabilidade"] >= 3 else "direta",
+        "relacao_dinheiro": "segurança" if medias["Seguranca"] > medias["Abundancia"] else "expansão" if medias["Abundancia"] > medias["Seguranca"] else "equilíbrio entre segurança e expansão",
+        "todos_iguais": todos_iguais,
+        "todos_muito_altos": todos_muito_altos,
+        "todos_muito_baixos": todos_muito_baixos,
+        "conflitos_detectados": conflitos_detectados,
     }
 
     return perfil
@@ -165,66 +199,58 @@ def gerar_relatorio(perfil: dict) -> str:
         return "Erro: OPENAI_API_KEY não encontrada em Secrets."
 
     prompt = f"""
-Você é um especialista em análise comportamental com foco em precisão psicológica.
+Você está analisando um perfil baseado em escala de 1 a 5.
 
+INTERPRETAÇÃO DA ESCALA:
+1 = extremamente baixo
+2 = baixo
+3 = médio
+4 = alto
+5 = extremamente alto
+
+MISSÃO:
 Sua missão NÃO é escrever bonito.
 Sua missão é DESCREVER COM PRECISÃO.
 
-REGRAS CRÍTICAS (OBRIGATÓRIAS):
-
-1. Você DEVE basear TODAS as afirmações nos dados do perfil fornecido.
+REGRAS CRÍTICAS:
+1. Baseie TODAS as afirmações nos dados recebidos.
 2. NÃO suavize extremos.
-3. NÃO crie equilíbrio artificial.
+3. NÃO invente equilíbrio artificial.
 4. NÃO use frases genéricas.
-5. Se houver inconsistências ou intensidade exagerada, você DEVE apontar.
-6. Se os dados sugerirem um padrão extremo (como pontuação alta em tudo), você DEVE dizer isso explicitamente.
-7. Você NÃO pode ignorar nenhum eixo relevante do perfil.
+5. Se houver intensidade exagerada, contradições ou baixa discriminação nas respostas, você DEVE dizer isso claramente.
+6. Se todos os eixos estiverem muito altos ou muito parecidos, você DEVE apontar isso como observação crítica.
+7. Não ignore nenhum eixo importante.
+8. Escreva em português, de forma humana, direta, lúcida e precisa.
 
-PERFIL:
+PERFIL ESTRUTURADO:
 {perfil}
 
-INSTRUÇÕES:
-
-Analise os dados e produza um relatório direto, preciso e humano.
-
-Se perceber padrões como:
-- intensidade exagerada
-- contradições internas
-- possível idealização de respostas
-- falta de discriminação nas escolhas
-
-VOCÊ DEVE EXPLICITAR ISSO.
-
-ESTRUTURA:
-
-1. Como você realmente funciona (baseado nos dados)
-2. Como você toma decisões (sem romantizar)
+ESTRUTURA OBRIGATÓRIA:
+1. Como você realmente funciona
+2. Como você toma decisões
 3. Como você se comporta nas relações
 4. Dinâmica emocional real
-5. Principais tensões internas (se existirem)
-6. Forças reais (baseadas em evidência)
+5. Principais tensões internas
+6. Forças reais
 7. Riscos comportamentais
 8. Observação crítica sobre a consistência das respostas
 9. Direção prática de evolução
 
-LINGUAGEM:
-- direta
-- humana
-- sem clichês
-- sem floreios desnecessários
-- sem “texto bonito vazio”
-
-Seja honesto. Mesmo que a resposta não soe confortável.
+IMPORTANTE:
+- Se os dados forem extremos, diga que são extremos.
+- Se os dados forem improvavelmente uniformes, diga isso.
+- Não trate 5 como médio.
+- Não escreva como horóscopo.
+- Seja preciso, mesmo que a leitura fique desconfortável.
 """
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.4
+            temperature=0.3,
         )
         return response.choices[0].message.content
-
     except Exception as e:
         return f"Erro ao gerar relatório com a OpenAI:\n\n{str(e)}"
 
