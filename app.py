@@ -158,33 +158,95 @@ def gerar_perfil(respostas: dict) -> dict:
 
     faixas = {k: faixa(v) for k, v in medias.items()}
 
-    # Testes de consistência simples
-    todos_iguais = len(set(medias.values())) == 1
-    todos_muito_altos = all(v >= 4.5 for v in medias.values())
-    todos_muito_baixos = all(v <= 1.5 for v in medias.values())
+    media_geral = round(df["Score"].mean(), 2)
+    desvio_padrao = round(float(df["Score"].std(ddof=0)), 3)
+    amplitude = int(df["Score"].max() - df["Score"].min())
+
+    valores_unicos = sorted(df["Score"].unique().tolist())
+    quantidade_valores_unicos = len(valores_unicos)
+    medias_unicas_blocos = len(set(medias.values()))
+
+    tipo_resposta = "discriminante"
+
+    if desvio_padrao == 0 and media_geral == 3:
+        tipo_resposta = "neutro_uniforme"
+    elif desvio_padrao == 0 and media_geral >= 4.5:
+        tipo_resposta = "inflado_uniforme"
+    elif desvio_padrao == 0 and media_geral <= 1.5:
+        tipo_resposta = "retraido_uniforme"
+    elif desvio_padrao < 0.35 and quantidade_valores_unicos <= 2:
+        tipo_resposta = "baixa_discriminacao"
+    elif desvio_padrao < 0.5 and amplitude <= 1:
+        tipo_resposta = "baixa_discriminacao"
+    elif media_geral >= 4.3 and desvio_padrao < 0.7:
+        tipo_resposta = "inflado"
+    elif media_geral <= 1.7 and desvio_padrao < 0.7:
+        tipo_resposta = "retraido"
+    elif amplitude >= 4 and desvio_padrao >= 1.2:
+        tipo_resposta = "muito_variavel"
+
+    confiabilidade = "alta"
+    if tipo_resposta in ["neutro_uniforme", "inflado_uniforme", "retraido_uniforme"]:
+        confiabilidade = "baixa"
+    elif tipo_resposta in ["baixa_discriminacao", "inflado", "retraido", "muito_variavel"]:
+        confiabilidade = "média"
 
     conflitos_detectados = []
+
     if medias["Seguranca"] >= 4 and medias["Abundancia"] >= 4:
         conflitos_detectados.append("expansão versus segurança")
+
     if medias["Extroversao"] >= 4 and medias["Neuroticismo"] >= 4:
         conflitos_detectados.append("alta exposição com alta reatividade emocional")
+
     if medias["Consciencia"] >= 4 and medias["Abertura"] >= 4:
         conflitos_detectados.append("estrutura alta com abertura alta")
+
     if medias["Amabilidade"] >= 4 and medias["Extroversao"] >= 4:
         conflitos_detectados.append("forte orientação relacional com presença social intensa")
+
+    if medias["Consciencia"] >= 4 and medias["Neuroticismo"] >= 4:
+        conflitos_detectados.append("alto controle com alta tensão interna")
 
     perfil = {
         "medias": medias,
         "faixas": faixas,
-        "energia_social": "alta" if medias["Extroversao"] >= 4 else "baixa" if medias["Extroversao"] < 3 else "moderada",
-        "forma_decisao": "mais reflexiva" if medias["Abertura"] >= 3 else "mais prática",
-        "nivel_estrutura": "alto" if medias["Consciencia"] >= 4 else "baixo" if medias["Consciencia"] < 3 else "moderado",
-        "sensibilidade_emocional": "alta" if medias["Neuroticismo"] >= 4 else "baixa" if medias["Neuroticismo"] < 3 else "moderada",
-        "tendencia_relacional": "adaptativa" if medias["Amabilidade"] >= 3 else "direta",
-        "relacao_dinheiro": "segurança" if medias["Seguranca"] > medias["Abundancia"] else "expansão" if medias["Abundancia"] > medias["Seguranca"] else "equilíbrio entre segurança e expansão",
-        "todos_iguais": todos_iguais,
-        "todos_muito_altos": todos_muito_altos,
-        "todos_muito_baixos": todos_muito_baixos,
+        "media_geral": media_geral,
+        "desvio_padrao": desvio_padrao,
+        "amplitude": amplitude,
+        "valores_unicos": valores_unicos,
+        "quantidade_valores_unicos": quantidade_valores_unicos,
+        "medias_unicas_blocos": medias_unicas_blocos,
+        "tipo_resposta": tipo_resposta,
+        "confiabilidade": confiabilidade,
+        "energia_social": (
+            "alta" if medias["Extroversao"] >= 4
+            else "baixa" if medias["Extroversao"] < 3
+            else "moderada"
+        ),
+        "forma_decisao": (
+            "mais reflexiva" if medias["Abertura"] >= 3
+            else "mais prática"
+        ),
+        "nivel_estrutura": (
+            "alto" if medias["Consciencia"] >= 4
+            else "baixo" if medias["Consciencia"] < 3
+            else "moderado"
+        ),
+        "sensibilidade_emocional": (
+            "alta" if medias["Neuroticismo"] >= 4
+            else "baixa" if medias["Neuroticismo"] < 3
+            else "moderada"
+        ),
+        "tendencia_relacional": (
+            "adaptativa" if medias["Amabilidade"] >= 3
+            else "direta"
+        ),
+        "relacao_dinheiro": (
+            "segurança" if medias["Seguranca"] > medias["Abundancia"]
+            else "expansão" if medias["Abundancia"] > medias["Seguranca"]
+            else "equilíbrio entre segurança e expansão"
+        ),
         "conflitos_detectados": conflitos_detectados,
     }
 
@@ -199,58 +261,90 @@ def gerar_relatorio(perfil: dict) -> str:
         return "Erro: OPENAI_API_KEY não encontrada em Secrets."
 
     prompt = f"""
-Você está analisando um perfil baseado em escala de 1 a 5.
+Você é um especialista em leitura comportamental profunda.
 
-INTERPRETAÇÃO DA ESCALA:
-1 = extremamente baixo
-2 = baixo
-3 = médio
-4 = alto
-5 = extremamente alto
-
-MISSÃO:
-Sua missão NÃO é escrever bonito.
-Sua missão é DESCREVER COM PRECISÃO.
-
-REGRAS CRÍTICAS:
-1. Baseie TODAS as afirmações nos dados recebidos.
-2. NÃO suavize extremos.
-3. NÃO invente equilíbrio artificial.
-4. NÃO use frases genéricas.
-5. Se houver intensidade exagerada, contradições ou baixa discriminação nas respostas, você DEVE dizer isso claramente.
-6. Se todos os eixos estiverem muito altos ou muito parecidos, você DEVE apontar isso como observação crítica.
-7. Não ignore nenhum eixo importante.
-8. Escreva em português, de forma humana, direta, lúcida e precisa.
-
-PERFIL ESTRUTURADO:
-{perfil}
-
-ESTRUTURA OBRIGATÓRIA:
-1. Como você realmente funciona
-2. Como você toma decisões
-3. Como você se comporta nas relações
-4. Dinâmica emocional real
-5. Principais tensões internas
-6. Forças reais
-7. Riscos comportamentais
-8. Observação crítica sobre a consistência das respostas
-9. Direção prática de evolução
+Sua missão é traduzir dados em IDENTIDADE.
 
 IMPORTANTE:
-- Se os dados forem extremos, diga que são extremos.
-- Se os dados forem improvavelmente uniformes, diga isso.
-- Não trate 5 como médio.
-- Não escreva como horóscopo.
-- Seja preciso, mesmo que a leitura fique desconfortável.
+- Você NÃO escreve descrições genéricas
+- Você NÃO explica traços
+- Você REVELA padrões reais de funcionamento
+
+BASE DE DADOS:
+{perfil}
+
+REGRAS CRÍTICAS:
+
+1. Use os dados, mas NÃO repita números.
+2. Transforme tudo em comportamento observável.
+3. Sempre mostre:
+   - Fortaleza (quando o padrão ajuda)
+   - Área de desafio (quando o padrão atrapalha)
+4. Evite qualquer frase que serviria para qualquer pessoa.
+5. Não use linguagem técnica.
+6. Escreva como alguém que ENTENDE pessoas, não como um teste.
+7. Use "tipo_resposta" e "confiabilidade" para julgar o quanto os dados permitem um retrato profundo.
+8. Se o padrão de resposta for uniforme, inflado, retraído ou pouco discriminante, diga isso claramente.
+9. Não trate perfil baixo como defeito automático.
+10. Não trate perfil alto como vantagem automática.
+
+ESTRUTURA OBRIGATÓRIA:
+
+1. COMO VOCÊ FUNCIONA DE VERDADE
+Descreva como essa pessoa se comporta no mundo real.
+Como entra em ambientes, como reage, como se posiciona.
+
+2. COMO VOCÊ TOMA DECISÕES
+Mostre o padrão real:
+- quando decide bem
+- quando trava ou adia
+
+3. COMO VOCÊ SE RELACIONA
+Mostre:
+- como se conecta
+- onde se adapta demais
+- onde perde posição
+
+4. DINÂMICA INTERNA
+Mostre o que acontece por dentro:
+- pensamentos recorrentes
+- tensão silenciosa
+- padrão emocional
+
+5. SEU PADRÃO MAIS FORTE
+Identifique o traço dominante e descreva como ele aparece na vida.
+
+6. SUAS FORTALEZAS REAIS
+Lista clara, concreta e específica.
+
+7. SUAS ÁREAS DE DESAFIO
+Sem suavizar.
+Mostre onde isso limita crescimento.
+
+8. O PONTO QUE MAIS MERECE ATENÇÃO
+Escolha UMA coisa principal e aprofunde.
+
+9. DIREÇÃO PRÁTICA
+O que ajustar na prática, de forma realista.
+
+ESTILO:
+- direto
+- humano
+- específico
+- sem clichês
+- sem “texto bonito vazio”
+
+Seja preciso. Faça a pessoa se reconhecer.
 """
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
+            temperature=0.7,
         )
         return response.choices[0].message.content
+
     except Exception as e:
         return f"Erro ao gerar relatório com a OpenAI:\n\n{str(e)}"
 
