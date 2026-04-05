@@ -125,7 +125,6 @@ scale = [
 def gerar_perfil(respostas: dict) -> dict:
     df = pd.DataFrame(list(respostas.items()), columns=["Q", "Score"])
 
-    # Garante que tudo vire número
     df["Score"] = df["Score"].apply(
         lambda x: int(str(x).split(" - ")[0]) if isinstance(x, str) else int(x)
     )
@@ -208,6 +207,9 @@ def gerar_perfil(respostas: dict) -> dict:
     if medias["Consciencia"] >= 4 and medias["Neuroticismo"] >= 4:
         conflitos_detectados.append("alto controle com alta tensão interna")
 
+    eixo_mais_alto = max(medias, key=medias.get)
+    eixo_mais_baixo = min(medias, key=medias.get)
+
     perfil = {
         "medias": medias,
         "faixas": faixas,
@@ -248,6 +250,8 @@ def gerar_perfil(respostas: dict) -> dict:
             else "equilíbrio entre segurança e expansão"
         ),
         "conflitos_detectados": conflitos_detectados,
+        "eixo_mais_alto": eixo_mais_alto,
+        "eixo_mais_baixo": eixo_mais_baixo,
     }
 
     return perfil
@@ -263,85 +267,88 @@ def gerar_relatorio(perfil: dict) -> str:
     prompt = f"""
 Você é um especialista em leitura comportamental profunda.
 
-Sua missão é traduzir dados em IDENTIDADE.
-
-IMPORTANTE:
-- Você NÃO escreve descrições genéricas
-- Você NÃO explica traços
-- Você REVELA padrões reais de funcionamento
+Sua missão é traduzir dados em IDENTIDADE de forma mais precisa, concreta e humana.
 
 BASE DE DADOS:
 {perfil}
 
 REGRAS CRÍTICAS:
-
-1. Use os dados, mas NÃO repita números.
-2. Transforme tudo em comportamento observável.
-3. Sempre mostre:
-   - Fortaleza (quando o padrão ajuda)
-   - Área de desafio (quando o padrão atrapalha)
-4. Evite qualquer frase que serviria para qualquer pessoa.
-5. Não use linguagem técnica.
-6. Escreva como alguém que ENTENDE pessoas, não como um teste.
-7. Use "tipo_resposta" e "confiabilidade" para julgar o quanto os dados permitem um retrato profundo.
-8. Se o padrão de resposta for uniforme, inflado, retraído ou pouco discriminante, diga isso claramente.
-9. Não trate perfil baixo como defeito automático.
-10. Não trate perfil alto como vantagem automática.
+1. Use os dados, mas NÃO repita números no texto final, exceto se for indispensável.
+2. Transforme dados em comportamento observável do dia a dia.
+3. Toda afirmação relevante deve ser ancorada em algo do perfil.
+4. Evite inferências psicológicas fortes demais se os dados não sustentarem isso.
+5. Evite frases genéricas que serviriam para quase qualquer pessoa.
+6. Não use linguagem técnica.
+7. Se os dados forem pouco confiáveis, diga isso claramente.
+8. Se houver um eixo mais alto ou mais baixo, use isso como parte central da leitura.
+9. Todo traço deve ser tratado com dualidade:
+   - fortaleza quando bem usado
+   - desafio quando mal calibrado
+10. Não trate perfil baixo como defeito automático.
+11. Não trate perfil alto como vantagem automática.
+12. Dê exemplos concretos de comportamento sempre que possível.
+13. Não escreva como teste, escreva como leitura humana.
+14. Não romantize.
+15. Não faça “texto bonito vazio”.
 
 ESTRUTURA OBRIGATÓRIA:
 
 1. COMO VOCÊ FUNCIONA DE VERDADE
-Descreva como essa pessoa se comporta no mundo real.
-Como entra em ambientes, como reage, como se posiciona.
+Descreva como essa pessoa tende a entrar em ambientes, reagir, se posicionar e administrar a própria energia.
 
 2. COMO VOCÊ TOMA DECISÕES
-Mostre o padrão real:
-- quando decide bem
-- quando trava ou adia
+Mostre:
+- onde essa pessoa costuma decidir bem
+- onde tende a atrasar, ceder ou travar
 
 3. COMO VOCÊ SE RELACIONA
 Mostre:
-- como se conecta
+- como cria conexão
 - onde se adapta demais
-- onde perde posição
+- onde pode perder posição ou voz
 
 4. DINÂMICA INTERNA
-Mostre o que acontece por dentro:
-- pensamentos recorrentes
-- tensão silenciosa
-- padrão emocional
+Mostre:
+- o que parece acontecer por dentro
+- qual tensão emocional ou mental aparece com mais frequência
+- sem inventar trauma ou patologia
 
 5. SEU PADRÃO MAIS FORTE
-Identifique o traço dominante e descreva como ele aparece na vida.
+Use o eixo mais alto como referência principal e explique como ele aparece concretamente.
 
 6. SUAS FORTALEZAS REAIS
-Lista clara, concreta e específica.
+Faça uma lista clara, específica e concreta.
+Nada genérico.
 
 7. SUAS ÁREAS DE DESAFIO
-Sem suavizar.
-Mostre onde isso limita crescimento.
+Mostre onde o padrão cobra preço na prática.
+Nada de suavizar demais.
 
 8. O PONTO QUE MAIS MERECE ATENÇÃO
-Escolha UMA coisa principal e aprofunde.
+Escolha UMA coisa principal e aprofunde com clareza.
 
 9. DIREÇÃO PRÁTICA
-O que ajustar na prática, de forma realista.
+Dê direção realista, útil e aplicável.
+Sem clichês.
 
 ESTILO:
 - direto
 - humano
 - específico
-- sem clichês
-- sem “texto bonito vazio”
+- concreto
+- lúcido
+- sem floreio
+- sem clichê
+- sem horóscopo
 
-Seja preciso. Faça a pessoa se reconhecer.
+Faça a pessoa se reconhecer sem parecer um texto pronto.
 """
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
+            temperature=0.55,
         )
         return response.choices[0].message.content
 
