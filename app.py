@@ -26,10 +26,89 @@ if "current_question" not in st.session_state:
     st.session_state.current_question = 1
 
 # =========================
-# QUESTIONS
+# QUESTIONS (CORRETAS)
 # =========================
 questions = {
-    i: f"Pergunta {i}" for i in range(1, 81)
+    1: "Gosto de experimentar novas ideias e atividades.",
+    2: "Sou organizado e planejo minhas tarefas com antecedência.",
+    3: "Me sinto energizado em grupos grandes de pessoas.",
+    4: "Sou compassivo e priorizo as necessidades dos outros.",
+    5: "Fico ansioso em situações de incerteza.",
+    6: "Prefiro rotinas previsíveis a mudanças inesperadas.",
+    7: "Tenho facilidade para me concentrar em uma tarefa por horas.",
+    8: "Evito conflitos para manter a harmonia.",
+    9: "Sou criativo e penso fora da caixa.",
+    10: "Me irrito facilmente com erros alheios.",
+    11: "Gosto de ser o centro das atenções.",
+    12: "Sou disciplinado com prazos e compromissos.",
+    13: "Me preocupo excessivamente com o futuro.",
+    14: "Valorizo a lealdade acima de tudo nas relações.",
+    15: "Busco conhecimento por prazer, não por obrigação.",
+    16: "Tomo decisões rápidas baseadas em intuição.",
+    17: "Analiso todos os detalhes antes de agir.",
+    18: "Sou direto e falo o que penso, mesmo que incomode.",
+    19: "Prefiro trabalhar sozinho a em equipe.",
+    20: "Adapto meu comportamento conforme o ambiente.",
+    21: "Sou persistente mesmo diante de fracassos.",
+    22: "Evito riscos desnecessários.",
+    23: "Expresso emoções abertamente.",
+    24: "Planejo conversas importantes com antecedência.",
+    25: "Sou flexível com mudanças de planos.",
+    26: "Priorizo eficiência acima de relações.",
+    27: "Aprendo mais observando do que fazendo.",
+    28: "Em crises, mantenho a calma e foco na solução.",
+    29: "Fico paralisado quando algo dá errado.",
+    30: "Sob estresse, busco apoio de outros.",
+    31: "Reajo com raiva quando provocado.",
+    32: "Transformo pressão em motivação.",
+    33: "Evito confrontos diretos em tensões.",
+    34: "Recupero equilíbrio emocional rapidamente.",
+    35: "Culpo os outros por meus erros.",
+    36: "Aumento a produtividade sob prazos apertados.",
+    37: "Fico ansioso com críticas.",
+    38: "Tenho facilidade para aprender novas habilidades técnicas.",
+    39: "Sou bom em liderar grupos para resultados.",
+    40: "Resolvo problemas lógicos intuitivamente.",
+    41: "Crio conteúdo persuasivo.",
+    42: "Organizo espaços e rotinas eficientemente.",
+    43: "Negocio bem acordos.",
+    44: "Sou criativo em soluções cotidianas.",
+    45: "Gerencio múltiplas tarefas.",
+    46: "Inspiro confiança em negociações.",
+    47: "Identifico oportunidades rapidamente.",
+    48: "Explico conceitos complexos com clareza.",
+    49: "Melhoro processos existentes.",
+    50: "Meu valor depende da aprovação dos outros.",
+    51: "Me sinto confortável liderando.",
+    52: "Priorizo família acima da carreira.",
+    53: "Construo redes de contatos facilmente.",
+    54: "Sou influenciado por normas sociais.",
+    55: "Defendo minhas opiniões.",
+    56: "Valorizo tradições familiares.",
+    57: "Me adapto a culturas diferentes.",
+    58: "Sou generoso com tempo e recursos.",
+    59: "Competição me motiva.",
+    60: "Meu papel social é cuidar dos outros.",
+    61: "Questiono normas sociais.",
+    62: "Estou satisfeito com minha vida.",
+    63: "Tenho clareza sobre o que mudar.",
+    64: "Minhas ações me aproximam dos objetivos.",
+    65: "Sinto que desperdiço potencial.",
+    66: "Tenho clareza sobre quem sou.",
+    67: "Me comparo frequentemente.",
+    68: "Estou em fase de crescimento.",
+    69: "Visualizo meu futuro com clareza.",
+    70: "Falta de recursos me limita.",
+    71: "Sou proativo em mudanças.",
+    72: "Dinheiro representa segurança.",
+    73: "Gosto de exibir conquistas.",
+    74: "Planejo finanças a longo prazo.",
+    75: "Perdas financeiras me afetam muito.",
+    76: "Sou generoso financeiramente.",
+    77: "Prefiro guardar dinheiro.",
+    78: "Sou bem recompensado financeiramente.",
+    79: "Dinheiro flui naturalmente.",
+    80: "Faço compras impulsivas.",
 }
 
 scale = [
@@ -41,7 +120,7 @@ scale = [
 ]
 
 # =========================
-# ENGINE
+# ENGINE (mantida)
 # =========================
 def gerar_perfil(respostas: dict) -> dict:
     df = pd.DataFrame(list(respostas.items()), columns=["Q", "Score"])
@@ -65,100 +144,53 @@ def gerar_perfil(respostas: dict) -> dict:
         for k, (i, f) in blocos.items()
     }
 
-    media_geral = round(df["Score"].mean(), 2)
-    desvio_padrao = round(float(df["Score"].std(ddof=0)), 3)
-    amplitude = int(df["Score"].max() - df["Score"].min())
-
-    eixo_mais_alto = max(medias, key=medias.get)
-    eixo_mais_baixo = min(medias, key=medias.get)
-
-    perfil = {
+    return {
         "medias": medias,
-        "media_geral": media_geral,
-        "desvio_padrao": desvio_padrao,
-        "amplitude": amplitude,
-        "eixo_mais_alto": eixo_mais_alto,
-        "eixo_mais_baixo": eixo_mais_baixo,
+        "eixo_mais_alto": max(medias, key=medias.get),
+        "eixo_mais_baixo": min(medias, key=medias.get),
     }
 
-    return perfil
-
 # =========================
-# AI REPORT V4.2
+# AI (V4.2)
 # =========================
 def gerar_relatorio(perfil: dict) -> str:
     client = get_openai_client()
     if client is None:
-        return "Erro: OPENAI_API_KEY não encontrada em Secrets."
+        return "Erro: API não configurada."
 
     prompt = f"""
-Você é um especialista em leitura comportamental.
+Baseado nos dados abaixo, gere uma leitura comportamental real, humana e concreta.
 
-Sua função é gerar um retrato humano preciso, concreto e útil.
-
-DADOS:
 {perfil}
 
-REGRAS:
+Regras:
+- Não generalizar
+- Não inventar
+- Usar comportamento observável
+- Mostrar impacto real
+- Mostrar fortaleza e custo
 
-1. Não invente traços que não estão sustentados nos dados.
-2. Não use linguagem genérica.
-3. Não escreva como teste.
-4. Toda afirmação deve poder ser observada no comportamento.
-5. Não romantize.
-6. Não use frases vagas como "pode indicar".
-7. Use exemplos reais de comportamento.
-8. Mostre consequências práticas.
-9. Sempre inclua:
-   - fortaleza (quando funciona)
-   - desafio (quando limita)
+Estrutura:
+1 funcionamento
+2 decisões
+3 relações
+4 dinâmica interna
+5 padrão dominante
+6 fortalezas
+7 desafios
+8 ponto crítico
+9 direção prática
 
-ESTRUTURA:
-
-1. COMO VOCÊ FUNCIONA DE VERDADE  
-Descreva comportamento visível.
-
-2. COMO VOCÊ TOMA DECISÕES  
-Mostre onde funciona e onde trava.
-
-3. COMO VOCÊ SE RELACIONA  
-Mostre comportamento real com pessoas.
-
-4. DINÂMICA INTERNA  
-Descreva padrão mental/emocional sem exagerar.
-
-5. SEU PADRÃO MAIS FORTE  
-Use o eixo mais alto e mostre como aparece na prática.
-
-6. SUAS FORTALEZAS REAIS  
-Específicas e aplicáveis.
-
-7. SUAS ÁREAS DE DESAFIO  
-Mostre impacto real na vida.
-
-8. O PONTO MAIS IMPORTANTE  
-Aprofunde sem suavizar.
-
-9. DIREÇÃO PRÁTICA  
-Simples, aplicável, direto.
-
-ESTILO:
-- direto
-- humano
-- específico
-- sem clichê
+Seja direto, humano e específico.
 """
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5,
-        )
-        return response.choices[0].message.content
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.5,
+    )
 
-    except Exception as e:
-        return f"Erro ao gerar relatório:\n\n{str(e)}"
+    return response.choices[0].message.content
 
 # =========================
 # UI
@@ -171,15 +203,10 @@ if st.session_state.current_question <= 80:
     st.subheader(f"Pergunta {q}/80")
     st.write(questions[q])
 
-    resposta = st.radio(
-        "Resposta:",
-        scale,
-        index=None,
-        key=f"q_{q}",
-    )
+    resposta = st.radio("Resposta:", scale, index=None, key=f"q_{q}")
 
     if st.button("Próxima"):
-        if resposta is not None:
+        if resposta:
             valor = int(resposta.split(" - ")[0])
             st.session_state.responses[q] = valor
             st.session_state.current_question += 1
@@ -192,12 +219,12 @@ else:
 
     perfil = gerar_perfil(st.session_state.responses)
 
-    with st.spinner("🧠 Gerando leitura profunda..."):
+    with st.spinner("Gerando análise..."):
         relatorio = gerar_relatorio(perfil)
 
     st.markdown(relatorio)
 
-    if st.button("🔄 Refazer"):
+    if st.button("Refazer"):
         st.session_state.responses = {}
         st.session_state.current_question = 1
         st.rerun()
