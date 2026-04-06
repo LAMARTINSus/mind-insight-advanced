@@ -1,12 +1,14 @@
 # =========================
-# VERSION: V4.4
-# Base: V4.1
-# Changes: Prompt refinado (mais concreto + mais humano + mais preciso)
+# VERSION: V4.5 DEBUG
+# Base: V4.1 / V4.4
+# Changes: Debug mode técnico temporário
 # =========================
 
 import streamlit as st
 import pandas as pd
 from openai import OpenAI
+
+DEBUG_MODE = True
 
 # =========================
 # CONFIG
@@ -32,7 +34,7 @@ if "current_question" not in st.session_state:
     st.session_state.current_question = 1
 
 # =========================
-# QUESTIONS (INALTERADAS)
+# QUESTIONS
 # =========================
 questions = {
     1: "Gosto de experimentar novas ideias e atividades.",
@@ -126,7 +128,7 @@ scale = [
 ]
 
 # =========================
-# ENGINE (INALTERADA)
+# ENGINE
 # =========================
 def gerar_perfil(respostas: dict) -> dict:
     df = pd.DataFrame(list(respostas.items()), columns=["Q", "Score"])
@@ -153,14 +155,70 @@ def gerar_perfil(respostas: dict) -> dict:
     eixo_mais_alto = max(medias, key=medias.get)
     eixo_mais_baixo = min(medias, key=medias.get)
 
+    diferencas = {
+        "Seguranca_vs_Abundancia": round(medias["Seguranca"] - medias["Abundancia"], 2),
+        "Amabilidade_vs_Extroversao": round(medias["Amabilidade"] - medias["Extroversao"], 2),
+        "Consciencia_vs_Abertura": round(medias["Consciencia"] - medias["Abertura"], 2),
+        "Neuroticismo_vs_Extroversao": round(medias["Neuroticismo"] - medias["Extroversao"], 2),
+    }
+
+    media_geral = round(df["Score"].mean(), 2)
+    desvio_padrao = round(float(df["Score"].std(ddof=0)), 3)
+    amplitude = int(df["Score"].max() - df["Score"].min())
+
+    tipo_resposta = "discriminante"
+    if desvio_padrao == 0 and media_geral == 3:
+        tipo_resposta = "neutro_uniforme"
+    elif desvio_padrao == 0 and media_geral >= 4.5:
+        tipo_resposta = "inflado_uniforme"
+    elif desvio_padrao == 0 and media_geral <= 1.5:
+        tipo_resposta = "retraido_uniforme"
+    elif desvio_padrao < 0.5 and amplitude <= 1:
+        tipo_resposta = "baixa_discriminacao"
+
+    confiabilidade = "alta"
+    if tipo_resposta in ["neutro_uniforme", "inflado_uniforme", "retraido_uniforme"]:
+        confiabilidade = "baixa"
+    elif tipo_resposta == "baixa_discriminacao":
+        confiabilidade = "média"
+
+    flags = []
+    if medias["Seguranca"] > medias["Abundancia"]:
+        flags.append("mais orientação à segurança do que à expansão")
+    if medias["Amabilidade"] > medias["Extroversao"]:
+        flags.append("mais adaptação relacional do que impulso de exposição")
+    if medias["Abundancia"] < 3:
+        flags.append("baixa percepção de abundância")
+    if medias["Neuroticismo"] >= 3:
+        flags.append("sensibilidade emocional presente")
+
+    hipotese_tecnica = []
+    if medias["Seguranca"] > medias["Abundancia"]:
+        hipotese_tecnica.append("tendência a preservar estabilidade antes de explorar oportunidade")
+    if medias["Amabilidade"] >= 3.3:
+        hipotese_tecnica.append("tendência a manter harmonia relacional")
+    if medias["Extroversao"] < 3.2:
+        hipotese_tecnica.append("exposição social mais moderada do que expansiva")
+    if medias["Abundancia"] < 3:
+        hipotese_tecnica.append("possível restrição na relação com expansão, valor ou oportunidade")
+
     return {
         "medias": medias,
         "eixo_mais_alto": eixo_mais_alto,
         "eixo_mais_baixo": eixo_mais_baixo,
+        "diferencas": diferencas,
+        "media_geral": media_geral,
+        "desvio_padrao": desvio_padrao,
+        "amplitude": amplitude,
+        "tipo_resposta": tipo_resposta,
+        "confiabilidade": confiabilidade,
+        "flags": flags,
+        "hipotese_tecnica": hipotese_tecnica,
+        "respostas_brutas": dict(sorted(respostas.items())),
     }
 
 # =========================
-# PROMPT V4.4 (REFINADO)
+# PROMPT
 # =========================
 def gerar_relatorio(perfil: dict) -> str:
     client = get_openai_client()
@@ -221,9 +279,50 @@ Faça a pessoa se reconhecer.
             temperature=0.6,
         )
         return response.choices[0].message.content
-
     except Exception as e:
         return f"Erro ao gerar relatório:\n\n{str(e)}"
+
+# =========================
+# DEBUG RENDER
+# =========================
+def render_debug(perfil: dict):
+    st.markdown("---")
+    st.header("🔍 Debug técnico do perfil")
+
+    st.subheader("1. Respostas brutas")
+    st.caption("Mostra a resposta capturada em cada pergunta para verificar se o app registrou corretamente.")
+    st.json(perfil["respostas_brutas"])
+
+    st.subheader("2. Médias por eixo")
+    st.caption("Mostra a média de cada bloco do teste. Isso revela quais áreas estão mais altas ou mais baixas.")
+    st.json(perfil["medias"])
+
+    st.subheader("3. Eixo mais alto e mais baixo")
+    st.caption("Mostra o traço com maior média e o traço com menor média.")
+    st.write(f"**Eixo mais alto:** {perfil['eixo_mais_alto']}")
+    st.write(f"**Eixo mais baixo:** {perfil['eixo_mais_baixo']}")
+
+    st.subheader("4. Diferenças entre eixos")
+    st.caption("Ajuda a ver contrastes importantes, como segurança maior que abundância ou adaptação maior que exposição.")
+    st.json(perfil["diferencas"])
+
+    st.subheader("5. Qualidade do dado")
+    st.caption("Mostra se as respostas parecem bem discriminadas ou uniformes demais.")
+    st.write(f"**Média geral:** {perfil['media_geral']}")
+    st.write(f"**Desvio padrão:** {perfil['desvio_padrao']}")
+    st.write(f"**Amplitude:** {perfil['amplitude']}")
+    st.write(f"**Tipo de resposta:** {perfil['tipo_resposta']}")
+    st.write(f"**Confiabilidade:** {perfil['confiabilidade']}")
+
+    st.subheader("6. Flags de atenção")
+    st.caption("Alertas simples que resumem padrões relevantes encontrados.")
+    for item in perfil["flags"]:
+        st.write(f"- {item}")
+
+    st.subheader("7. Hipótese técnica")
+    st.caption("Leitura fria e disciplinada que ajuda a entender o que a AI deveria desenvolver no relatório humano.")
+    for item in perfil["hipotese_tecnica"]:
+        st.write(f"- {item}")
 
 # =========================
 # UI
@@ -261,6 +360,9 @@ else:
         relatorio = gerar_relatorio(perfil)
 
     st.markdown(relatorio)
+
+    if DEBUG_MODE:
+        render_debug(perfil)
 
     if st.button("🔄 Refazer"):
         st.session_state.responses = {}
