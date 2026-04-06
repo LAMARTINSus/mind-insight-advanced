@@ -1,3 +1,9 @@
+# =========================
+# VERSION: V4.4
+# Base: V4.1
+# Changes: Prompt refinado (mais concreto + mais humano + mais preciso)
+# =========================
+
 import streamlit as st
 import pandas as pd
 from openai import OpenAI
@@ -154,7 +160,7 @@ def gerar_perfil(respostas: dict) -> dict:
     }
 
 # =========================
-# PROMPT V4.3 (REFINADO)
+# PROMPT V4.4 (REFINADO)
 # =========================
 def gerar_relatorio(perfil: dict) -> str:
     client = get_openai_client()
@@ -167,37 +173,45 @@ Você está analisando uma pessoa real.
 BASE DE DADOS:
 {perfil}
 
-Descreva como essa pessoa funciona na prática.
+ANTES DE ESCREVER:
+- Identifique os eixos mais altos e mais baixos
+- Observe contrastes importantes
+- Identifique o que diferencia esse perfil
+
+PRINCÍPIO:
+Só escreva o que os dados sustentam.
 
 REGRAS:
-
 - Fale sempre em "você"
-- Nada de linguagem técnica
-- Nada de frases genéricas
+- Não use linguagem técnica
+- Não use frases genéricas
+- Não escreva como teste
+- Não romantize
 - Não invente traços
-- Mostre comportamento real
-- Mostre onde isso ajuda e onde atrapalha
 
-Sempre que possível, use situações reais:
-- conversas
-- decisões
-- trabalho
-- dinheiro
-- relações
+IMPORTANTE:
+Mostre comportamento real em situações:
+conversas, decisões, trabalho, dinheiro, relações.
 
 ESTRUTURA:
 
-1. COMO VOCÊ FUNCIONA
-2. COMO VOCÊ DECIDE
+1. COMO VOCÊ FUNCIONA DE VERDADE
+2. COMO VOCÊ TOMA DECISÕES
 3. COMO VOCÊ SE RELACIONA
 4. O QUE ACONTECE DENTRO DE VOCÊ
 5. SEU PADRÃO MAIS FORTE
-6. SUAS FORTALEZAS
-7. SEUS DESAFIOS
-8. O PONTO MAIS IMPORTANTE
+6. SUAS FORTALEZAS REAIS
+7. SUAS ÁREAS DE DESAFIO
+8. O PONTO QUE MAIS MERECE ATENÇÃO
 9. DIREÇÃO PRÁTICA
 
-Seja direto, humano e específico.
+ESTILO:
+- direto
+- humano
+- específico
+- sem clichê
+
+Faça a pessoa se reconhecer.
 """
 
     try:
