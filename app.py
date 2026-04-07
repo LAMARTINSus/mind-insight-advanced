@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.6
+# Version: V5.7
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -706,7 +706,7 @@ def gerar_relatorio(perfil):
         )
 
     # 4. Evitacao de conflito (padrao independente de Amabilidade)
-    evita_conflito = (q33 <= 2 or q37 <= 2 or q39 <= 2) and q35 >= 4
+    evita_conflito = (q33 <= 3 or q37 <= 3 or q39 <= 3) and q35 >= 3
     if evita_conflito:
         combinacoes_ativas.append(
             "EVITACAO DE CONFLITO SISTEMATICA "
@@ -800,10 +800,10 @@ def gerar_relatorio(perfil):
             "porque nao se vendem bem, mesmo sendo as mais capazes na sala." % (ab, co, ex)
         )
 
-    # 9. Extroversao muito baixa
-    if ex < 2.5:
+    # 9. Extroversao baixa a muito baixa
+    if ex < 3.0:
         combinacoes_ativas.append(
-            "AUSENCIA MARCANTE DE IMPULSO SOCIAL (Extroversao %.2f - muito baixo): "
+            "PADRAO DE BAIXO IMPULSO SOCIAL (Extroversao %.2f): "
             "Este e um dos eixos mais extremos do perfil e precisa ser descrito com seriedade. "
             "Scores: toma_iniciativa_grupo=%d, porta_voz=%d, prefere_escrever_a_falar=%d, "
             "fica_ouvindo_grupo=%d, exprime_opiniao_quando_discordam=%d. "
@@ -819,6 +819,92 @@ def gerar_relatorio(perfil):
         )
 
     linhas_combinacoes = "\n\n".join(combinacoes_ativas) if combinacoes_ativas else "Nenhuma combinacao critica identificada."
+
+    # --- CALIBRACAO 2: Ancoras concretas para secao interna ---
+    # Pre-calcula frases especificas baseadas nos dados reais para guiar o AI
+    ancoras_internas = []
+    if maior_contraste_val >= 0.8:
+        partes = maior_contraste_key.split("_vs_")
+        if len(partes) == 2:
+            eixo_a, eixo_b = partes[0], partes[1]
+            ancoras_internas.append(
+                "ANCORA OBRIGATORIA para secao 4: O contraste %s (%.2f) vs %s (%.2f) = %+.2f "
+                "significa que esta pessoa tem um nivel de %s que nao combina com o nivel de %s. "
+                "Na pratica concreta: ela pode estar pensando em algo com profundidade de nivel %.1f "
+                "mas expressando com intensidade de nivel %.1f. "
+                "Isso cria uma lacuna entre o que ela processa internamente e o que os outros percebem dela. "
+                "Descreva ESTA lacuna especifica - nao uma descricao abstrata dos dois tracos." % (
+                    eixo_a, medias.get(eixo_a, 3.0),
+                    eixo_b, medias.get(eixo_b, 3.0),
+                    maior_contraste_val,
+                    eixo_a, eixo_b,
+                    medias.get(eixo_a, 3.0),
+                    medias.get(eixo_b, 3.0)
+                )
+            )
+    if q44 >= 4 or q49 >= 4:
+        ancoras_internas.append(
+            "ANCORA para secao 4: Esta pessoa antecipa problemas antes que acontecam "
+            "(preocupa_futuro=%d, ansioso_sem_previsibilidade=%d). "
+            "Descreva o que acontece na cabeca dela ANTES de uma reuniao importante, "
+            "ANTES de uma decisao grande, ou ANTES de uma mudanca. "
+            "Ela nao esta com medo - ela esta processando cenarios. "
+            "O custo e que ela gasta energia em problemas que nunca acontecem." % (q44, q49)
+        )
+    if evita_conflito:
+        ancoras_internas.append(
+            "ANCORA para secao 4: Esta pessoa sabe o que pensa mas frequentemente nao diz "
+            "(evita_conflito ativo: q33=%d, q35=%d, q37=%d, q39=%d). "
+            "Ha um dialogo interno onde ela formula a resposta honesta, decide nao dar, "
+            "e depois carrega o peso do que nao disse. "
+            "Descreva esse momento especifico - nao a evitacao em geral." % (q33, q35, q37, q39)
+        )
+    linhas_ancoras = "\n".join(ancoras_internas) if ancoras_internas else ""
+
+    # --- CALIBRACAO 3: Pre-gerar candidatos de proximos passos ---
+    passos_candidatos = []
+    if evita_conflito:
+        passos_candidatos.append(
+            "PASSO DERIVADO DE EVITACAO DE CONFLITO: "
+            "Identifique UMA situacao especifica esta semana onde voce sabe o que pensa mas nao disse. "
+            "Diga. Nao precisa ser dramatico - pode ser um e-mail, uma mensagem, uma conversa de 5 minutos. "
+            "Resultado esperado: voce vai perceber que a tensao que antecipou era menor do que o peso de nao ter dito."
+        )
+    if ab >= 3.5 and ex < 3.5:
+        passos_candidatos.append(
+            "PASSO DERIVADO DE CURIOSIDADE INTERNA: "
+            "Voce ja pensou sobre algo com profundidade que nao compartilhou. "
+            "Esta semana, escreva essa analise - pode ser um e-mail, uma mensagem no grupo, um documento. "
+            "Nao espere ser perguntado. Compartilhe antes. "
+            "Resultado esperado: as pessoas vao reagir com surpresa positiva ao ver o que voce ja sabia."
+        )
+    if se >= 3.0 and (q55 >= 4 or q56 >= 4):
+        passos_candidatos.append(
+            "PASSO DERIVADO DE CAUTELA: "
+            "Identifique uma decisao ou oportunidade que voce adiou porque nao tinha informacao suficiente. "
+            "Defina qual seria o minimo de informacao aceitavel para decidir - e decida com o que ja tem. "
+            "Resultado esperado: voce vai descobrir que a decisao era mais simples do que parecia."
+        )
+    if ab >= 3.5 and co >= 3.5:
+        passos_candidatos.append(
+            "PASSO DERIVADO DE ESPECIALISTA PROFUNDO: "
+            "Voce tem conhecimento profundo em algo que as pessoas ao seu redor precisam. "
+            "Esta semana, ofeca essa analise ou conhecimento proativamente - sem esperar ser chamado. "
+            "Pode ser uma recomendacao, uma analise, uma perspectiva que voce guardou para si. "
+            "Resultado esperado: maior visibilidade do seu valor sem precisar se autopromover."
+        )
+    if ne >= 3.0 and (q44 >= 4 or q49 >= 4):
+        passos_candidatos.append(
+            "PASSO DERIVADO DE ANTECIPACAO ANSIOSA: "
+            "Na proxima vez que perceber que esta antecipando um problema que ainda nao aconteceu, "
+            "escreva os 3 cenarios possiveis e a probabilidade real de cada um. "
+            "Resultado esperado: voce vai perceber que o cenario que mais preocupa raramente e o mais provavel."
+        )
+    if not passos_candidatos:
+        passos_candidatos.append(
+            "PASSO GERAL: Use as forcas identificadas no perfil para criar visibilidade do seu trabalho esta semana."
+        )
+    linhas_passos_candidatos = "\n\n".join(passos_candidatos[:4])
 
     # --- Estilo de lideranca ---
     if ab >= 3.5 and co >= 3.5 and ex < 3.5:
@@ -842,7 +928,7 @@ def gerar_relatorio(perfil):
             "Times sob sua lideranca sabem o que esperar. "
             "Pode ter dificuldade em liderar em contextos de alta ambiguidade."
         )
-    elif ex < 2.5:
+    elif ex < 3.0:
         estilo_lideranca = (
             "ESTILO DE LIDERANCA PROVAVEL: Lideranca por influencia silenciosa e profundidade. "
             "Esta pessoa nao lidera pelo palco - lidera pela qualidade do que produz e pela confianca que inspira. "
@@ -876,6 +962,11 @@ def gerar_relatorio(perfil):
         scores_extremos_linhas += "   - prefere_escrever_a_falar=%d (MUITO BAIXO - prefere escrita a fala)\n" % q27
     if q29 <= 1:
         scores_extremos_linhas += "   - fica_ouvindo_grupo=%d (MUITO BAIXO - fica ouvindo em grupos)\n" % q29
+    # Adicionar scores moderados relevantes quando amplitude e comprimida
+    if q33 == 3 and q35 >= 3 and q37 == 3 and q39 == 3:
+        scores_extremos_linhas += "   - padrao_evitacao_conflito_moderado: q33=%d, q35=%d, q37=%d, q39=%d (moderado mas consistente)\n" % (q33, q35, q37, q39)
+    if q27 == 3 and q29 == 3 and ex < 3.5:
+        scores_extremos_linhas += "   - preferencia_por_escuta_e_escrita: q27=%d, q29=%d (moderado mas consistente com Extroversao %.2f)\n" % (q27, q29, ex)
     if not scores_extremos_linhas:
         scores_extremos_linhas = "   Nenhum score extremo identificado.\n"
 
@@ -968,9 +1059,17 @@ def gerar_relatorio(perfil):
         + "o dialogo interno tipico de pessoas com essa combinacao especifica de tracos. "
         "O que essa pessoa sente mas raramente externaliza? "
         "Qual e o padrao de pensamento que acontece na cabeca dela que os outros nao veem? "
-        "Seja especifico sobre o que essa combinacao cria internamente.\n\n"
+        "IMPORTANTE: seja cirurgico. Nao descreva o contraste de forma abstrata. "
+        "Descreva o que acontece concretamente: em que momentos do dia ela sente isso? "
+        "Em que tipo de situacao esse contraste aparece? O que ela pensa mas nao diz? "
+        "Exemplo de profundidade esperada: se o contraste e Abertura alta vs Extroversao moderada, "
+        "nao diga 'voce tem vida intelectual rica' - diga 'voce chega a uma reuniao ja tendo "
+        "pensado mais profundamente sobre o assunto do que qualquer pessoa na sala, "
+        "mas raramente externaliza isso a menos que seja diretamente solicitado - "
+        "e quando externaliza, frequentemente surpreende quem nao esperava essa profundidade'.\n"
+        + ("ANCORAS ESPECIFICAS PARA ESTA SECAO (use como base, nao ignore):\n" + linhas_ancoras + "\n\n" if linhas_ancoras else "\n")
 
-        "5. ONDE VOCE PODE BRILHAR\n"
+        + "5. ONDE VOCE PODE BRILHAR\n"
         "Com base no perfil completo e no estilo de lideranca identificado, descreva 3 a 4 contextos especificos "
         "onde esta pessoa teria desempenho excepcional. "
         "Nao seja generico. Diga: qual tipo de funcao, qual tipo de ambiente, qual tipo de projeto, "
@@ -980,7 +1079,7 @@ def gerar_relatorio(perfil):
         + "%.2f" % ex
         + " - PROIBIDO sugerir funcoes de alta exposicao social como atendimento, vendas, RH ou apresentacoes frequentes.\n\n"
 
-        "6. SUAS FORCAS REAIS\n"
+        "6. SUAS FORÇAS REAIS\n"
         "Maximo 5 forcas. Formato obrigatorio: 'Voce [verbo de acao concreto] quando [situacao especifica]'. "
         "Cada forca deve descrever um comportamento observavel, nao um adjetivo. "
         "Nao escreva 'voce e curioso' - escreva o que ela faz por causa dessa curiosidade. "
@@ -1000,11 +1099,12 @@ def gerar_relatorio(perfil):
         "e qual seria o impacto concreto na carreira, nas relacoes ou nas financas.\n\n"
 
         "9. PROXIMOS PASSOS\n"
-        "4 acoes especificas e executaveis na proxima semana. "
-        "Cada acao deve: (a) ser derivada de um padrao especifico deste perfil, "
-        "(b) ser algo que uma pessoa com esse perfil nao faria naturalmente mas que teria impacto real, "
-        "(c) ter um resultado esperado claro. "
-        "Nada generico. Nada que qualquer pessoa poderia fazer independente do perfil.\n\n"
+        "INSTRUCAO CRITICA: Os passos abaixo foram pre-gerados com base nos padroes especificos deste perfil. "
+        "Use-os como base obrigatoria. Voce pode refinar a linguagem para soar mais natural e humana, "
+        "mas NAO pode substituir por passos genericos que servem para qualquer pessoa. "
+        "PASSOS CANDIDATOS DERIVADOS DOS PADROES DESTE PERFIL:\n"
+        + linhas_passos_candidatos
+        + "\n\nFormate cada passo com: acao especifica + por que faz sentido para este perfil + resultado esperado.\n\n"
 
         "TOM E ESTILO:\n"
         "- Escreva como um mentor que conhece profundamente esse tipo de pessoa\n"
@@ -1155,12 +1255,12 @@ def render_debug(perfil):
     st.subheader("11. Configuracao do Modelo")
     st.json({
         "model": "gpt-4o",
-        "temperature": 0.5,
+        "temperature": 0.4,
         "perguntas_invertidas": len(PERGUNTAS_INVERTIDAS),
         "total_perguntas": len(questions),
         "eixos": list(blocos_info.keys()),
         "total_contrastes_calculados": len(perfil["diferencas"]),
-        "versao_prompt": "V5.3 - calibrado por Manus AI",
+        "versao_prompt": "V5.7 - calibrado por Manus AI",
     })
 
 # =============================================================
@@ -1169,7 +1269,7 @@ def render_debug(perfil):
 
 st.title("Mind Insight AI")
 st.markdown(
-    '<div class="manus-badge">V5.6 | Criado com Claude (Anthropic) | '
+    '<div class="manus-badge">V5.7 | Criado com Claude (Anthropic) | '
     'Aperfeicoado por Manus AI | Debug ativo</div>',
     unsafe_allow_html=True
 )
