@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.4
+# Version: V5.5
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -528,7 +528,7 @@ def gerar_perfil(respostas):
     }
 
 # =============================================================
-# GERACAO DO RELATORIO (PROMPT CALIBRADO V5.4)
+# GERACAO DO RELATORIO (PROMPT CALIBRADO V5.5)
 # =============================================================
 
 def gerar_relatorio(perfil):
@@ -571,136 +571,258 @@ def gerar_relatorio(perfil):
 
     linhas_hipotese = "\n".join(["- " + h for h in hipotese])
 
+    # --- Construir descricao das combinacoes ativas neste perfil ---
+    combinacoes_ativas = []
+
+    ab = medias["Abertura"]
+    co = medias["Conscienciosidade"]
+    ex = medias["Extroversao"]
+    am = medias["Amabilidade"]
+    ne = medias["Neuroticismo"]
+    se = medias["Seguranca"]
+    abu = medias["Abundancia"]
+
+    if ab >= 3.5 and ex < 3.5:
+        combinacoes_ativas.append(
+            "CURIOSIDADE INTERNA (Abertura %.2f + Extroversao %.2f): "
+            "Esta pessoa tem vida intelectual rica e intensa, mas processa isso internamente. "
+            "Ela explora ideias sozinha, nao em grupo. Ela nao e 'a primeira a falar' - e a que ja pensou mais fundo "
+            "antes de qualquer um abrir a boca. Em reunioes, parece quieta mas ja chegou com a analise pronta. "
+            "Tem opinioes fortes que raramente externaliza sem ser provocada. "
+            "Pode ser subestimada por quem confunde silencio com falta de ideias." % (ab, ex)
+        )
+
+    if co >= 3.5:
+        q11 = diag.get("Conscienciosidade", {}).get("cumpre_compromissos_Q11", 3)
+        q13 = diag.get("Conscienciosidade", {}).get("tem_sistema_prioridades_Q13", 3)
+        q17 = diag.get("Conscienciosidade", {}).get("revisa_antes_entregar_Q17", 3)
+        q18 = diag.get("Conscienciosidade", {}).get("clareza_metas_longo_prazo_Q18", 3)
+        if q11 >= 4 and q17 >= 4 and q13 <= 3:
+            combinacoes_ativas.append(
+                "CONFIABILIDADE SEM RIGIDEZ (Conscienciosidade %.2f, cumpre_compromissos=%d, revisa=%d, sistema_prioridades=%d): "
+                "Esta pessoa e altamente confiavel - quando assume algo, entrega. Mas nao e um planejador rigido. "
+                "Ela nao precisa de um sistema perfeito para comecar, mas nao descansa enquanto nao termina com qualidade. "
+                "O padrao dela e: assume, executa, entrega bem. O risco e assumir mais do que consegue absorver "
+                "porque dificilmente diz nao quando se compromete." % (co, q11, q17, q13)
+            )
+        elif q11 >= 4 and q18 >= 4:
+            combinacoes_ativas.append(
+                "EXECUCAO ORIENTADA A RESULTADO (Conscienciosidade %.2f): "
+                "Esta pessoa combina responsabilidade alta com clareza de onde quer chegar. "
+                "Ela nao apenas entrega - ela entrega no caminho certo. "
+                "O risco e perfeccionismo: pode demorar mais do que o necessario por nao aceitar resultado 'bom o suficiente'." % co
+            )
+
+    if se >= 3.5:
+        q53 = diag.get("Seguranca", {}).get("prefere_saber_o_que_esperar_Q53", 3)
+        q55 = diag.get("Seguranca", {}).get("mudancas_incomodam_Q55", 3)
+        q56 = diag.get("Seguranca", {}).get("prefere_menor_garantido_Q56", 3)
+        combinacoes_ativas.append(
+            "ORIENTACAO A CERTEZA (Seguranca %.2f, prefere_previsibilidade=%d, mudancas_incomodam=%d, prefere_menor_garantido=%d): "
+            "Esta pessoa funciona melhor quando sabe o que esperar. Nao e medo - e preferencia por operar com informacao suficiente. "
+            "Ela tende a escolher a opcao menor mas certa em vez da maior mas incerta. "
+            "Em ambientes de alta mudanca ou ambiguidade, ela gasta energia extra so para se estabilizar antes de agir. "
+            "Isso pode fazer ela perder janelas de oportunidade que exigem acao rapida sem garantia." % (se, q53, q55, q56)
+        )
+    elif 3.0 <= se < 3.5:
+        combinacoes_ativas.append(
+            "CAUTELA SELETIVA (Seguranca %.2f): "
+            "Esta pessoa tem preferencia moderada por previsibilidade. Consegue agir em incerteza quando necessario, "
+            "mas prefere ter informacao suficiente antes de se comprometer. "
+            "Nao e avessa a risco - e criteriosamente cautelosa." % se
+        )
+
+    if am >= 3.5 and ex < 3.5:
+        combinacoes_ativas.append(
+            "CUIDADO SELETIVO (Amabilidade %.2f + Extroversao %.2f): "
+            "Esta pessoa e muito presente e generosa nas relacoes proximas, mas nao busca exposicao social ampla. "
+            "Ela nao cuida de todo mundo - cuida profundamente de quem esta perto. "
+            "Em grupos grandes, pode parecer distante ou reservada, mas em relacoes um a um e extremamente atenta e confiavel. "
+            "O risco: coloca as necessidades dos outros na frente das proprias com tanta frequencia que "
+            "pode acumular ressentimento silencioso quando nao e correspondida." % (am, ex)
+        )
+
+    if ne >= 3.0:
+        q44 = diag.get("Neuroticismo", {}).get("preocupa_com_futuro_Q44", 3)
+        q49 = diag.get("Neuroticismo", {}).get("ansioso_sem_previsibilidade_Q49", 3)
+        q52 = diag.get("Neuroticismo", {}).get("rumina_erros_Q52", 3)
+        if q44 >= 4 or q49 >= 4:
+            combinacoes_ativas.append(
+                "ANTECIPACAO ANSIOSA (Neuroticismo %.2f, preocupa_futuro=%d, ansioso_sem_previsibilidade=%d, rumina_erros=%d): "
+                "Esta pessoa processa riscos e cenarios negativos antes que acontecam. "
+                "Isso a torna excelente em identificar problemas que outros nao veem - mas cobra um preco: "
+                "ela gasta energia antecipando o que pode dar errado mesmo quando a situacao e segura. "
+                "Em momentos de transicao ou incerteza, a cabeca dela trabalha mais do que o necessario." % (ne, q44, q49, q52)
+            )
+
+    if abu < 3.0:
+        combinacoes_ativas.append(
+            "RELACAO RESTRITIVA COM OPORTUNIDADE (Abundancia %.2f): "
+            "Esta pessoa tende a ver os recursos e oportunidades disponiveis para ela como limitados. "
+            "Isso pode fazer ela subvalorizar o proprio trabalho, hesitar em pedir o que merece, "
+            "ou evitar investir em si mesma quando o retorno nao e garantido. "
+            "O impacto financeiro e real: ela pode estar deixando dinheiro na mesa por nao se posicionar com confianca." % abu
+        )
+    elif 3.0 <= abu < 3.5:
+        combinacoes_ativas.append(
+            "ABUNDANCIA MODERADA (Abundancia %.2f): "
+            "Esta pessoa tem uma relacao neutra com oportunidade e recursos - nem expansiva nem restritiva. "
+            "Em momentos de decisao financeira ou de carreira, pode oscilar entre confiar no proprio valor e duvidar dele." % abu
+        )
+
+    if ab >= 3.5 and co >= 3.5 and ex < 3.5:
+        combinacoes_ativas.append(
+            "PERFIL DE ESPECIALISTA PROFUNDO (Abertura %.2f + Conscienciosidade %.2f + Extroversao %.2f): "
+            "Esta combinacao e classica em pessoas que se tornam referencia silenciosa em suas areas. "
+            "Elas exploram com profundidade (Abertura alta), entregam com qualidade (Conscienciosidade alta), "
+            "mas nao buscam holofote (Extroversao moderada). "
+            "Sao as pessoas que os outros consultam quando o assunto e serio. "
+            "O risco: podem ser preteridas em promocoes ou oportunidades de lideranca porque nao se vendem bem, "
+            "mesmo sendo as mais capazes na sala." % (ab, co, ex)
+        )
+
+    linhas_combinacoes = "\n\n".join(combinacoes_ativas) if combinacoes_ativas else "Nenhuma combinacao critica identificada."
+
+    # --- Construir instrucoes de lideranca baseadas no perfil ---
+    if ab >= 3.5 and co >= 3.5 and ex < 3.5:
+        estilo_lideranca = (
+            "ESTILO DE LIDERANCA PROVAVEL: Lideranca por competencia e confiabilidade, nao por carisma ou visibilidade. "
+            "Esta pessoa lidera sendo a referencia tecnica ou estrategica do grupo. "
+            "As pessoas a seguem porque confiam no julgamento dela, nao porque ela se impos. "
+            "Ela e mais eficaz em lideranca de pequenos times ou projetos do que em lideranca de palco. "
+            "Em posicoes de lideranca formal, pode ter dificuldade de se promover e de dar visibilidade ao proprio trabalho."
+        )
+    elif ex >= 3.5 and am >= 3.5:
+        estilo_lideranca = (
+            "ESTILO DE LIDERANCA PROVAVEL: Lideranca relacional e inspiradora. "
+            "Esta pessoa energiza grupos, cria conexao e faz as pessoas se sentirem vistas. "
+            "E mais forte em lideranca de pessoas do que em lideranca de processos."
+        )
+    elif co >= 3.5 and se >= 3.5:
+        estilo_lideranca = (
+            "ESTILO DE LIDERANCA PROVAVEL: Lideranca por estrutura e previsibilidade. "
+            "Esta pessoa cria ambientes organizados e confiaveis. "
+            "Times sob sua lideranca sabem o que esperar e podem confiar nas entregas. "
+            "Pode ter dificuldade em liderar em contextos de alta ambiguidade ou mudanca rapida."
+        )
+    else:
+        estilo_lideranca = (
+            "ESTILO DE LIDERANCA: perfil de lideranca situacional - adapta o estilo ao contexto. "
+            "Mais eficaz em ambientes onde pode usar as forcas especificas identificadas no perfil."
+        )
+
     prompt = (
-        "Voce e um especialista em comportamento humano que escreve relatorios de perfil.\n"
-        "Seu objetivo e fazer a pessoa ler o relatorio e pensar: 'isso sou eu de verdade'.\n"
-        "O relatorio deve ser humano, direto, especifico e motivador.\n"
-        "Ele deve ajudar a pessoa a entender onde ela brilha, onde ela trava, e o que ela pode fazer a respeito.\n\n"
+        "Voce e um especialista em psicologia comportamental com profundo conhecimento em Big Five, "
+        "padroes de comportamento humano e desenvolvimento de carreira. "
+        "Voce vai escrever um relatorio de perfil comportamental para uma pessoa real.\n\n"
 
-        "DADOS DO PERFIL:\n"
-        "Escala: 1.0 (muito baixo) a 5.0 (muito alto). Media 3.0 = neutro.\n\n"
+        "SUA MISSAO:\n"
+        "Usar os dados do perfil abaixo para identificar e descrever os PADROES DE COMPORTAMENTO "
+        "que pessoas com este perfil especifico exibem - no trabalho, nas relacoes, sob pressao, ao tomar decisoes. "
+        "Voce NAO esta apenas reformulando as respostas do questionario. "
+        "Voce esta usando seu conhecimento sobre como esses tracos se manifestam na vida real "
+        "para revelar coisas que a pessoa reconhece como verdadeiras mas talvez nunca tenha articulado.\n\n"
 
-        "RANKING DOS EIXOS (do mais alto ao mais baixo):\n"
+        "DADOS DO PERFIL (escala 1.0 a 5.0, media 3.0 = neutro):\n\n"
+        "RANKING DOS EIXOS:\n"
         + linhas_ranking + "\n\n"
 
         "MEDIAS POR EIXO:\n"
         + linhas_medias + "\n\n"
 
         "MAIOR CONTRASTE DO PERFIL: " + maior_contraste_key
-        + " = %+.2f\n" % maior_contraste_val
-        + "(Este e o padrao mais revelador desta pessoa - DEVE aparecer no relatorio)\n\n"
+        + " = %+.2f" % maior_contraste_val
+        + " (o padrao mais revelador - OBRIGATORIO aparecer no relatorio)\n\n"
 
-        "SCORES DIAGNOSTICOS DE CONSCIENCIOSIDADE:\n"
-        + fmt_diag("Conscienciosidade") + "\n"
-        + "ATENCAO: cumpre_compromissos=" + str(diag.get("Conscienciosidade", {}).get("cumpre_compromissos_Q11", 3))
-        + " e revisa_antes_entregar=" + str(diag.get("Conscienciosidade", {}).get("revisa_antes_entregar_Q17", 3))
-        + " sao altos, mas tem_sistema_prioridades=" + str(diag.get("Conscienciosidade", {}).get("tem_sistema_prioridades_Q13", 3))
-        + " e clareza_metas_longo_prazo=" + str(diag.get("Conscienciosidade", {}).get("clareza_metas_longo_prazo_Q18", 3))
-        + " sao moderados. NAO diga que a pessoa 'planeja minuciosamente' ou 'tem visao estrategica de longo prazo'.\n"
-        + "DIGA que ela e confiavel, entrega com qualidade, cumpre o que promete.\n\n"
+        "SCORES DIAGNOSTICOS (questoes mais reveladoras por eixo):\n"
+        "Conscienciosidade:\n" + fmt_diag("Conscienciosidade") + "\n"
+        "Seguranca:\n" + fmt_diag("Seguranca") + "\n"
+        "Extroversao:\n" + fmt_diag("Extroversao") + "\n"
+        "Amabilidade:\n" + fmt_diag("Amabilidade") + "\n"
+        "Neuroticismo:\n" + fmt_diag("Neuroticismo") + "\n\n"
 
-        "SCORES DIAGNOSTICOS DE SEGURANCA:\n"
-        + fmt_diag("Seguranca") + "\n"
-        + "ATENCAO: prefere_saber_o_que_esperar=" + str(diag.get("Seguranca", {}).get("prefere_saber_o_que_esperar_Q53", 3))
-        + " e mudancas_incomodam=" + str(diag.get("Seguranca", {}).get("mudancas_incomodam_Q55", 3))
-        + " e prefere_menor_garantido=" + str(diag.get("Seguranca", {}).get("prefere_menor_garantido_Q56", 3))
-        + " sao altos. Isso indica preferencia real por previsibilidade. Use isso concretamente.\n\n"
+        "ANALISE DAS COMBINACOES ATIVAS NESTE PERFIL:\n"
+        "(Use estas combinacoes como base para identificar os padroes comportamentais reais)\n\n"
+        + linhas_combinacoes + "\n\n"
 
-        "SCORES DIAGNOSTICOS DE EXTROVERSAO:\n"
-        + fmt_diag("Extroversao") + "\n\n"
+        + estilo_lideranca + "\n\n"
 
-        "SCORES DIAGNOSTICOS DE AMABILIDADE:\n"
-        + fmt_diag("Amabilidade") + "\n\n"
-
-        "SCORES DIAGNOSTICOS DE NEUROTICISMO:\n"
-        + fmt_diag("Neuroticismo") + "\n\n"
-
-        "HIPOTESE TECNICA (base para o relatorio):\n"
-        + linhas_hipotese + "\n\n"
-
-        "DEFINICAO DOS EIXOS (para sua referencia interna - NAO cite esses nomes no relatorio):\n"
-        "- Abertura: curiosidade intelectual, apreciacao por novidade, imaginacao, flexibilidade mental\n"
-        "- Conscienciosidade: responsabilidade, disciplina, qualidade de entrega, confiabilidade\n"
-        "- Extroversao: energia social, assertividade, sociabilidade, busca por estimulo externo\n"
-        "- Amabilidade: empatia, cooperacao, cuidado com os outros, generosidade\n"
-        "- Neuroticismo: ansiedade, sensibilidade emocional, ruminacao, reatividade a estresse\n"
-        "- Seguranca: necessidade de previsibilidade, aversao a risco, preferencia por rotina\n"
-        "- Abundancia: mentalidade de escassez vs. fartura, relacao com recursos e oportunidades\n\n"
-
-        "COMBINACOES IMPORTANTES PARA ESTE PERFIL:\n"
-        "- Abertura alta + Extroversao moderada = curiosidade intensa exercida de forma mais interna e seletiva\n"
-        "- Conscienciosidade alta = entrega com qualidade, mas pode ser autocritico\n"
-        "- Seguranca moderada-alta = prefere certeza antes de agir, pode perder oportunidades por excesso de cautela\n"
-        "- Amabilidade alta + Extroversao moderada = muito presente nas relacoes proximas, mas nao busca exposicao ampla\n\n"
-
-        "REGRAS ABSOLUTAS:\n"
+        "REGRAS ABSOLUTAS - VIOLACAO INVALIDA O RELATORIO:\n"
         "1. Escreva sempre em 'voce' - nunca em terceira pessoa\n"
-        "2. NUNCA use os nomes dos eixos (Abertura, Conscienciosidade, etc.) no texto\n"
-        "3. NUNCA use termos tecnicos como 'introversao', 'neuroticismo', 'extroversao'\n"
-        "4. NUNCA escreva frases que servem para qualquer pessoa ('voce e uma pessoa curiosa')\n"
-        "5. NUNCA diga 'planeja minuciosamente', 'foco excepcional' ou 'visao estrategica' - os dados nao sustentam\n"
-        "6. NUNCA diga que a pessoa 'toma iniciativa em grupo' ou 'e a primeira a agir publicamente' - Extroversao = "
-        + "%.2f\n" % medias["Extroversao"]
-        + "7. Cada afirmacao deve ser verificavel nos dados - se voce nao consegue apontar qual score sustenta, nao escreva\n"
-        + "8. O relatorio deve ser especifico o suficiente para que a pessoa pense 'como voce sabia disso?'\n\n"
+        "2. NUNCA use os nomes dos eixos no texto (Abertura, Conscienciosidade, Extroversao, etc.)\n"
+        "3. NUNCA use termos tecnicos como 'introversao', 'neuroticismo', 'Big Five'\n"
+        "4. NUNCA escreva frases que servem para qualquer pessoa - cada frase deve ser especifica deste perfil\n"
+        "5. NUNCA invente tracos que os dados nao sustentam - cada afirmacao deve ter respaldo nos scores\n"
+        "6. Conscienciosidade " + "%.2f" % co + ": cumpre_compromissos=" + str(diag.get("Conscienciosidade", {}).get("cumpre_compromissos_Q11", 3))
+        + ", sistema_prioridades=" + str(diag.get("Conscienciosidade", {}).get("tem_sistema_prioridades_Q13", 3))
+        + " -> PROIBIDO dizer 'planeja minuciosamente' ou 'visao estrategica de longo prazo'\n"
+        "7. Extroversao " + "%.2f" % ex + " -> PROIBIDO dizer que a pessoa toma iniciativa em grupo ou e a primeira a agir publicamente\n"
+        "8. O relatorio deve fazer a pessoa pensar 'como voce sabia disso?' - nao 'faz sentido para muita gente'\n\n"
 
-        "ESTRUTURA OBRIGATORIA DO RELATORIO:\n\n"
+        "ESTRUTURA OBRIGATORIA:\n\n"
 
         "1. COMO VOCE FUNCIONA DE VERDADE\n"
-        "Baseado nos dois eixos mais altos. Descreva como essa pessoa entra em situacoes novas, "
-        "como reage sob pressao, como se posiciona. Use situacoes do dia a dia. "
-        "Seja especifico: o que ela faz que outras pessoas nao fazem?\n\n"
+        "Descreva o padrao de funcionamento desta pessoa usando o conhecimento sobre como os dois tracos mais altos "
+        "se manifestam em comportamentos observaveis. Como ela entra em situacoes novas? "
+        "Como ela reage quando algo nao sai como esperado? O que ela faz automaticamente que outras pessoas nao fazem? "
+        "Use exemplos de situacoes reais do dia a dia - reuniao, projeto novo, conversa dificil, decisao sob pressao.\n\n"
 
         "2. COMO VOCE TOMA DECISOES\n"
-        "Baseado em Conscienciosidade, Seguranca e Abertura. "
-        "Mostre o processo de decisao real: onde ela e forte, onde ela trava, o que ela prioriza. "
-        "Use os scores diagnosticos para ser preciso.\n\n"
+        "Descreva o processo de decisao real desta pessoa com base nos tracos de responsabilidade, "
+        "orientacao a certeza e curiosidade intelectual. "
+        "Qual e o padrao tipico de pessoas com esses scores ao tomar decisoes importantes? "
+        "Onde elas decidem bem? Onde elas travam? O que elas precisam sentir antes de se comprometer com algo?\n\n"
 
         "3. COMO VOCE SE RELACIONA\n"
-        "Baseado em Amabilidade, Extroversao e Neuroticismo. "
-        "Mostre como ela cria conexoes, como ela se comporta em grupos vs. um a um, "
-        "onde ela da mais do que deveria e onde isso cobra um preco.\n\n"
+        "Descreva o padrao relacional tipico de pessoas com esses scores de empatia, energia social e sensibilidade emocional. "
+        "Como ela se comporta em grupos vs. em relacoes um a um? "
+        "O que ela faz pelos outros que nao percebe que faz? Onde isso cobra um preco dela?\n\n"
 
         "4. O QUE ACONTECE DENTRO DE VOCE\n"
         "Use o maior contraste do perfil ("
-        + maior_contraste_key + " = %+.2f) como eixo central. " % maior_contraste_val
-        + "Descreva o dialogo interno que esse contraste cria. "
-        "O que essa pessoa sente mas raramente diz? O que acontece na cabeca dela que os outros nao veem?\n\n"
+        + maior_contraste_key + " = %+.2f) para descrever " % maior_contraste_val
+        + "o dialogo interno tipico de pessoas com essa combinacao especifica de tracos. "
+        "O que essa pessoa sente mas raramente externaliza? "
+        "Qual e o padrao de pensamento que acontece na cabeca dela que os outros nao veem? "
+        "Seja especifico sobre o que essa combinacao cria internamente.\n\n"
 
         "5. ONDE VOCE PODE BRILHAR\n"
-        "Este e o ponto mais importante do relatorio. "
-        "Com base no perfil completo, identifique 3 a 4 contextos, funcoes ou situacoes onde essa pessoa "
-        "teria desempenho excepcional usando suas forcas naturais. "
-        "Inclua exemplos de areas profissionais, tipos de lideranca, projetos ou papeis onde ela se destacaria. "
-        "Seja concreto: nao diga 'voce seria bom em trabalhos criativos', diga qual tipo de trabalho e por que esse perfil especifico brilha nele.\n\n"
+        "Com base no perfil completo e no estilo de lideranca identificado, descreva 3 a 4 contextos especificos "
+        "onde esta pessoa teria desempenho excepcional. "
+        "Nao seja generico. Diga: qual tipo de funcao, qual tipo de ambiente, qual tipo de projeto, "
+        "qual papel em um time. Por que esse perfil especifico brilha nesse contexto e nao em outro? "
+        "Inclua pelo menos um contexto de lideranca ou influencia.\n\n"
 
         "6. SUAS FORCAS REAIS\n"
-        "Maximo 5. Formato obrigatorio: 'Voce [verbo concreto e especifico] quando [situacao especifica]'. "
-        "Cada forca deve ser sustentada por um score >= 3.5. Nada generico.\n\n"
+        "Maximo 5 forcas. Formato obrigatorio: 'Voce [verbo de acao concreto] quando [situacao especifica]'. "
+        "Cada forca deve descrever um comportamento observavel, nao um adjetivo. "
+        "Nao escreva 'voce e curioso' - escreva o que ela faz por causa dessa curiosidade. "
+        "Cada forca deve ser sustentada por score >= 3.5 nos dados.\n\n"
 
         "7. ONDE VOCE TRAVA\n"
-        "Maximo 4. Formato obrigatorio: 'Porque voce tende a [padrao especifico], "
-        "o que acontece na pratica e [consequencia concreta e real]'. "
-        "Seja direto. Nao suavize. Mostre o custo real desse padrao na vida profissional e pessoal.\n\n"
+        "Maximo 4 pontos. Formato obrigatorio: 'Porque voce tende a [padrao comportamental especifico], "
+        "o que acontece na pratica e [consequencia concreta na vida real]'. "
+        "Seja direto. Mostre o custo real - financeiro, profissional, relacional. "
+        "Nao suavize. Pessoas com esse perfil reconhecem esses padroes quando sao descritos com precisao.\n\n"
 
         "8. O QUE VALE DESENVOLVER\n"
-        "Identifique 2 a 3 areas de desenvolvimento que, se trabalhadas, teriam o maior impacto "
-        "no crescimento pessoal, profissional ou financeiro desta pessoa. "
-        "Nao e sobre 'fraquezas' - e sobre o que, se desenvolvido, abriria novas possibilidades. "
-        "Seja especifico sobre o que desenvolver e qual seria o impacto concreto.\n\n"
+        "2 a 3 areas de desenvolvimento de alto impacto para este perfil especifico. "
+        "Nao e sobre corrigir fraquezas - e sobre o que, se desenvolvido, multiplicaria os resultados "
+        "que essa pessoa ja consegue. Seja especifico: o que desenvolver, como isso se conecta ao perfil, "
+        "e qual seria o impacto concreto na carreira, nas relacoes ou nas financas.\n\n"
 
         "9. PROXIMOS PASSOS\n"
-        "4 acoes concretas e executaveis na proxima semana. "
-        "Cada acao deve derivar diretamente de um padrao especifico deste perfil. "
-        "Formato: acao especifica + por que faz sentido para este perfil + o que muda se ela fizer isso. "
-        "Nada generico. Nada que qualquer pessoa poderia fazer.\n\n"
+        "4 acoes especificas e executaveis na proxima semana. "
+        "Cada acao deve: (a) ser derivada de um padrao especifico deste perfil, "
+        "(b) ser algo que uma pessoa com esse perfil nao faria naturalmente mas que teria impacto real, "
+        "(c) ter um resultado esperado claro. "
+        "Nada generico. Nada que qualquer pessoa poderia fazer independente do perfil.\n\n"
 
         "TOM E ESTILO:\n"
-        "- Escreva como um mentor que conhece a pessoa de verdade, nao como um relatorio de RH\n"
-        "- Seja direto e humano ao mesmo tempo\n"
-        "- Mostre que voce entende o que e ser essa pessoa especifica\n"
-        "- O objetivo e que a pessoa leia e sinta vontade de agir - nao apenas de concordar\n"
-        "- Evite listas de adjetivos. Prefira frases que descrevem comportamentos reais\n"
+        "- Escreva como um mentor que conhece profundamente esse tipo de pessoa\n"
+        "- Seja direto, especifico e humano\n"
+        "- Evite listas de adjetivos - prefira descricoes de comportamentos reais\n"
+        "- O criterio final: a pessoa deve ler e pensar 'isso sou eu de verdade, como voce sabia?'\n"
     )
 
     try:
@@ -857,7 +979,7 @@ def render_debug(perfil):
 
 st.title("Mind Insight AI")
 st.markdown(
-    '<div class="manus-badge">V5.3 | Criado com Claude (Anthropic) | '
+    '<div class="manus-badge">V5.5 | Criado com Claude (Anthropic) | '
     'Aperfeicoado por Manus AI | Debug ativo</div>',
     unsafe_allow_html=True
 )
