@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.3
+# Version: V5.4
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -23,6 +23,13 @@
 #       - Debug: exibe todos os 21 contrastes no painel
 #       - Aviso de amplitude comprimida quando > 60% respostas sao 3-4
 #       - Q63 removida das invertidas (semantica ambigua revisada)
+# V5.4 - Q63 REESCRITA: nova pergunta mede aversao a risco/imprevisibilidade
+#       - Q63 volta a ser invertida (semantica agora clara)
+#       - Engine: scores diagnosticos por eixo passados ao prompt
+#       - Prompt: completamente reformulado com linguagem humana e motivadora
+#       - Prompt: nova estrutura orientada a forcas, lideranca e crescimento
+#       - Prompt: proibido usar termos tecnicos (introversao, neuroticismo, etc)
+#       - Prompt: relatorio deve fazer a pessoa se identificar e querer agir
 # =============================================================
 
 import streamlit as st
@@ -185,7 +192,7 @@ questions = {
     60: "Consigo me comprometer com algo antes de ter certeza absoluta de que vai dar certo.",
     61: "Sinto desconforto real quando preciso tomar decisoes sem um plano claro.",
     62: "Me sinto seguro mesmo em fases de transicao ou incerteza na minha vida.",
-    63: "Minha sensacao de estabilidade depende mais do que eu penso sobre mim do que do que os outros pensam.",
+    63: "Prefiro confirmar os detalhes antes de agir do que improvisar no momento.",
     # ABUNDANCIA
     64: "Quando vejo alguem bem-sucedido, meu primeiro pensamento e de inspiracao, nao de comparacao.",
     65: "Sinto que as oportunidades disponiveis para mim sao limitadas.",
@@ -270,7 +277,7 @@ questions_display = {
     60: "Consigo me comprometer com algo antes de ter certeza absoluta de que vai dar certo.",
     61: "Sinto desconforto real quando preciso tomar decisões sem um plano claro.",
     62: "Me sinto seguro mesmo em fases de transição ou incerteza na minha vida.",
-    63: "Minha sensação de estabilidade depende mais do que eu penso sobre mim do que do que os outros pensam.",
+    63: "Prefiro confirmar os detalhes antes de agir do que improvisar no momento.",
     # ABUNDANCIA
     64: "Quando vejo alguém bem-sucedido, meu primeiro pensamento é de inspiração, não de comparação.",
     65: "Sinto que as oportunidades disponíveis para mim são limitadas.",
@@ -306,7 +313,7 @@ PERGUNTAS_INVERTIDAS = {
     23, 25, 27, 29,
     33, 34, 37, 39,
     43, 45, 48, 51,
-    54, 57, 60, 62,
+    54, 57, 60, 62, 63,
     65, 67, 69, 71, 73, 74
 }
 
@@ -457,6 +464,44 @@ def gerar_perfil(respostas):
     # Eixos moderados (3.0-3.4) - nao devem ser tratados como problematicos
     eixos_moderados = {k: v for k, v in medias.items() if 3.0 <= v < 3.5}
 
+    # Scores diagnosticos por eixo (questoes mais reveladoras)
+    adj = respostas_ajustadas
+    scores_diagnosticos = {
+        "Conscienciosidade": {
+            "cumpre_compromissos_Q11":      adj.get(11, 3),
+            "revisa_antes_entregar_Q17":    adj.get(17, 3),
+            "mantem_compromissos_Q20":      adj.get(20, 3),
+            "tem_sistema_prioridades_Q13":  adj.get(13, 3),
+            "clareza_metas_longo_prazo_Q18": adj.get(18, 3),
+            "se_distrai_facilmente_Q19":    adj.get(19, 3),
+        },
+        "Seguranca": {
+            "prefere_saber_o_que_esperar_Q53":  adj.get(53, 3),
+            "mudancas_incomodam_Q55":           adj.get(55, 3),
+            "prefere_menor_garantido_Q56":      adj.get(56, 3),
+            "resiste_mudar_rotina_Q59":         adj.get(59, 3),
+            "age_sem_informacoes_Q54":          adj.get(54, 3),
+            "confirma_antes_de_agir_Q63":       adj.get(63, 3),
+        },
+        "Extroversao": {
+            "energia_com_pessoas_Q21":      adj.get(21, 3),
+            "toma_iniciativa_grupo_Q22":    adj.get(22, 3),
+            "busca_pessoas_novas_Q26":      adj.get(26, 3),
+            "prefere_pensar_sozinho_Q23":   adj.get(23, 3),
+        },
+        "Amabilidade": {
+            "ajuda_instintivamente_Q31":    adj.get(31, 3),
+            "le_emocoes_dos_outros_Q32":    adj.get(32, 3),
+            "fica_mal_ao_decepcionar_Q35":  adj.get(35, 3),
+            "coloca_outros_na_frente_Q41": adj.get(41, 3),
+        },
+        "Neuroticismo": {
+            "preocupa_com_futuro_Q44":      adj.get(44, 3),
+            "ansioso_sem_previsibilidade_Q49": adj.get(49, 3),
+            "rumina_erros_Q52":             adj.get(52, 3),
+        },
+    }
+
     return {
         "medias":              medias,
         "intensidades":        intensidades,
@@ -476,13 +521,14 @@ def gerar_perfil(respostas):
         "maior_contraste_key": maior_contraste_key,
         "maior_contraste_val": maior_contraste_val,
         "eixos_baixos":        eixos_baixos,
-        "eixos_moderados":     eixos_moderados,
-        "alerta_amplitude":    alerta_amplitude,
-        "pct_3_4":             round(pct_3_4, 1),
+        "eixos_moderados":       eixos_moderados,
+        "alerta_amplitude":      alerta_amplitude,
+        "pct_3_4":               round(pct_3_4, 1),
+        "scores_diagnosticos":   scores_diagnosticos,
     }
 
 # =============================================================
-# GERACAO DO RELATORIO (PROMPT CALIBRADO V5.2)
+# GERACAO DO RELATORIO (PROMPT CALIBRADO V5.4)
 # =============================================================
 
 def gerar_relatorio(perfil):
@@ -494,173 +540,167 @@ def gerar_relatorio(perfil):
     intensidades         = perfil["intensidades"]
     eixo_alto            = perfil["eixo_mais_alto"]
     eixo_baixo           = perfil["eixo_mais_baixo"]
-    diferencas           = perfil["diferencas"]
-    flags                = perfil["flags"]
-    hipotese             = perfil["hipotese_tecnica"]
     ranking_eixos        = perfil["ranking_eixos"]
     maior_contraste_key  = perfil["maior_contraste_key"]
     maior_contraste_val  = perfil["maior_contraste_val"]
     eixos_baixos         = perfil["eixos_baixos"]
-    eixos_moderados      = perfil["eixos_moderados"]
+    hipotese             = perfil["hipotese_tecnica"]
+    diag                 = perfil["scores_diagnosticos"]
 
+    # Linhas do ranking
     linhas_ranking = "\n".join([
         "  %d. %s: %.2f  [%s]" % (i + 1, k, v, intensidades[k])
         for i, (k, v) in enumerate(ranking_eixos)
     ])
 
+    # Linhas de medias
     linhas_medias = "\n".join([
         "- %s: %.2f  -> %s" % (k, v, intensidades[k])
         for k, v in medias.items()
     ])
 
-    linhas_diferencas = "\n".join([
-        "- %s: %+.2f%s" % (k, v, " <- MAIOR CONTRASTE DO PERFIL" if k == maior_contraste_key else "")
-        for k, v in sorted(diferencas.items(), key=lambda x: -abs(x[1]))
-    ])
+    # Scores diagnosticos formatados
+    def fmt_diag(eixo):
+        items = diag.get(eixo, {})
+        return "\n".join(["    %s = %d" % (k, v) for k, v in items.items()])
 
-    linhas_flags    = "\n".join(["- " + f for f in flags])
-    linhas_hipotese = "\n".join(["- " + h for h in hipotese])
-
-    if eixos_baixos:
-        linhas_eixos_baixos = "\n".join([
-            "- %s: %.2f (abaixo de 3.0 - traco limitante real)" % (k, v)
-            for k, v in eixos_baixos.items()
-        ])
-    else:
-        linhas_eixos_baixos = "- Nenhum eixo abaixo de 3.0"
-
-    if eixos_moderados:
-        linhas_eixos_moderados = "\n".join([
-            "- %s: %.2f (moderado - nao e ponto critico)" % (k, v)
-            for k, v in eixos_moderados.items()
-        ])
-    else:
-        linhas_eixos_moderados = "- Nenhum eixo moderado"
-
+    # Eixos abaixo de 3.0
     eixos_baixos_str = ", ".join([
         "%s %.2f" % (k, v) for k, v in eixos_baixos.items()
     ]) if eixos_baixos else "nenhum"
 
+    linhas_hipotese = "\n".join(["- " + h for h in hipotese])
+
     prompt = (
-        "Voce esta analisando uma pessoa real com base em dados precisos de perfil comportamental.\n"
-        "Seu trabalho e ser fiel aos numeros. Nada do que voce escrever pode contradizer os dados abaixo.\n\n"
+        "Voce e um especialista em comportamento humano que escreve relatorios de perfil.\n"
+        "Seu objetivo e fazer a pessoa ler o relatorio e pensar: 'isso sou eu de verdade'.\n"
+        "O relatorio deve ser humano, direto, especifico e motivador.\n"
+        "Ele deve ajudar a pessoa a entender onde ela brilha, onde ela trava, e o que ela pode fazer a respeito.\n\n"
+
+        "DADOS DO PERFIL:\n"
+        "Escala: 1.0 (muito baixo) a 5.0 (muito alto). Media 3.0 = neutro.\n\n"
 
         "RANKING DOS EIXOS (do mais alto ao mais baixo):\n"
         + linhas_ranking + "\n\n"
 
-        "MEDIAS POR EIXO (escala 1.0 a 5.0):\n"
+        "MEDIAS POR EIXO:\n"
         + linhas_medias + "\n\n"
 
-        "EIXO MAIS ALTO: " + eixo_alto + "\n"
-        "EIXO MAIS BAIXO: " + eixo_baixo + "\n\n"
+        "MAIOR CONTRASTE DO PERFIL: " + maior_contraste_key
+        + " = %+.2f\n" % maior_contraste_val
+        + "(Este e o padrao mais revelador desta pessoa - DEVE aparecer no relatorio)\n\n"
 
-        "CONTRASTES ENTRE EIXOS (ordenados por magnitude):\n"
-        + linhas_diferencas + "\n\n"
+        "SCORES DIAGNOSTICOS DE CONSCIENCIOSIDADE:\n"
+        + fmt_diag("Conscienciosidade") + "\n"
+        + "ATENCAO: cumpre_compromissos=" + str(diag.get("Conscienciosidade", {}).get("cumpre_compromissos_Q11", 3))
+        + " e revisa_antes_entregar=" + str(diag.get("Conscienciosidade", {}).get("revisa_antes_entregar_Q17", 3))
+        + " sao altos, mas tem_sistema_prioridades=" + str(diag.get("Conscienciosidade", {}).get("tem_sistema_prioridades_Q13", 3))
+        + " e clareza_metas_longo_prazo=" + str(diag.get("Conscienciosidade", {}).get("clareza_metas_longo_prazo_Q18", 3))
+        + " sao moderados. NAO diga que a pessoa 'planeja minuciosamente' ou 'tem visao estrategica de longo prazo'.\n"
+        + "DIGA que ela e confiavel, entrega com qualidade, cumpre o que promete.\n\n"
 
-        "EIXOS ABAIXO DE 3.0 - TRACOS LIMITANTES REAIS:\n"
-        + linhas_eixos_baixos + "\n\n"
+        "SCORES DIAGNOSTICOS DE SEGURANCA:\n"
+        + fmt_diag("Seguranca") + "\n"
+        + "ATENCAO: prefere_saber_o_que_esperar=" + str(diag.get("Seguranca", {}).get("prefere_saber_o_que_esperar_Q53", 3))
+        + " e mudancas_incomodam=" + str(diag.get("Seguranca", {}).get("mudancas_incomodam_Q55", 3))
+        + " e prefere_menor_garantido=" + str(diag.get("Seguranca", {}).get("prefere_menor_garantido_Q56", 3))
+        + " sao altos. Isso indica preferencia real por previsibilidade. Use isso concretamente.\n\n"
 
-        "EIXOS MODERADOS (3.0-3.4) - NAO SAO PROBLEMAS CRITICOS:\n"
-        + linhas_eixos_moderados + "\n\n"
+        "SCORES DIAGNOSTICOS DE EXTROVERSAO:\n"
+        + fmt_diag("Extroversao") + "\n\n"
 
-        "FLAGS IDENTIFICADAS:\n" + linhas_flags + "\n\n"
-        "HIPOTESE TECNICA:\n" + linhas_hipotese + "\n\n"
+        "SCORES DIAGNOSTICOS DE AMABILIDADE:\n"
+        + fmt_diag("Amabilidade") + "\n\n"
 
-        "ESCALA DE INTENSIDADE:\n"
-        "- 1.0 a 2.0: traco muito baixo - ausencia marcante\n"
-        "- 2.1 a 2.9: traco abaixo da media - tendencia limitante\n"
-        "- 3.0 a 3.4: traco moderado - contextual\n"
-        "- 3.5 a 4.2: traco alto - padrao consistente\n"
-        "- 4.3 a 5.0: traco muito alto - dominante\n\n"
+        "SCORES DIAGNOSTICOS DE NEUROTICISMO:\n"
+        + fmt_diag("Neuroticismo") + "\n\n"
 
-        "DEFINICAO DOS EIXOS:\n"
+        "HIPOTESE TECNICA (base para o relatorio):\n"
+        + linhas_hipotese + "\n\n"
+
+        "DEFINICAO DOS EIXOS (para sua referencia interna - NAO cite esses nomes no relatorio):\n"
         "- Abertura: curiosidade intelectual, apreciacao por novidade, imaginacao, flexibilidade mental\n"
-        "- Conscienciosidade: organizacao, disciplina, planejamento, responsabilidade, foco\n"
+        "- Conscienciosidade: responsabilidade, disciplina, qualidade de entrega, confiabilidade\n"
         "- Extroversao: energia social, assertividade, sociabilidade, busca por estimulo externo\n"
-        "- Amabilidade: empatia, cooperacao, evitar conflito, confianca nos outros, generosidade\n"
-        "- Neuroticismo: ansiedade, instabilidade emocional, ruminacao, reatividade a estresse\n"
-        "- Seguranca: orientacao para estabilidade, necessidade de previsibilidade, aversao a risco\n"
-        "- Abundancia: mentalidade de escassez vs. fartura, relacao emocional com recursos e oportunidades\n\n"
+        "- Amabilidade: empatia, cooperacao, cuidado com os outros, generosidade\n"
+        "- Neuroticismo: ansiedade, sensibilidade emocional, ruminacao, reatividade a estresse\n"
+        "- Seguranca: necessidade de previsibilidade, aversao a risco, preferencia por rotina\n"
+        "- Abundancia: mentalidade de escassez vs. fartura, relacao com recursos e oportunidades\n\n"
 
-        "COMBINACOES IMPORTANTES:\n"
-        "- Seguranca alta + Abundancia baixa = protege o que tem, dificuldade de expandir\n"
-        "- Amabilidade alta + Extroversao baixa = cuida dos outros mas evita exposicao social\n"
-        "- Amabilidade alta + Neuroticismo alto = sensivel as relacoes, ansioso com conflitos\n"
-        "- Conscienciosidade alta + Abertura baixa = executa bem, resiste a mudanca de rota\n"
-        "- Neuroticismo alto + Seguranca alta = ansioso internamente, busca controle externo como alivio\n"
-        "- Neuroticismo alto + Extroversao baixa = processa internamente, rumina sozinho, nao externaliza\n"
-        "- Abertura alta + Extroversao baixa = curiosidade intensa exercida em isolamento, explora sozinho nao em grupo, nao 'e o primeiro' a falar ou agir publicamente\n\n"
+        "COMBINACOES IMPORTANTES PARA ESTE PERFIL:\n"
+        "- Abertura alta + Extroversao moderada = curiosidade intensa exercida de forma mais interna e seletiva\n"
+        "- Conscienciosidade alta = entrega com qualidade, mas pode ser autocritico\n"
+        "- Seguranca moderada-alta = prefere certeza antes de agir, pode perder oportunidades por excesso de cautela\n"
+        "- Amabilidade alta + Extroversao moderada = muito presente nas relacoes proximas, mas nao busca exposicao ampla\n\n"
 
-        "REGRAS FUNDAMENTAIS:\n"
-        "- Fale sempre em 'voce'\n"
-        "- Nao use linguagem tecnica nem nomeie os eixos diretamente\n"
-        "- Nao use frases genericas que servem para qualquer pessoa\n"
-        "- Nao romantize nem suavize pontos dificeis que os dados mostram\n"
-        "- Cada traco deve mostrar onde funciona bem E onde cobra um preco\n"
-        "- Mostre comportamentos concretos em situacoes reais do dia a dia\n\n"
+        "REGRAS ABSOLUTAS:\n"
+        "1. Escreva sempre em 'voce' - nunca em terceira pessoa\n"
+        "2. NUNCA use os nomes dos eixos (Abertura, Conscienciosidade, etc.) no texto\n"
+        "3. NUNCA use termos tecnicos como 'introversao', 'neuroticismo', 'extroversao'\n"
+        "4. NUNCA escreva frases que servem para qualquer pessoa ('voce e uma pessoa curiosa')\n"
+        "5. NUNCA diga 'planeja minuciosamente', 'foco excepcional' ou 'visao estrategica' - os dados nao sustentam\n"
+        "6. NUNCA diga que a pessoa 'toma iniciativa em grupo' ou 'e a primeira a agir publicamente' - Extroversao = "
+        + "%.2f\n" % medias["Extroversao"]
+        + "7. Cada afirmacao deve ser verificavel nos dados - se voce nao consegue apontar qual score sustenta, nao escreva\n"
+        + "8. O relatorio deve ser especifico o suficiente para que a pessoa pense 'como voce sabia disso?'\n\n"
 
-        "REGRAS DE VALIDACAO CRUZADA - OBRIGATORIAS:\n"
-        "REGRA 1 - ANTI-CONTRADICAO: Antes de escrever qualquer forca, verifique o eixo correspondente. "
-        "Se o eixo estiver abaixo de 3.0, esse traco NAO pode aparecer como forca. "
-        "Exemplo proibido: escrever 'voce planeja meticulosamente' se Conscienciosidade < 3.0. "
-        "Exemplo proibido: escrever 'voce se adapta rapidamente a mudancas' se Seguranca >= 3.5.\n"
-        "REGRA 2 - ANTI-AMPLIFICACAO: Eixos moderados (3.0 a 3.4) nao sao problemas criticos. "
-        "Nao trate eixo moderado como se fosse baixo ou problematico. "
-        "Exemplo proibido: tratar Abundancia 3.18 como 'mentalidade de escassez severa'.\n"
-        "REGRA 3 - MAIOR CONTRASTE OBRIGATORIO: O maior contraste REAL do perfil e '"
-        + maior_contraste_key
-        + " = %+.2f' (calculado entre todos os 21 pares possiveis). " % maior_contraste_val
-        + "Este padrao DEVE aparecer explicitamente na secao 'O que acontece dentro de voce'. "
-        "Nao e opcional. Nao substitua por um contraste menor.\n"
-        "REGRA 6 - ANTI-CONTRADICAO DE COMBINACAO: Se Abertura >= 3.5 e Extroversao < 3.5, "
-        "PROIBIDO escrever que a pessoa 'e a primeira a falar', 'toma iniciativa em grupo', "
-        "'lidera discussoes publicas' ou qualquer comportamento extrovertido. "
-        "A curiosidade desta pessoa e exercida internamente, nao em exposicao social.\n"
-        "REGRA 4 - EIXOS BAIXOS SAO DESAFIOS REAIS: Cada eixo abaixo de 3.0 deve aparecer "
-        "nas secoes de desafio com impacto concreto no comportamento. Nao pode ser ignorado.\n"
-        "REGRA 5 - DIRECAO PRATICA DERIVADA DOS DADOS: Cada orientacao da secao 9 deve derivar "
-        "diretamente dos eixos mais baixos ou do maior contraste deste perfil especifico. "
-        "Orientacoes genericas como 'experimente uma nova rota para o trabalho' ou "
-        "'saia da zona de conforto' sao proibidas.\n\n"
+        "ESTRUTURA OBRIGATORIA DO RELATORIO:\n\n"
 
-        "ESTRUTURA OBRIGATORIA:\n\n"
         "1. COMO VOCE FUNCIONA DE VERDADE\n"
-        "Use os dois eixos mais altos do ranking. Mostre como a pessoa entra em ambientes, reage sob pressao, se posiciona.\n\n"
+        "Baseado nos dois eixos mais altos. Descreva como essa pessoa entra em situacoes novas, "
+        "como reage sob pressao, como se posiciona. Use situacoes do dia a dia. "
+        "Seja especifico: o que ela faz que outras pessoas nao fazem?\n\n"
+
         "2. COMO VOCE TOMA DECISOES\n"
-        "Use Conscienciosidade, Seguranca e Abertura com seus valores reais. Mostre onde decide bem, onde trava, onde cede.\n\n"
+        "Baseado em Conscienciosidade, Seguranca e Abertura. "
+        "Mostre o processo de decisao real: onde ela e forte, onde ela trava, o que ela prioriza. "
+        "Use os scores diagnosticos para ser preciso.\n\n"
+
         "3. COMO VOCE SE RELACIONA\n"
-        "Use Amabilidade, Extroversao e Neuroticismo. Mostre como cria conexao e onde vai alem do que deveria.\n\n"
+        "Baseado em Amabilidade, Extroversao e Neuroticismo. "
+        "Mostre como ela cria conexoes, como ela se comporta em grupos vs. um a um, "
+        "onde ela da mais do que deveria e onde isso cobra um preco.\n\n"
+
         "4. O QUE ACONTECE DENTRO DE VOCE\n"
         "Use o maior contraste do perfil ("
-        + maior_contraste_key
-        + " = %+.2f) como eixo central. " % maior_contraste_val
-        + "Descreva o padrao de pensamento interno que esse contraste cria.\n\n"
-        "5. SEU PADRAO MAIS FORTE\n"
-        "Pegue o eixo mais alto ("
-        + eixo_alto
-        + ": %.2f). " % medias[eixo_alto]
-        + "Mostre em 3 situacoes do cotidiano. Trunfo e problema concretos. "
-        "ATENCAO: se Extroversao for menor que 3.5, as situacoes NAO podem envolver "
-        "comportamento proativo em grupo, lideranca publica ou 'ser o primeiro' a agir. "
-        "O padrao deve ser compativel com o nivel de Extroversao ("
-        + "Extroversao: %.2f).\n\n" % medias["Extroversao"]
-        + "6. SUAS FORCAS REAIS\n"
-        "Maximo 5. Formato: 'Voce [verbo concreto] quando [situacao especifica]'. "
-        "VALIDACAO OBRIGATORIA: cada forca deve ser sustentada por um eixo >= 3.0.\n\n"
-        "7. SUAS AREAS DE DESAFIO\n"
-        "Maximo 5. Formato: 'Porque voce tende a [padrao], o que acontece na pratica e [consequencia concreta]'. "
-        "OBRIGATORIO: incluir os eixos abaixo de 3.0 (" + eixos_baixos_str + ").\n\n"
-        "8. O PONTO QUE MAIS MERECE ATENCAO\n"
-        "Um ponto. OBRIGATORIO: deve ser derivado do eixo mais extremo (mais alto ou mais baixo) "
-        "ou do maior contraste do perfil ("
-        + maior_contraste_key + " = %+.2f). " % maior_contraste_val
-        + "Eixos moderados (3.0-3.4) NAO podem ser o ponto principal a menos que sejam o unico dado disponivel. "
-        "Aprofunde: como aparece, o que protege, o que custa, o sinal de que esta acontecendo.\n\n"
-        "9. DIRECAO PRATICA\n"
-        "4 a 5 orientacoes concretas executaveis na proxima semana. "
-        "Cada orientacao deve derivar de um eixo especifico deste perfil. "
-        "Cite o comportamento real que a orientacao visa mudar.\n\n"
-        "CRITERIO FINAL: a pessoa deve ler e pensar 'como voce sabia disso?' - nao 'faz sentido para muita gente'."
+        + maior_contraste_key + " = %+.2f) como eixo central. " % maior_contraste_val
+        + "Descreva o dialogo interno que esse contraste cria. "
+        "O que essa pessoa sente mas raramente diz? O que acontece na cabeca dela que os outros nao veem?\n\n"
+
+        "5. ONDE VOCE PODE BRILHAR\n"
+        "Este e o ponto mais importante do relatorio. "
+        "Com base no perfil completo, identifique 3 a 4 contextos, funcoes ou situacoes onde essa pessoa "
+        "teria desempenho excepcional usando suas forcas naturais. "
+        "Inclua exemplos de areas profissionais, tipos de lideranca, projetos ou papeis onde ela se destacaria. "
+        "Seja concreto: nao diga 'voce seria bom em trabalhos criativos', diga qual tipo de trabalho e por que esse perfil especifico brilha nele.\n\n"
+
+        "6. SUAS FORCAS REAIS\n"
+        "Maximo 5. Formato obrigatorio: 'Voce [verbo concreto e especifico] quando [situacao especifica]'. "
+        "Cada forca deve ser sustentada por um score >= 3.5. Nada generico.\n\n"
+
+        "7. ONDE VOCE TRAVA\n"
+        "Maximo 4. Formato obrigatorio: 'Porque voce tende a [padrao especifico], "
+        "o que acontece na pratica e [consequencia concreta e real]'. "
+        "Seja direto. Nao suavize. Mostre o custo real desse padrao na vida profissional e pessoal.\n\n"
+
+        "8. O QUE VALE DESENVOLVER\n"
+        "Identifique 2 a 3 areas de desenvolvimento que, se trabalhadas, teriam o maior impacto "
+        "no crescimento pessoal, profissional ou financeiro desta pessoa. "
+        "Nao e sobre 'fraquezas' - e sobre o que, se desenvolvido, abriria novas possibilidades. "
+        "Seja especifico sobre o que desenvolver e qual seria o impacto concreto.\n\n"
+
+        "9. PROXIMOS PASSOS\n"
+        "4 acoes concretas e executaveis na proxima semana. "
+        "Cada acao deve derivar diretamente de um padrao especifico deste perfil. "
+        "Formato: acao especifica + por que faz sentido para este perfil + o que muda se ela fizer isso. "
+        "Nada generico. Nada que qualquer pessoa poderia fazer.\n\n"
+
+        "TOM E ESTILO:\n"
+        "- Escreva como um mentor que conhece a pessoa de verdade, nao como um relatorio de RH\n"
+        "- Seja direto e humano ao mesmo tempo\n"
+        "- Mostre que voce entende o que e ser essa pessoa especifica\n"
+        "- O objetivo e que a pessoa leia e sinta vontade de agir - nao apenas de concordar\n"
+        "- Evite listas de adjetivos. Prefira frases que descrevem comportamentos reais\n"
     )
 
     try:
