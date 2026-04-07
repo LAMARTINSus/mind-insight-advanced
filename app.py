@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.2
+# Version: V5.3
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -14,6 +14,15 @@
 #       - Opcao de reutilizar respostas do ultimo teste
 #       - Cabecalho atualizado com credito ao Manus AI
 #       - Debug mantido ativo para fase de calibracao
+# V5.3 - Engine: calcula todos os 21 contrastes (antes: 4 fixos)
+#       - Engine: maior contraste real sempre capturado
+#       - Engine: hipotese de combinacao Abertura+Extroversao adicionada
+#       - Prompt: regra 3 agora usa contraste real (nao pre-definido)
+#       - Prompt: regra 6 anti-contradicao de combinacao alta+baixa
+#       - Prompt: secao 5 proibe comportamento extrovertido se Extroversao < 3.5
+#       - Debug: exibe todos os 21 contrastes no painel
+#       - Aviso de amplitude comprimida quando > 60% respostas sao 3-4
+#       - Q63 removida das invertidas (semantica ambigua revisada)
 # =============================================================
 
 import streamlit as st
@@ -297,7 +306,7 @@ PERGUNTAS_INVERTIDAS = {
     23, 25, 27, 29,
     33, 34, 37, 39,
     43, 45, 48, 51,
-    54, 57, 60, 62, 63,
+    54, 57, 60, 62,
     65, 67, 69, 71, 73, 74
 }
 
@@ -339,12 +348,13 @@ def gerar_perfil(respostas):
     eixo_mais_alto  = max(medias, key=medias.get)
     eixo_mais_baixo = min(medias, key=medias.get)
 
-    diferencas = {
-        "Seguranca_vs_Abundancia":       round(medias["Seguranca"] - medias["Abundancia"], 2),
-        "Conscienciosidade_vs_Abertura": round(medias["Conscienciosidade"] - medias["Abertura"], 2),
-        "Neuroticismo_vs_Extroversao":   round(medias["Neuroticismo"] - medias["Extroversao"], 2),
-        "Neuroticismo_vs_Seguranca":     round(medias["Neuroticismo"] - medias["Seguranca"], 2),
-    }
+    # Calcular TODOS os 21 contrastes possiveis entre os 7 eixos
+    eixos_lista = list(medias.keys())
+    diferencas = {}
+    for i in range(len(eixos_lista)):
+        for j in range(i + 1, len(eixos_lista)):
+            e1, e2 = eixos_lista[i], eixos_lista[j]
+            diferencas[e1 + "_vs_" + e2] = round(medias[e1] - medias[e2], 2)
 
     media_geral   = round(df["Score"].mean(), 2)
     desvio_padrao = round(float(df["Score"].std(ddof=0)), 3)
@@ -405,6 +415,15 @@ def gerar_perfil(respostas):
         hipotese_tecnica.append("gerador de ideias com dificuldade de execucao sistematica")
     if medias["Abertura"] < 3 and medias["Conscienciosidade"] >= 3.5:
         hipotese_tecnica.append("executor confiavel com resistencia a mudanca de rota ou metodo")
+    if medias["Abertura"] >= 3.5 and medias["Extroversao"] < 3.5:
+        diff_ab_ex = round(medias["Abertura"] - medias["Extroversao"], 2)
+        hipotese_tecnica.append(
+            "curiosidade intelectual intensa (Abertura %.2f) processada internamente - "
+            "Extroversao %.2f indica que explora sozinho, nao em grupo. "
+            "Contraste Abertura_vs_Extroversao = %+.2f" % (
+                medias["Abertura"], medias["Extroversao"], diff_ab_ex
+            )
+        )
 
     def intensidade(valor):
         if valor >= 4.3:
@@ -423,9 +442,14 @@ def gerar_perfil(respostas):
     # Ranking de eixos do mais alto ao mais baixo
     ranking_eixos = sorted(medias.items(), key=lambda x: -x[1])
 
-    # Maior contraste absoluto entre pares de eixos
+    # Maior contraste absoluto entre TODOS os 21 pares
     maior_contraste_key = max(diferencas, key=lambda k: abs(diferencas[k]))
     maior_contraste_val = diferencas[maior_contraste_key]
+
+    # Aviso de amplitude comprimida
+    all_adj_vals = list(respostas_ajustadas.values())
+    pct_3_4 = sum(1 for v in all_adj_vals if v in (3, 4)) / len(all_adj_vals) * 100
+    alerta_amplitude = pct_3_4 > 60
 
     # Eixos abaixo de 3.0 (limitantes)
     eixos_baixos = {k: v for k, v in medias.items() if v < 3.0}
@@ -453,6 +477,8 @@ def gerar_perfil(respostas):
         "maior_contraste_val": maior_contraste_val,
         "eixos_baixos":        eixos_baixos,
         "eixos_moderados":     eixos_moderados,
+        "alerta_amplitude":    alerta_amplitude,
+        "pct_3_4":             round(pct_3_4, 1),
     }
 
 # =============================================================
@@ -562,7 +588,8 @@ def gerar_relatorio(perfil):
         "- Amabilidade alta + Neuroticismo alto = sensivel as relacoes, ansioso com conflitos\n"
         "- Conscienciosidade alta + Abertura baixa = executa bem, resiste a mudanca de rota\n"
         "- Neuroticismo alto + Seguranca alta = ansioso internamente, busca controle externo como alivio\n"
-        "- Neuroticismo alto + Extroversao baixa = processa internamente, rumina sozinho, nao externaliza\n\n"
+        "- Neuroticismo alto + Extroversao baixa = processa internamente, rumina sozinho, nao externaliza\n"
+        "- Abertura alta + Extroversao baixa = curiosidade intensa exercida em isolamento, explora sozinho nao em grupo, nao 'e o primeiro' a falar ou agir publicamente\n\n"
 
         "REGRAS FUNDAMENTAIS:\n"
         "- Fale sempre em 'voce'\n"
@@ -580,11 +607,15 @@ def gerar_relatorio(perfil):
         "REGRA 2 - ANTI-AMPLIFICACAO: Eixos moderados (3.0 a 3.4) nao sao problemas criticos. "
         "Nao trate eixo moderado como se fosse baixo ou problematico. "
         "Exemplo proibido: tratar Abundancia 3.18 como 'mentalidade de escassez severa'.\n"
-        "REGRA 3 - MAIOR CONTRASTE OBRIGATORIO: O maior contraste do perfil e '"
+        "REGRA 3 - MAIOR CONTRASTE OBRIGATORIO: O maior contraste REAL do perfil e '"
         + maior_contraste_key
-        + " = %+.2f'. " % maior_contraste_val
+        + " = %+.2f' (calculado entre todos os 21 pares possiveis). " % maior_contraste_val
         + "Este padrao DEVE aparecer explicitamente na secao 'O que acontece dentro de voce'. "
-        "Nao e opcional.\n"
+        "Nao e opcional. Nao substitua por um contraste menor.\n"
+        "REGRA 6 - ANTI-CONTRADICAO DE COMBINACAO: Se Abertura >= 3.5 e Extroversao < 3.5, "
+        "PROIBIDO escrever que a pessoa 'e a primeira a falar', 'toma iniciativa em grupo', "
+        "'lidera discussoes publicas' ou qualquer comportamento extrovertido. "
+        "A curiosidade desta pessoa e exercida internamente, nao em exposicao social.\n"
         "REGRA 4 - EIXOS BAIXOS SAO DESAFIOS REAIS: Cada eixo abaixo de 3.0 deve aparecer "
         "nas secoes de desafio com impacto concreto no comportamento. Nao pode ser ignorado.\n"
         "REGRA 5 - DIRECAO PRATICA DERIVADA DOS DADOS: Cada orientacao da secao 9 deve derivar "
@@ -608,15 +639,23 @@ def gerar_relatorio(perfil):
         "Pegue o eixo mais alto ("
         + eixo_alto
         + ": %.2f). " % medias[eixo_alto]
-        + "Mostre em 3 situacoes do cotidiano. Trunfo e problema concretos.\n\n"
-        "6. SUAS FORCAS REAIS\n"
+        + "Mostre em 3 situacoes do cotidiano. Trunfo e problema concretos. "
+        "ATENCAO: se Extroversao for menor que 3.5, as situacoes NAO podem envolver "
+        "comportamento proativo em grupo, lideranca publica ou 'ser o primeiro' a agir. "
+        "O padrao deve ser compativel com o nivel de Extroversao ("
+        + "Extroversao: %.2f).\n\n" % medias["Extroversao"]
+        + "6. SUAS FORCAS REAIS\n"
         "Maximo 5. Formato: 'Voce [verbo concreto] quando [situacao especifica]'. "
         "VALIDACAO OBRIGATORIA: cada forca deve ser sustentada por um eixo >= 3.0.\n\n"
         "7. SUAS AREAS DE DESAFIO\n"
         "Maximo 5. Formato: 'Porque voce tende a [padrao], o que acontece na pratica e [consequencia concreta]'. "
         "OBRIGATORIO: incluir os eixos abaixo de 3.0 (" + eixos_baixos_str + ").\n\n"
         "8. O PONTO QUE MAIS MERECE ATENCAO\n"
-        "Um ponto. Aprofunde: como aparece, o que protege, o que custa, o sinal de que esta acontecendo.\n\n"
+        "Um ponto. OBRIGATORIO: deve ser derivado do eixo mais extremo (mais alto ou mais baixo) "
+        "ou do maior contraste do perfil ("
+        + maior_contraste_key + " = %+.2f). " % maior_contraste_val
+        + "Eixos moderados (3.0-3.4) NAO podem ser o ponto principal a menos que sejam o unico dado disponivel. "
+        "Aprofunde: como aparece, o que protege, o que custa, o sinal de que esta acontecendo.\n\n"
         "9. DIRECAO PRATICA\n"
         "4 a 5 orientacoes concretas executaveis na proxima semana. "
         "Cada orientacao deve derivar de um eixo especifico deste perfil. "
@@ -730,12 +769,19 @@ def render_debug(perfil):
     with col2:
         st.metric("Eixo Mais Baixo", perfil["eixo_mais_baixo"], str(medias[perfil["eixo_mais_baixo"]]))
 
-    st.subheader("7. Contrastes Entre Eixos")
-    st.caption("Diferenca entre pares de eixos. Contrastes altos revelam tensoes comportamentais.")
+    st.subheader("7. Contrastes Entre Eixos (todos os 21 pares)")
+    st.caption("Diferenca entre todos os pares de eixos. Contrastes altos revelam tensoes comportamentais.")
     for par, valor in sorted(perfil["diferencas"].items(), key=lambda x: -abs(x[1])):
         direcao = "alto" if valor > 0 else ("baixo" if valor < 0 else "igual")
         marker = " <- MAIOR CONTRASTE" if par == perfil["maior_contraste_key"] else ""
         st.write("**" + par + "**: " + str(valor) + " (" + direcao + ")" + marker)
+
+    if perfil.get("alerta_amplitude"):
+        st.warning(
+            "AVISO: %.1f%% das respostas sao 3 ou 4. "
+            "Amplitude comprimida pode reduzir a precisao do relatorio. "
+            "Considere responder com mais 1 e 5 quando sentir certeza." % perfil["pct_3_4"]
+        )
 
     st.subheader("8. Qualidade Estatistica")
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -761,7 +807,8 @@ def render_debug(perfil):
         "perguntas_invertidas": len(PERGUNTAS_INVERTIDAS),
         "total_perguntas": len(questions),
         "eixos": list(blocos_info.keys()),
-        "versao_prompt": "V5.2 - calibrado por Manus AI",
+        "total_contrastes_calculados": len(perfil["diferencas"]),
+        "versao_prompt": "V5.3 - calibrado por Manus AI",
     })
 
 # =============================================================
@@ -770,7 +817,7 @@ def render_debug(perfil):
 
 st.title("Mind Insight AI")
 st.markdown(
-    '<div class="manus-badge">V5.2 | Criado com Claude (Anthropic) | '
+    '<div class="manus-badge">V5.3 | Criado com Claude (Anthropic) | '
     'Aperfeicoado por Manus AI | Debug ativo</div>',
     unsafe_allow_html=True
 )
