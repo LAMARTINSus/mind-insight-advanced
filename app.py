@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.8
+# Version: V5.11
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -33,6 +33,8 @@
 # =============================================================
 
 import streamlit as st
+import json
+import os
 import pandas as pd
 from openai import OpenAI
 
@@ -109,6 +111,30 @@ if "current_question" not in st.session_state:
     st.session_state.current_question = 0
 if "modo_selecionado" not in st.session_state:
     st.session_state.modo_selecionado = False
+if "calibracao_completa" not in st.session_state:
+    st.session_state.calibracao_completa = False
+if "calibracao_statements" not in st.session_state:
+    st.session_state.calibracao_statements = []
+if "calibracao_respostas" not in st.session_state:
+    st.session_state.calibracao_respostas = {}
+if "calibracao_followup" not in st.session_state:
+    st.session_state.calibracao_followup = {}
+if "calibracao_ajustes" not in st.session_state:
+    st.session_state.calibracao_ajustes = {}
+if "perfil_cache" not in st.session_state:
+    st.session_state.perfil_cache = None
+if "calibracao_completa" not in st.session_state:
+    st.session_state.calibracao_completa = False
+if "calibracao_statements" not in st.session_state:
+    st.session_state.calibracao_statements = []
+if "calibracao_respostas" not in st.session_state:
+    st.session_state.calibracao_respostas = {}
+if "calibracao_followup" not in st.session_state:
+    st.session_state.calibracao_followup = {}
+if "calibracao_ajustes" not in st.session_state:
+    st.session_state.calibracao_ajustes = {}
+if "perfil_cache" not in st.session_state:
+    st.session_state.perfil_cache = None
 
 # =============================================================
 # PERGUNTAS
@@ -321,6 +347,39 @@ def aplicar_inversao(q, score):
     if q in PERGUNTAS_INVERTIDAS:
         return 6 - score
     return score
+
+# =============================================================
+# PERSISTENCIA DE RESPOSTAS CALIBRADAS
+# =============================================================
+
+ULTIMO_TESTE_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ultimo_teste.json")
+
+def salvar_ultimo_teste(respostas):
+    """Salva as respostas calibradas em JSON para reutilizacao futura."""
+    try:
+        # Converte chaves para string para compatibilidade JSON
+        data = {str(k): v for k, v in respostas.items()}
+        with open(ULTIMO_TESTE_JSON, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        return False
+
+def carregar_ultimo_teste():
+    """
+    Carrega as respostas do ultimo teste.
+    Prioridade: arquivo JSON (respostas calibradas) > ULTIMO_TESTE hardcoded.
+    """
+    if os.path.exists(ULTIMO_TESTE_JSON):
+        try:
+            with open(ULTIMO_TESTE_JSON, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            # Converte chaves de volta para int
+            return {int(k): v for k, v in data.items()}
+        except Exception:
+            pass
+    # Fallback para hardcoded
+    return dict(ULTIMO_TESTE)
 
 # =============================================================
 # ENGINE DE CALCULO DO PERFIL
@@ -1267,8 +1326,225 @@ def render_debug(perfil):
         "total_perguntas": len(questions),
         "eixos": list(blocos_info.keys()),
         "total_contrastes_calculados": len(perfil["diferencas"]),
-        "versao_prompt": "V5.8 - calibrado por Manus AI",
+        "versao_prompt": "V5.11 - calibrado por Manus AI",
     })
+
+
+# =============================================================
+# CALIBRACAO GUIADA
+# =============================================================
+
+def gerar_statements_calibracao(perfil):
+    medias = perfil["medias"]
+    adj = perfil["respostas_ajustadas"]
+    ab  = medias["Abertura"]
+    co  = medias["Conscienciosidade"]
+    ex  = medias["Extroversao"]
+    am  = medias["Amabilidade"]
+    ne  = medias["Neuroticismo"]
+    se  = medias["Seguranca"]
+    abu = medias["Abundancia"]
+    q11 = adj.get(11, 3); q17 = adj.get(17, 3); q20 = adj.get(20, 3)
+    q22 = adj.get(22, 3); q24 = adj.get(24, 3); q26 = adj.get(26, 3)
+    q33 = adj.get(33, 3); q35 = adj.get(35, 3); q37 = adj.get(37, 3); q39 = adj.get(39, 3)
+    q44 = adj.get(44, 3); q49 = adj.get(49, 3)
+    q55 = adj.get(55, 3); q56 = adj.get(56, 3); q61 = adj.get(61, 3)
+    evita_conflito = (q33 <= 3 or q37 <= 3 or q39 <= 3) and q35 >= 3
+    statements = []
+    sid = 1
+
+    if ab >= 3.5:
+        statements.append({
+            "id": sid, "eixo": "Abertura",
+            "texto": (
+                "Voce tem uma curiosidade intelectual acima da media. "
+                "Quando encontra um problema ou tema novo, tende a ir fundo: "
+                "pesquisa, conecta ideias, e frequentemente sabe mais sobre o assunto "
+                "do que a maioria das pessoas ao seu redor."
+            ),
+            "followup_verdadeiro": (
+                "Isso acontece em qualquer assunto, ou so em areas que voce ja tem interesse? "
+                "(1 = so em areas especificas / 5 = em praticamente qualquer assunto novo)"
+            ),
+            "followup_falso": (
+                "Voce prefere aplicar o que ja sabe em vez de explorar areas novas? "
+                "Ou voce tem curiosidade, mas ela e mais seletiva do que o descrito? "
+                "(1 = prefiro muito o que ja sei / 5 = tenho curiosidade mas so em temas especificos)"
+            ),
+            "root_questions": [1, 3, 5, 7, 8, 10],
+            "ajuste_mais_forte": {1: 1, 3: 1, 8: 1},
+            "ajuste_mais_fraco": {1: -1, 3: -1, 8: -1},
+        })
+        sid += 1
+
+    if q11 >= 3 and q17 >= 3 and q20 >= 3:
+        statements.append({
+            "id": sid, "eixo": "Conscienciosidade",
+            "texto": (
+                "Quando voce assume um compromisso, cumpre - mesmo quando nao esta com vontade, "
+                "mesmo quando o prazo aperta. "
+                "As pessoas que dependem de voce sabem que podem contar com o que voce prometeu."
+            ),
+            "followup_verdadeiro": (
+                "Voce cumpre porque tem um sistema de organizacao claro, "
+                "ou porque se sente responsavel mesmo sem sistema? "
+                "(1 = tenho sistema claro / 5 = cumpro mesmo sem sistema, no esforco)"
+            ),
+            "followup_falso": (
+                "Voce cumpre compromissos em algumas areas mas nao em outras? "
+                "Ou a descricao foi exagerada? "
+                "(1 = sou bem menos confiavel do que descrito / "
+                "5 = sou confiavel mas so em certas areas)"
+            ),
+            "root_questions": [11, 17, 20],
+            "ajuste_mais_forte": {11: 1, 17: 1, 20: 1},
+            "ajuste_mais_fraco": {11: -1, 17: -1, 20: -1},
+        })
+        sid += 1
+
+    if ex <= 3.2:
+        statements.append({
+            "id": sid, "eixo": "Extroversao",
+            "texto": (
+                "Em grupos, voce tende a observar mais do que falar - "
+                "nao porque nao tenha opiniao, mas porque nao sente necessidade de se impor. "
+                "Voce prefere contribuir quando e diretamente solicitado "
+                "ou quando tem certeza de que o que vai dizer realmente importa."
+            ),
+            "followup_verdadeiro": (
+                "Isso e uma preferencia ou grupos grandes te deixam genuinamente desconfortavel? "
+                "(1 = e apenas preferencia, me adapto bem / "
+                "5 = grupos grandes me custam energia real)"
+            ),
+            "followup_falso": (
+                "Voce se ve como alguem que toma iniciativa em grupos com frequencia? "
+                "Ou voce tem lideranca, mas ela e por competencia, nao por volume de fala? "
+                "(1 = tomo iniciativa com frequencia, sou vocal / "
+                "5 = tenho lideranca mas ela e silenciosa)"
+            ),
+            "root_questions": [22, 24, 26, 29, 30],
+            "ajuste_mais_forte": {22: -1, 24: -1, 26: -1},
+            "ajuste_mais_fraco": {22: 1, 24: 1, 26: 1},
+        })
+        sid += 1
+
+    if evita_conflito:
+        statements.append({
+            "id": sid, "eixo": "Amabilidade",
+            "texto": (
+                "Quando ha tensao ou desacordo, voce tende a ceder ou guardar o que pensa "
+                "em vez de confrontar diretamente. "
+                "Voce raramente da feedback negativo, adia conversas dificeis, "
+                "e frequentemente sai de situacoes sem ter dito o que realmente pensava."
+            ),
+            "followup_verdadeiro": (
+                "Isso acontece em todas as relacoes ou so com pessoas especificas? "
+                "(1 = so com pessoas de autoridade / "
+                "5 = acontece em praticamente todas as relacoes)"
+            ),
+            "followup_falso": (
+                "Voce consegue confrontar quando necessario, mas prefere nao fazer desnecessariamente? "
+                "Ou a descricao exagerou - voce e direto e nao tem dificuldade com conflito? "
+                "(1 = sou direto, conflito nao me incomoda / "
+                "5 = consigo confrontar mas prefiro evitar)"
+            ),
+            "root_questions": [33, 35, 37, 39],
+            "ajuste_mais_forte": {33: -1, 37: -1, 39: -1},
+            "ajuste_mais_fraco": {33: 1, 37: 1, 39: 1},
+        })
+        sid += 1
+
+    if q44 >= 3 or q49 >= 3:
+        statements.append({
+            "id": sid, "eixo": "Neuroticismo",
+            "texto": (
+                "Voce tende a antecipar problemas antes que eles acontecam. "
+                "Antes de uma reuniao importante, de uma decisao grande ou de uma mudanca, "
+                "sua mente ja esta processando os possiveis cenarios - inclusive os negativos. "
+                "Isso te torna bom em prever riscos, mas tambem gasta energia "
+                "em preocupacoes que muitas vezes nao se concretizam."
+            ),
+            "followup_verdadeiro": (
+                "Essa antecipacao te paralisa ou te prepara? "
+                "(1 = me paralisa com frequencia / "
+                "5 = me prepara - raramente me paralisa)"
+            ),
+            "followup_falso": (
+                "Voce e mais calmo do que descrito - lida bem com incerteza sem antecipar muito? "
+                "Ou a antecipacao existe mas e leve, nao um padrao forte? "
+                "(1 = sou muito calmo, raramente antecipo / "
+                "5 = antecipo mas de forma leve - a descricao foi exagerada)"
+            ),
+            "root_questions": [44, 49, 42, 46],
+            "ajuste_mais_forte": {44: 1, 49: 1},
+            "ajuste_mais_fraco": {44: -1, 49: -1},
+        })
+        sid += 1
+
+    if se >= 3.0 and (q55 >= 3 or q56 >= 3 or q61 >= 3):
+        statements.append({
+            "id": sid, "eixo": "Seguranca",
+            "texto": (
+                "Voce prefere ter informacao suficiente antes de se comprometer. "
+                "Mudancas inesperadas nos seus planos te incomodam mais do que a maioria. "
+                "Voce nao e avesso a risco - mas prefere risco calculado a aposta no escuro."
+            ),
+            "followup_verdadeiro": (
+                "Essa cautela ja te fez perder oportunidades que valiam o risco? "
+                "(1 = raramente perco oportunidades por cautela / "
+                "5 = ja perdi oportunidades claras por nao agir a tempo)"
+            ),
+            "followup_falso": (
+                "Voce se ve como alguem que age rapidamente mesmo sem todas as informacoes? "
+                "Ou a descricao estava certa mas a intensidade foi exagerada? "
+                "(1 = ajo rapido, incerteza nao me incomoda / "
+                "5 = a descricao estava certa mas foi exagerada)"
+            ),
+            "root_questions": [55, 56, 59, 61, 63],
+            "ajuste_mais_forte": {55: 1, 56: 1, 61: 1},
+            "ajuste_mais_fraco": {55: -1, 56: -1, 61: -1},
+        })
+        sid += 1
+
+    if ab >= 3.5 and co >= 3.5:
+        statements.append({
+            "id": sid, "eixo": "Lideranca",
+            "texto": (
+                "Voce tem tracos de lideranca - mas do tipo silencioso. "
+                "Nao e o tipo que se impos ou buscou o cargo. "
+                "E o tipo que as pessoas consultam quando o assunto e serio, "
+                "que entrega quando os outros nao entregam, "
+                "e que influencia por competencia e confiabilidade, nao por carisma ou volume."
+            ),
+            "followup_verdadeiro": (
+                "Voce ja esteve em posicao de lideranca formal? "
+                "Ou voce lidera informalmente - sem o titulo, mas as pessoas te seguem? "
+                "(1 = nunca liderei, nao me vejo como lider / "
+                "5 = lidero informalmente - as pessoas me seguem mesmo sem eu ter o cargo)"
+            ),
+            "followup_falso": (
+                "Voce diria que nao tem tracos de lideranca - prefere seguir do que liderar? "
+                "Ou que tem lideranca mas ela e mais direta e visivel do que o descrito? "
+                "(1 = nao tenho tracos de lideranca, prefiro seguir / "
+                "5 = tenho lideranca mas ela e mais direta e visivel)"
+            ),
+            "root_questions": [11, 17, 20, 22, 24, 30],
+            "ajuste_mais_forte": {22: 1, 24: 1, 30: 1},
+            "ajuste_mais_fraco": {22: -1, 24: -1, 30: -1},
+        })
+        sid += 1
+
+    return statements
+
+
+def aplicar_ajustes_calibracao(respostas_originais, ajustes):
+    novas = dict(respostas_originais)
+    for q_num, delta in ajustes.items():
+        if q_num in novas:
+            novo_val = max(1, min(5, novas[q_num] + delta))
+            novas[q_num] = novo_val
+    return novas
+
 
 # =============================================================
 # INTERFACE PRINCIPAL
@@ -1276,7 +1552,7 @@ def render_debug(perfil):
 
 st.title("Mind Insight AI")
 st.markdown(
-    '<div class="manus-badge">V5.8 | Criado com Claude (Anthropic) | '
+    '<div class="manus-badge">V5.11 | Criado com Claude (Anthropic) | '
     'Aperfeicoado por Manus AI | Debug ativo</div>',
     unsafe_allow_html=True
 )
@@ -1298,12 +1574,19 @@ if not st.session_state.modo_selecionado:
 
     with col_a:
         st.markdown("**Usar respostas do ultimo teste**")
-        st.caption(
-            "Carrega automaticamente as 74 respostas ja registradas. "
-            "Gera o relatorio em segundos sem precisar responder novamente."
-        )
+        _json_existe = os.path.exists(ULTIMO_TESTE_JSON)
+        if _json_existe:
+            st.caption(
+                "Serao usadas as respostas da sua **ultima sessao calibrada** (salvas automaticamente). "
+                "Gera o relatorio em segundos sem precisar responder novamente."
+            )
+        else:
+            st.caption(
+                "Serao usadas as respostas de referencia (nenhuma calibracao salva ainda). "
+                "Gera o relatorio em segundos sem precisar responder novamente."
+            )
         if st.button("Usar ultimo teste", key="btn_ultimo"):
-            st.session_state.responses = dict(ULTIMO_TESTE)
+            st.session_state.responses = carregar_ultimo_teste()
             st.session_state.current_question = TOTAL + 1
             st.session_state.modo_selecionado = True
             st.rerun()
@@ -1348,12 +1631,117 @@ elif st.session_state.current_question <= TOTAL:
             st.warning("Por favor, selecione uma resposta antes de continuar.")
 
 # ------------------------------------------------------------------
+# TELA 1.5 - Calibracao Guiada
+# ------------------------------------------------------------------
+elif not st.session_state.calibracao_completa:
+    if st.session_state.perfil_cache is None:
+        st.session_state.perfil_cache = gerar_perfil(st.session_state.responses)
+    if not st.session_state.calibracao_statements:
+        st.session_state.calibracao_statements = gerar_statements_calibracao(st.session_state.perfil_cache)
+
+    statements = st.session_state.calibracao_statements
+
+    st.title("Verificacao Rapida do Perfil")
+    st.markdown(
+        "Antes de gerar seu relatorio completo, preciso confirmar se as afirmacoes abaixo "
+        "descrevem voce com precisao. **Isso leva menos de 2 minutos** e garante que o "
+        "relatorio final seja fiel a quem voce realmente e."
+    )
+    st.markdown("---")
+
+    opcoes_validacao = [
+        "Sim, isso me descreve bem",
+        "Sim, mas com menos intensidade do que a realidade",
+        "Sim, mas com mais intensidade do que a realidade",
+        "Nao me descreve"
+    ]
+
+    todas_respondidas = True
+    ajustes_acumulados = {}
+
+    for stmt in statements:
+        sid = stmt["id"]
+        st.markdown("**Afirmacao " + str(sid) + " — " + stmt["eixo"] + ":**")
+        st.info(stmt["texto"])
+
+        resposta_stmt = st.radio(
+            "Esta afirmacao te descreve?",
+            opcoes_validacao,
+            index=None,
+            key="calib_stmt_" + str(sid)
+        )
+
+        if resposta_stmt is None:
+            todas_respondidas = False
+        else:
+            st.session_state.calibracao_respostas[sid] = resposta_stmt
+
+            if resposta_stmt != opcoes_validacao[0]:
+                if resposta_stmt == opcoes_validacao[3]:
+                    followup_txt = stmt["followup_falso"]
+                    followup_label = "Para entender melhor o que e verdadeiro para voce:"
+                else:
+                    followup_txt = stmt["followup_verdadeiro"]
+                    followup_label = "Ajude-nos a calibrar a intensidade correta:"
+
+                st.markdown("*" + followup_label + "*")
+                st.caption(followup_txt)
+
+                followup_val = st.slider(
+                    "Sua resposta (1 a 5):",
+                    min_value=1, max_value=5, value=3,
+                    key="calib_followup_" + str(sid)
+                )
+                st.session_state.calibracao_followup[sid] = followup_val
+
+                intensidade = max(1, followup_val - 2)
+                if resposta_stmt == opcoes_validacao[1]:
+                    for q_num, delta in stmt["ajuste_mais_forte"].items():
+                        ajustes_acumulados[q_num] = ajustes_acumulados.get(q_num, 0) + int(round(delta * intensidade))
+                elif resposta_stmt == opcoes_validacao[2]:
+                    for q_num, delta in stmt["ajuste_mais_fraco"].items():
+                        ajustes_acumulados[q_num] = ajustes_acumulados.get(q_num, 0) + int(round(delta * intensidade))
+                else:
+                    for q_num, delta in stmt["ajuste_mais_fraco"].items():
+                        ajustes_acumulados[q_num] = ajustes_acumulados.get(q_num, 0) + int(round(delta * 2))
+
+        st.markdown("---")
+
+    if todas_respondidas:
+        st.session_state.calibracao_ajustes = ajustes_acumulados
+        if st.button("Gerar meu relatorio completo", type="primary"):
+            if ajustes_acumulados:
+                novas_respostas = aplicar_ajustes_calibracao(
+                    st.session_state.responses, ajustes_acumulados
+                )
+                st.session_state.perfil_cache = gerar_perfil(novas_respostas)
+            # Salva as respostas calibradas para reutilizacao futura
+            respostas_para_salvar = aplicar_ajustes_calibracao(
+                st.session_state.responses, ajustes_acumulados
+            ) if ajustes_acumulados else dict(st.session_state.responses)
+            salvar_ultimo_teste(respostas_para_salvar)
+            st.session_state.calibracao_completa = True
+            st.rerun()
+    else:
+        st.warning("Por favor, responda todas as afirmacoes acima para continuar.")
+
+# ------------------------------------------------------------------
 # TELA 2 - Relatorio
 # ------------------------------------------------------------------
 else:
     st.title("Seu Relatorio de Perfil")
 
-    perfil = gerar_perfil(st.session_state.responses)
+    if st.session_state.perfil_cache is not None:
+        perfil = st.session_state.perfil_cache
+    else:
+        perfil = gerar_perfil(st.session_state.responses)
+
+    if st.session_state.calibracao_ajustes:
+        n_ajustes = len(st.session_state.calibracao_ajustes)
+        st.success(
+            "Relatorio calibrado com base nas suas respostas de validacao. "
+            + str(n_ajustes) + " ajuste(s) aplicado(s) para maior precisao."
+        )
 
     with st.spinner("Gerando sua analise..."):
         relatorio = gerar_relatorio(perfil)
@@ -1364,16 +1752,69 @@ else:
         render_debug(perfil)
 
     st.markdown("---")
+
+    # ------------------------------------------------------------------
+    # Botao de download das respostas calibradas
+    # ------------------------------------------------------------------
+    respostas_para_download = st.session_state.responses
+    if st.session_state.perfil_cache is not None and st.session_state.calibracao_ajustes:
+        respostas_para_download = aplicar_ajustes_calibracao(
+            st.session_state.responses, st.session_state.calibracao_ajustes
+        )
+    _json_bytes = json.dumps(
+        {str(k): v for k, v in respostas_para_download.items()},
+        ensure_ascii=False, indent=2
+    ).encode('utf-8')
+    st.download_button(
+        label="Baixar respostas calibradas (ultimo_teste.json)",
+        data=_json_bytes,
+        file_name="ultimo_teste.json",
+        mime="application/json",
+        help=(
+            "Baixe este arquivo e adicione ao seu repositorio GitHub junto com o app.py. "
+            "Assim as respostas calibradas serao preservadas em futuros deploys."
+        )
+    )
+    st.caption(
+        "Dica: coloque o arquivo baixado na mesma pasta do app.py no seu repositorio "
+        "para que as respostas calibradas sejam usadas automaticamente nos proximos deploys."
+    )
+
+    st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Refazer o teste"):
-            st.session_state.responses = {}
+            for key in ["responses", "calibracao_completa", "calibracao_statements",
+                        "calibracao_respostas", "calibracao_followup",
+                        "calibracao_ajustes", "perfil_cache"]:
+                if key == "responses":
+                    st.session_state[key] = {}
+                elif key in ["calibracao_statements"]:
+                    st.session_state[key] = []
+                elif key in ["calibracao_respostas", "calibracao_followup", "calibracao_ajustes"]:
+                    st.session_state[key] = {}
+                elif key == "perfil_cache":
+                    st.session_state[key] = None
+                else:
+                    st.session_state[key] = False
             st.session_state.current_question = 1
             st.session_state.modo_selecionado = False
             st.rerun()
     with col2:
         if st.button("Voltar ao inicio"):
-            st.session_state.responses = {}
+            for key in ["responses", "calibracao_completa", "calibracao_statements",
+                        "calibracao_respostas", "calibracao_followup",
+                        "calibracao_ajustes", "perfil_cache"]:
+                if key == "responses":
+                    st.session_state[key] = {}
+                elif key in ["calibracao_statements"]:
+                    st.session_state[key] = []
+                elif key in ["calibracao_respostas", "calibracao_followup", "calibracao_ajustes"]:
+                    st.session_state[key] = {}
+                elif key == "perfil_cache":
+                    st.session_state[key] = None
+                else:
+                    st.session_state[key] = False
             st.session_state.current_question = 0
             st.session_state.modo_selecionado = False
             st.rerun()
