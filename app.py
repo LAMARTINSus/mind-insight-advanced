@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.7
+# Version: V5.8
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -1090,7 +1090,12 @@ def gerar_relatorio(perfil):
         "o que acontece na pratica e [consequencia concreta na vida real]'. "
         "Seja direto. Mostre o custo real - financeiro, profissional, relacional. "
         "Nao suavize. Pessoas com esse perfil reconhecem esses padroes quando sao descritos com precisao. "
-        "Se o padrao de evitacao de conflito estiver ativo, DEVE aparecer aqui.\n\n"
+        "Se o padrao de evitacao de conflito estiver ativo, DEVE aparecer aqui. "
+        "REGRA CRITICA PARA CONSCIENCIOSIDADE: se cumpre_compromissos >= 4 E sistema_prioridades <= 3, "
+        "o padrao correto NAO e 'se compromete facilmente' - e 'entrega mesmo sem um sistema claro, "
+        "o que gera custo oculto: a entrega acontece mas com esforco desproporcional, "
+        "acumulo de pressao de ultima hora, e sensacao de que poderia ter feito melhor se tivesse se organizado antes'. "
+        "Descreva o custo real da entrega sem sistema, nao o excesso de compromissos.\n\n"
 
         "8. O QUE VALE DESENVOLVER\n"
         "2 a 3 areas de desenvolvimento de alto impacto para este perfil especifico. "
@@ -1102,9 +1107,11 @@ def gerar_relatorio(perfil):
         "INSTRUCAO CRITICA: Os passos abaixo foram pre-gerados com base nos padroes especificos deste perfil. "
         "Use-os como base obrigatoria. Voce pode refinar a linguagem para soar mais natural e humana, "
         "mas NAO pode substituir por passos genericos que servem para qualquer pessoa. "
+        "REMOVA os prefixos 'PASSO DERIVADO DE...' do texto final - eles sao instrucoes internas, nao devem aparecer para o usuario. "
+        "Cada passo deve comecar diretamente com a acao, sem rotulo. "
         "PASSOS CANDIDATOS DERIVADOS DOS PADROES DESTE PERFIL:\n"
         + linhas_passos_candidatos
-        + "\n\nFormate cada passo com: acao especifica + por que faz sentido para este perfil + resultado esperado.\n\n"
+        + "\n\nFormate cada passo com: numero + acao especifica + por que faz sentido para este perfil + resultado esperado.\n\n"
 
         "TOM E ESTILO:\n"
         "- Escreva como um mentor que conhece profundamente esse tipo de pessoa\n"
@@ -1260,7 +1267,7 @@ def render_debug(perfil):
         "total_perguntas": len(questions),
         "eixos": list(blocos_info.keys()),
         "total_contrastes_calculados": len(perfil["diferencas"]),
-        "versao_prompt": "V5.7 - calibrado por Manus AI",
+        "versao_prompt": "V5.8 - calibrado por Manus AI",
     })
 
 # =============================================================
@@ -1269,7 +1276,7 @@ def render_debug(perfil):
 
 st.title("Mind Insight AI")
 st.markdown(
-    '<div class="manus-badge">V5.7 | Criado com Claude (Anthropic) | '
+    '<div class="manus-badge">V5.8 | Criado com Claude (Anthropic) | '
     'Aperfeicoado por Manus AI | Debug ativo</div>',
     unsafe_allow_html=True
 )
