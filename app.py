@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.11
+# Version: V5.12
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -1326,7 +1326,7 @@ def render_debug(perfil):
         "total_perguntas": len(questions),
         "eixos": list(blocos_info.keys()),
         "total_contrastes_calculados": len(perfil["diferencas"]),
-        "versao_prompt": "V5.11 - calibrado por Manus AI",
+        "versao_prompt": "V5.12 - calibrado por Manus AI",
     })
 
 
@@ -1481,13 +1481,18 @@ def gerar_statements_calibracao(perfil):
         })
         sid += 1
 
-    if se >= 3.0 and (q55 >= 3 or q56 >= 3 or q61 >= 3):
+    # Afirmacao 6a: Aversao a risco (cautela antes de decidir)
+    # Perguntas diretas: Q56 (garantia vs incerteza), Q61 (desconforto sem plano), Q63 (confirmar antes de agir)
+    # Perguntas invertidas: Q54, Q57, Q60, Q62 (agir com confianca sem info completa)
+    q56 = adj.get(56, 3); q61 = adj.get(61, 3); q63 = adj.get(63, 3)
+    if q56 >= 3 or q61 >= 3 or q63 >= 3:
         statements.append({
-            "id": sid, "eixo": "Seguranca",
+            "id": sid, "eixo": "Cautela e Risco",
             "texto": (
-                "Voce prefere ter informacao suficiente antes de se comprometer. "
-                "Mudancas inesperadas nos seus planos te incomodam mais do que a maioria. "
-                "Voce nao e avesso a risco - mas prefere risco calculado a aposta no escuro."
+                "Quando precisa tomar uma decisao importante, voce prefere esperar ter "
+                "informacao suficiente antes de se comprometer. "
+                "Prefere uma oportunidade menor mas garantida a uma maior mas incerta. "
+                "Nao e que voce fuja do risco - e que voce precisa entender o risco antes de aceita-lo."
             ),
             "followup_verdadeiro": (
                 "Essa cautela ja te fez perder oportunidades que valiam o risco? "
@@ -1495,14 +1500,43 @@ def gerar_statements_calibracao(perfil):
                 "5 = ja perdi oportunidades claras por nao agir a tempo)"
             ),
             "followup_falso": (
-                "Voce se ve como alguem que age rapidamente mesmo sem todas as informacoes? "
+                "Voce age com mais facilidade mesmo sem todas as informacoes? "
                 "Ou a descricao estava certa mas a intensidade foi exagerada? "
-                "(1 = ajo rapido, incerteza nao me incomoda / "
-                "5 = a descricao estava certa mas foi exagerada)"
+                "(1 = ajo rapido, incerteza nao me paralisa / "
+                "5 = a descricao estava certa mas foi um pouco exagerada)"
             ),
-            "root_questions": [55, 56, 59, 61, 63],
-            "ajuste_mais_forte": {55: 1, 56: 1, 61: 1},
-            "ajuste_mais_fraco": {55: -1, 56: -1, 61: -1},
+            "root_questions": [56, 61, 63],
+            "ajuste_mais_forte": {56: 1, 61: 1, 63: 1},
+            "ajuste_mais_fraco": {56: -1, 61: -1, 63: -1},
+        })
+        sid += 1
+
+    # Afirmacao 6b: Tolerancia a mudancas de planos (imprevisibilidade)
+    # Q55 (mudancas inesperadas incomodam), Q59 (resiste a mudar rotina que funciona)
+    # Q57 invertida (se sente bem em situacoes imprevisíveis), Q62 invertida (seguro em transicoes)
+    q55 = adj.get(55, 3); q59 = adj.get(59, 3)
+    if q55 >= 3 or q59 >= 3:
+        statements.append({
+            "id": sid, "eixo": "Mudancas de Planos",
+            "texto": (
+                "Quando seus planos mudam de forma inesperada, voce tende a se incomodar mais "
+                "do que a media das pessoas. "
+                "Quando encontra uma rotina que funciona, resiste a mudar mesmo que haja opcoes melhores."
+            ),
+            "followup_verdadeiro": (
+                "Isso acontece em qualquer mudanca ou so em mudancas que afetam areas importantes para voce? "
+                "(1 = so me incomoda quando afeta areas muito importantes / "
+                "5 = qualquer mudanca inesperada me tira do eixo)"
+            ),
+            "followup_falso": (
+                "Voce lida bem com mudancas de planos - elas nao te afetam mais do que a media? "
+                "Ou a descricao estava certa mas exagerada na intensidade? "
+                "(1 = lido bem com mudancas, me adapto facilmente / "
+                "5 = a descricao estava certa mas foi um pouco exagerada)"
+            ),
+            "root_questions": [55, 59],
+            "ajuste_mais_forte": {55: 1, 59: 1},
+            "ajuste_mais_fraco": {55: -1, 59: -1},
         })
         sid += 1
 
@@ -1552,7 +1586,7 @@ def aplicar_ajustes_calibracao(respostas_originais, ajustes):
 
 st.title("Mind Insight AI")
 st.markdown(
-    '<div class="manus-badge">V5.11 | Criado com Claude (Anthropic) | '
+    '<div class="manus-badge">V5.12 | Criado com Claude (Anthropic) | '
     'Aperfeicoado por Manus AI | Debug ativo</div>',
     unsafe_allow_html=True
 )
