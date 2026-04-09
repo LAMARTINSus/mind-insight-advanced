@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.16
+# Version: V5.17
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -36,6 +36,7 @@
 #       - Subtítulo atualizado: 'Análise comportamental potencializada por
 #         psicologia científica e inteligência artificial avançada'
 # V5.16 - Logo Mind Insight adicionado ao cabeçalho
+# V5.17 - Google Sheets: grava em modo teste e producao; mostra erro no debug; coluna modo_teste adicionada
 #       - Pergunta de calibração de Segurança separada em duas afirmações
 #         independentes (Q55: reatividade emocional / Q59: preferência por rotina)
 # =============================================================
@@ -446,7 +447,7 @@ def registrar_no_sheets(dados):
         # Cabecalho se planilha vazia
         if ws.row_count == 0 or ws.cell(1, 1).value != "data_hora":
             cabecalho = [
-                "data_hora", "nome", "idade", "genero", "email",
+                "data_hora", "modo_teste", "nome", "idade", "genero", "email",
                 "Abertura", "Conscienciosidade", "Extroversao",
                 "Amabilidade", "Neuroticismo", "Seguranca", "Abundancia",
                 "maior_contraste", "amplitude_pct", "padroes_ativos",
@@ -455,6 +456,7 @@ def registrar_no_sheets(dados):
             ws.append_row(cabecalho)
         linha = [
             dados.get("data_hora", ""),
+            dados.get("modo_teste", "NAO"),
             dados.get("nome", ""),
             dados.get("idade", ""),
             dados.get("genero", ""),
@@ -1802,7 +1804,7 @@ with col_title:
     st.markdown("<h1 style='margin-bottom:0'>Mind Insight™</h1>", unsafe_allow_html=True)
     if MODO_TESTE:
         st.markdown(
-            '<div class="manus-badge">V5.16 | Criado com Claude (Anthropic) | '
+            '<div class="manus-badge">V5.17 | Criado com Claude (Anthropic) | '
             'Aperfeiçoado por Manus AI | MODO TESTE ATIVO</div>',
             unsafe_allow_html=True
         )
@@ -2059,7 +2061,7 @@ else:
     # ------------------------------------------------------------------
     # Registro no Google Sheets e envio de email (modo producao)
     # ------------------------------------------------------------------
-    if not MODO_TESTE and not st.session_state.dados_registrados:
+    if not st.session_state.dados_registrados:
         user_info = st.session_state.get("user_info", {})
         medias_perfil = perfil.get("medias", {})
         respostas_finais = st.session_state.responses
@@ -2069,17 +2071,18 @@ else:
             )
         dados_registro = {
             "data_hora": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "modo_teste": "SIM" if MODO_TESTE else "NAO",
             "nome": user_info.get("nome", ""),
             "idade": user_info.get("idade", ""),
             "genero": user_info.get("genero", ""),
             "email": user_info.get("email", ""),
-            "Abertura": medias_perfil.get("Abertura", ""),
-            "Conscienciosidade": medias_perfil.get("Conscienciosidade", ""),
-            "Extroversao": medias_perfil.get("Extroversao", ""),
-            "Amabilidade": medias_perfil.get("Amabilidade", ""),
-            "Neuroticismo": medias_perfil.get("Neuroticismo", ""),
-            "Seguranca": medias_perfil.get("Seguranca", ""),
-            "Abundancia": medias_perfil.get("Abundancia", ""),
+            "Abertura": round(medias_perfil.get("Abertura", 0), 2),
+            "Conscienciosidade": round(medias_perfil.get("Conscienciosidade", 0), 2),
+            "Extroversao": round(medias_perfil.get("Extroversao", 0), 2),
+            "Amabilidade": round(medias_perfil.get("Amabilidade", 0), 2),
+            "Neuroticismo": round(medias_perfil.get("Neuroticismo", 0), 2),
+            "Seguranca": round(medias_perfil.get("Seguranca", 0), 2),
+            "Abundancia": round(medias_perfil.get("Abundancia", 0), 2),
             "maior_contraste": perfil.get("maior_contraste_key", "") + " = " + str(perfil.get("maior_contraste_val", "")),
             "amplitude_pct": str(perfil.get("pct_3_4", "")),
             "padroes_ativos": "; ".join(perfil.get("flags", [])),
@@ -2088,15 +2091,22 @@ else:
             "respostas": respostas_finais,
         }
         ok_sheets, msg_sheets = registrar_no_sheets(dados_registro)
-        nome_usuario = user_info.get("nome", "")
-        email_usuario = user_info.get("email", "")
-        if email_usuario:
-            ok_email, msg_email = enviar_email(email_usuario, nome_usuario, relatorio)
-            if ok_email:
-                st.success(
-                    "Uma copia do seu relatorio foi enviada para **" + email_usuario + "**. "
-                    "Verifique sua caixa de entrada (ou spam)."
-                )
+        if MODO_TESTE:
+            if ok_sheets:
+                st.info("[DEBUG] Registro no Google Sheets: OK")
+            else:
+                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets))
+        # Email apenas em modo producao
+        if not MODO_TESTE:
+            nome_usuario = user_info.get("nome", "")
+            email_usuario = user_info.get("email", "")
+            if email_usuario:
+                ok_email, msg_email = enviar_email(email_usuario, nome_usuario, relatorio)
+                if ok_email:
+                    st.success(
+                        "Uma cópia do seu relatório foi enviada para **" + email_usuario + "**. "
+                        "Verifique sua caixa de entrada (ou spam)."
+                    )
         st.session_state.dados_registrados = True
 
     st.markdown("---")
