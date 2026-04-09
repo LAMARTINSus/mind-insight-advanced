@@ -796,6 +796,7 @@ def gerar_relatorio(perfil):
     q21 = q_adj.get(21, 3)   # energia com pessoas
     q22 = q_adj.get(22, 3)   # toma iniciativa em grupo
     q24 = q_adj.get(24, 3)   # porta-voz de grupo
+    q26 = q_adj.get(26, 3)   # busca novas pessoas
     q27 = q_adj.get(27, 3)   # prefere escrever a falar (invertida)
     q29 = q_adj.get(29, 3)   # fica ouvindo em grupo (invertida)
     q30 = q_adj.get(30, 3)   # exprime opiniao quando discordam
@@ -1586,10 +1587,8 @@ def gerar_statements_calibracao(perfil):
         statements.append({
             "id": sid, "eixo": "Extroversao",
             "texto": (
-                "Em grupos, voce tende a observar mais do que falar - "
-                "nao porque nao tenha opiniao, mas porque nao sente necessidade de se impor. "
-                "Voce prefere contribuir quando e diretamente solicitado "
-                "ou quando tem certeza de que o que vai dizer realmente importa."
+                "Em grupos, voce prefere observar e ouvir na maior parte do tempo, "
+                "escolhendo falar apenas quando tem algo importante a acrescentar."
             ),
             "followup_verdadeiro": (
                 "Isso e uma preferencia ou grupos grandes te deixam genuinamente desconfortavel? "
