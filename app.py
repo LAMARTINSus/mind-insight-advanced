@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.12
+# Version: V5.13
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -36,9 +36,33 @@ import streamlit as st
 import json
 import os
 import pandas as pd
+import smtplib
+import datetime
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from openai import OpenAI
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    GSPREAD_OK = True
+except ImportError:
+    GSPREAD_OK = False
 
-DEBUG_MODE = True
+# =============================================================
+# MODO DE OPERACAO
+# Producao (padrao): sem debug, sem reutilizacao de respostas
+# Teste: acesse a URL com ?modo=teste para ativar o modo de desenvolvimento
+# =============================================================
+
+def detectar_modo():
+    try:
+        params = st.query_params
+        return params.get("modo", "producao") == "teste"
+    except Exception:
+        return False
+
+DEBUG_MODE = detectar_modo()
+MODO_TESTE = DEBUG_MODE
 
 # =============================================================
 # RESPOSTAS DO ULTIMO TESTE (para reutilizacao rapida)
@@ -60,7 +84,7 @@ ULTIMO_TESTE = {
 # =============================================================
 
 st.set_page_config(
-    page_title="Mind Insight AI",
+    page_title="Mind Insight",
     page_icon="\U0001f9e0",
     layout="wide"
 )
@@ -107,6 +131,14 @@ def get_openai_client():
 
 if "responses" not in st.session_state:
     st.session_state.responses = {}
+if "user_info" not in st.session_state:
+    st.session_state.user_info = {}
+if "user_info_completo" not in st.session_state:
+    st.session_state.user_info_completo = False
+if "relatorio_gerado" not in st.session_state:
+    st.session_state.relatorio_gerado = ""
+if "dados_registrados" not in st.session_state:
+    st.session_state.dados_registrados = False
 if "current_question" not in st.session_state:
     st.session_state.current_question = 0
 if "modo_selecionado" not in st.session_state:
@@ -382,6 +414,106 @@ def carregar_ultimo_teste():
     return dict(ULTIMO_TESTE)
 
 # =============================================================
+# GOOGLE SHEETS LOGGING
+# =============================================================
+
+def registrar_no_sheets(dados):
+    """Envia uma linha de dados para o Google Sheets configurado em st.secrets."""
+    if not GSPREAD_OK:
+        return False, "gspread nao instalado"
+    try:
+        creds_dict = dict(st.secrets.get("gcp_service_account", {}))
+        if not creds_dict:
+            return False, "gcp_service_account nao configurado em secrets"
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ]
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        gc = gspread.authorize(creds)
+        sheet_url = st.secrets.get("GOOGLE_SHEET_URL", "")
+        if not sheet_url:
+            return False, "GOOGLE_SHEET_URL nao configurado em secrets"
+        sh = gc.open_by_url(sheet_url)
+        ws = sh.sheet1
+        # Cabecalho se planilha vazia
+        if ws.row_count == 0 or ws.cell(1, 1).value != "data_hora":
+            cabecalho = [
+                "data_hora", "nome", "idade", "genero", "email",
+                "Abertura", "Conscienciosidade", "Extroversao",
+                "Amabilidade", "Neuroticismo", "Seguranca", "Abundancia",
+                "maior_contraste", "amplitude_pct", "padroes_ativos",
+                "ajustes_calibracao", "relatorio"
+            ] + ["Q" + str(i) for i in range(1, 75)]
+            ws.append_row(cabecalho)
+        linha = [
+            dados.get("data_hora", ""),
+            dados.get("nome", ""),
+            dados.get("idade", ""),
+            dados.get("genero", ""),
+            dados.get("email", ""),
+            dados.get("Abertura", ""),
+            dados.get("Conscienciosidade", ""),
+            dados.get("Extroversao", ""),
+            dados.get("Amabilidade", ""),
+            dados.get("Neuroticismo", ""),
+            dados.get("Seguranca", ""),
+            dados.get("Abundancia", ""),
+            dados.get("maior_contraste", ""),
+            dados.get("amplitude_pct", ""),
+            dados.get("padroes_ativos", ""),
+            dados.get("ajustes_calibracao", ""),
+            dados.get("relatorio", "")[:5000],  # limitar tamanho
+        ] + [dados.get("respostas", {}).get(i, "") for i in range(1, 75)]
+        ws.append_row(linha)
+        return True, "ok"
+    except Exception as e:
+        return False, str(e)
+
+
+def enviar_email(destinatario, nome, relatorio_texto):
+    """Envia o relatorio por email via Gmail configurado em st.secrets."""
+    try:
+        gmail_user = st.secrets.get("GMAIL_USER", "")
+        gmail_pass = st.secrets.get("GMAIL_APP_PASSWORD", "")
+        if not gmail_user or not gmail_pass:
+            return False, "GMAIL_USER ou GMAIL_APP_PASSWORD nao configurados em secrets"
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "Seu Relatorio Mind Insight"
+        msg["From"] = "Mind Insight <" + gmail_user + ">"
+        msg["To"] = destinatario
+
+        texto_plain = (
+            "Ola " + nome + ",\n\n"
+            "Aqui esta o seu relatorio completo de perfil comportamental gerado pelo Mind Insight.\n\n"
+            + relatorio_texto
+            + "\n\n---\nMind Insight | Desenvolvido com inteligencia artificial"
+        )
+
+        html_body = (
+            "<html><body style='font-family:Arial,sans-serif;max-width:700px;margin:auto;padding:20px'>"
+            "<h2 style='color:#1a1a1a'>Seu Relatorio Mind Insight</h2>"
+            "<p>Ola <strong>" + nome + "</strong>,</p>"
+            "<p>Aqui esta o seu relatorio completo de perfil comportamental.</p>"
+            "<hr>"
+            + relatorio_texto.replace("\n", "<br>")
+            + "<hr><p style='color:#888;font-size:0.85em'>Mind Insight | Desenvolvido com inteligencia artificial</p>"
+            "</body></html>"
+        )
+
+        msg.attach(MIMEText(texto_plain, "plain", "utf-8"))
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(gmail_user, gmail_pass)
+            server.sendmail(gmail_user, destinatario, msg.as_string())
+        return True, "ok"
+    except Exception as e:
+        return False, str(e)
+
+
+# =============================================================
 # ENGINE DE CALCULO DO PERFIL
 # =============================================================
 
@@ -461,6 +593,17 @@ def gerar_perfil(respostas):
         flags.append("abertura intelectual e curiosidade acima da media")
     if medias["Extroversao"] < 3:
         flags.append("introversao predominante - energia social mais contida")
+    # Detectar extroversao bimodal: reservado socialmente mas assertivo em contextos formais/tecnicos
+    _q22 = respostas_ajustadas.get(22, 3)
+    _q24 = respostas_ajustadas.get(24, 3)
+    _q30 = respostas_ajustadas.get(30, 3)
+    _q21 = respostas_ajustadas.get(21, 3)
+    _q26 = respostas_ajustadas.get(26, 3)
+    _q28 = respostas_ajustadas.get(28, 3)
+    _media_formal   = (_q22 + _q24 + _q30) / 3
+    _media_informal = (_q21 + _q26 + _q28) / 3
+    if _media_formal >= 3.5 and _media_informal < 3.0:
+        flags.append("extroversao bimodal: assertivo em contextos formais/tecnicos, reservado socialmente")
     if medias["Amabilidade"] >= 4.0:
         flags.append("amabilidade muito alta - possivel custo em assertividade")
 
@@ -859,6 +1002,26 @@ def gerar_relatorio(perfil):
             "porque nao se vendem bem, mesmo sendo as mais capazes na sala." % (ab, co, ex)
         )
 
+    # 8b. Extroversao bimodal
+    _media_formal_ex   = (q22 + q24 + q30) / 3
+    _media_informal_ex = (q21 + q26 + q_adj.get(28, 3)) / 3
+    if _media_formal_ex >= 3.5 and _media_informal_ex < 3.0:
+        combinacoes_ativas.append(
+            "EXTROVERSAO BIMODAL (formal=%.2f, informal=%.2f): "
+            "Esta pessoa tem dois modos de extroversao completamente diferentes. "
+            "Em contextos formais, tecnicos ou onde tem autoridade no assunto "
+            "(toma_iniciativa_grupo=%d, porta_voz=%d, exprime_opiniao=%d), ela e assertiva e presente. "
+            "Em contextos sociais informais (energia_com_pessoas=%d, busca_novas_pessoas=%d), "
+            "ela e reservada e nao busca estimulo. "
+            "Isso significa que ela NAO e introvertida no sentido classico - "
+            "ela e seletiva: se expoe quando tem algo concreto a contribuir, "
+            "nao por prazer social. "
+            "Pode ser vista como 'diferente' dependendo do contexto - "
+            "quieta na festa, mas a que lidera a reuniao tecnica." % (
+                _media_formal_ex, _media_informal_ex,
+                q22, q24, q30, q21, q26)
+        )
+
     # 9. Extroversao baixa a muito baixa
     if ex < 3.0:
         combinacoes_ativas.append(
@@ -1154,13 +1317,30 @@ def gerar_relatorio(perfil):
         "o padrao correto NAO e 'se compromete facilmente' - e 'entrega mesmo sem um sistema claro, "
         "o que gera custo oculto: a entrega acontece mas com esforco desproporcional, "
         "acumulo de pressao de ultima hora, e sensacao de que poderia ter feito melhor se tivesse se organizado antes'. "
-        "Descreva o custo real da entrega sem sistema, nao o excesso de compromissos.\n\n"
+        "Descreva o custo real da entrega sem sistema, nao o excesso de compromissos. "
+        "REGRA PARA SEGURANCA: mudancas_incomodam_Q55="
+        + str(q_adj.get(55, 3))
+        + ", resiste_mudar_rotina_Q59="
+        + str(q_adj.get(59, 3))
+        + ". Se Q55 >= 4 OU Q59 >= 4, DEVE aparecer como trava: "
+        "'Quando uma oportunidade exige mudar de rotina ou de plano, voce tende a resistir mesmo quando a mudanca vale a pena. "
+        "O custo: pode recusar oportunidades de crescimento por desconforto com a transicao, "
+        "nao por falta de capacidade.'\n\n"
 
         "8. O QUE VALE DESENVOLVER\n"
         "2 a 3 areas de desenvolvimento de alto impacto para este perfil especifico. "
         "Nao e sobre corrigir fraquezas - e sobre o que, se desenvolvido, multiplicaria os resultados "
         "que essa pessoa ja consegue. Seja especifico: o que desenvolver, como isso se conecta ao perfil, "
-        "e qual seria o impacto concreto na carreira, nas relacoes ou nas financas.\n\n"
+        "e qual seria o impacto concreto na carreira, nas relacoes ou nas financas. "
+        "ABUNDANCIA: Abundancia="
+        + "%.2f" % abu
+        + ", oportunidades_limitadas_Q65="
+        + str(q_adj.get(65, 3))
+        + ", dificuldade_investir_sem_garantia_Q71="
+        + str(q_adj.get(71, 3))
+        + ". Se Q65 >= 4 OU Q71 >= 4, DEVE aparecer como area de desenvolvimento: "
+        "'Aprender a investir em si mesmo sem exigir retorno garantido antes de comecar - "
+        "porque o crescimento mais importante frequentemente exige apostar antes de ter certeza.'\n\n"
 
         "9. PROXIMOS PASSOS\n"
         "INSTRUCAO CRITICA: Os passos abaixo foram pre-gerados com base nos padroes especificos deste perfil. "
@@ -1326,7 +1506,7 @@ def render_debug(perfil):
         "total_perguntas": len(questions),
         "eixos": list(blocos_info.keys()),
         "total_contrastes_calculados": len(perfil["diferencas"]),
-        "versao_prompt": "V5.12 - calibrado por Manus AI",
+        "versao_prompt": "V5.13 - calibrado por Manus AI",
     })
 
 
@@ -1584,54 +1764,111 @@ def aplicar_ajustes_calibracao(respostas_originais, ajustes):
 # INTERFACE PRINCIPAL
 # =============================================================
 
-st.title("Mind Insight AI")
-st.markdown(
-    '<div class="manus-badge">V5.12 | Criado com Claude (Anthropic) | '
-    'Aperfeicoado por Manus AI | Debug ativo</div>',
-    unsafe_allow_html=True
-)
+st.title("Mind Insight")
+if MODO_TESTE:
+    st.markdown(
+        '<div class="manus-badge">V5.13 | Criado com Claude (Anthropic) | '
+        'Aperfeicoado por Manus AI | MODO TESTE ATIVO</div>',
+        unsafe_allow_html=True
+    )
+else:
+    st.markdown(
+        '<div class="manus-badge">Desenvolvido com inteligencia artificial</div>',
+        unsafe_allow_html=True
+    )
 
 TOTAL = len(questions)
 
 # ------------------------------------------------------------------
-# TELA 0 - Selecao de modo (antes da pergunta 1)
+# TELA 0 - Coleta de dados do usuario (producao) ou selecao de modo (teste)
 # ------------------------------------------------------------------
 if not st.session_state.modo_selecionado:
-    st.markdown("---")
-    st.subheader("Como voce quer comecar?")
-    st.caption(
-        "Opcao de reutilizacao disponivel apenas durante a fase de calibracao. "
-        "Sera removida na versao final."
-    )
-
-    col_a, col_b = st.columns(2)
-
-    with col_a:
-        st.markdown("**Usar respostas do ultimo teste**")
-        _json_existe = os.path.exists(ULTIMO_TESTE_JSON)
-        if _json_existe:
-            st.caption(
-                "Serao usadas as respostas da sua **ultima sessao calibrada** (salvas automaticamente). "
-                "Gera o relatorio em segundos sem precisar responder novamente."
-            )
-        else:
-            st.caption(
-                "Serao usadas as respostas de referencia (nenhuma calibracao salva ainda). "
-                "Gera o relatorio em segundos sem precisar responder novamente."
-            )
-        if st.button("Usar ultimo teste", key="btn_ultimo"):
-            st.session_state.responses = carregar_ultimo_teste()
-            st.session_state.current_question = TOTAL + 1
-            st.session_state.modo_selecionado = True
-            st.rerun()
-
-    with col_b:
-        st.markdown("**Responder o questionario novamente**")
+    if MODO_TESTE:
+        # --- MODO TESTE: opcoes de reutilizacao ---
+        st.markdown("---")
+        st.subheader("[MODO TESTE] Como voce quer comecar?")
         st.caption(
-            "Responde todas as 74 perguntas do zero. "
-            "Use quando quiser registrar um novo conjunto de respostas."
+            "Opcao de reutilizacao disponivel apenas no modo teste (?modo=teste na URL). "
+            "Usuarios normais vao direto para as perguntas."
         )
-        if st.button("Responder questionario", key="btn_novo"):
+
+        col_a, col_b = st.columns(2)
+
+        with col_a:
+            st.markdown("**Usar respostas do ultimo teste**")
+            _json_existe = os.path.exists(ULTIMO_TESTE_JSON)
+            if _json_existe:
+                st.caption(
+                    "Serao usadas as respostas da sua **ultima sessao calibrada** (salvas automaticamente). "
+                    "Gera o relatorio em segundos sem precisar responder novamente."
+                )
+            else:
+                st.caption(
+                    "Serao usadas as respostas de referencia (nenhuma calibracao salva ainda). "
+                    "Gera o relatorio em segundos sem precisar responder novamente."
+                )
+            if st.button("Usar ultimo teste", key="btn_ultimo"):
+                st.session_state.responses = carregar_ultimo_teste()
+                st.session_state.current_question = TOTAL + 1
+                st.session_state.modo_selecionado = True
+                st.rerun()
+
+        with col_b:
+            st.markdown("**Responder o questionario novamente**")
+            st.caption(
+                "Responde todas as 74 perguntas do zero. "
+                "Use quando quiser registrar um novo conjunto de respostas."
+            )
+            if st.button("Responder questionario", key="btn_novo"):
+                st.session_state.responses = {}
+                st.session_state.current_question = 1
+                st.session_state.modo_selecionado = True
+                st.rerun()
+
+    else:
+        # --- MODO PRODUCAO: coleta de dados do usuario ---
+        if not st.session_state.user_info_completo:
+            st.markdown("---")
+            st.subheader("Antes de comecar")
+            st.markdown(
+                "Preencha os dados abaixo para personalizar seu relatorio. "
+                "Ao final, voce tambem recebera uma copia por email."
+            )
+            st.markdown("---")
+
+            with st.form("form_dados_usuario"):
+                nome_input = st.text_input("Seu nome *", placeholder="Como prefere ser chamado(a)")
+                col_idade, col_genero = st.columns(2)
+                with col_idade:
+                    idade_input = st.number_input("Idade *", min_value=16, max_value=99, value=30, step=1)
+                with col_genero:
+                    genero_input = st.selectbox(
+                        "Genero *",
+                        ["Prefiro nao informar", "Feminino", "Masculino", "Nao-binario", "Outro"]
+                    )
+                email_input = st.text_input("Email *", placeholder="seu@email.com")
+                st.caption("Seu email sera usado apenas para enviar uma copia do seu relatorio.")
+
+                submitted = st.form_submit_button("Comecar o teste", type="primary")
+                if submitted:
+                    if not nome_input.strip():
+                        st.error("Por favor, informe seu nome.")
+                    elif not email_input.strip() or "@" not in email_input:
+                        st.error("Por favor, informe um email valido.")
+                    else:
+                        st.session_state.user_info = {
+                            "nome": nome_input.strip(),
+                            "idade": int(idade_input),
+                            "genero": genero_input,
+                            "email": email_input.strip().lower(),
+                        }
+                        st.session_state.user_info_completo = True
+                        st.session_state.responses = {}
+                        st.session_state.current_question = 1
+                        st.session_state.modo_selecionado = True
+                        st.rerun()
+        else:
+            # user_info ja preenchido, ir para questionario
             st.session_state.responses = {}
             st.session_state.current_question = 1
             st.session_state.modo_selecionado = True
@@ -1782,37 +2019,81 @@ else:
 
     st.markdown(relatorio)
 
-    if DEBUG_MODE:
+    if MODO_TESTE:
         render_debug(perfil)
+
+    # ------------------------------------------------------------------
+    # Registro no Google Sheets e envio de email (modo producao)
+    # ------------------------------------------------------------------
+    if not MODO_TESTE and not st.session_state.dados_registrados:
+        user_info = st.session_state.get("user_info", {})
+        medias_perfil = perfil.get("medias", {})
+        respostas_finais = st.session_state.responses
+        if st.session_state.calibracao_ajustes:
+            respostas_finais = aplicar_ajustes_calibracao(
+                st.session_state.responses, st.session_state.calibracao_ajustes
+            )
+        dados_registro = {
+            "data_hora": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "nome": user_info.get("nome", ""),
+            "idade": user_info.get("idade", ""),
+            "genero": user_info.get("genero", ""),
+            "email": user_info.get("email", ""),
+            "Abertura": medias_perfil.get("Abertura", ""),
+            "Conscienciosidade": medias_perfil.get("Conscienciosidade", ""),
+            "Extroversao": medias_perfil.get("Extroversao", ""),
+            "Amabilidade": medias_perfil.get("Amabilidade", ""),
+            "Neuroticismo": medias_perfil.get("Neuroticismo", ""),
+            "Seguranca": medias_perfil.get("Seguranca", ""),
+            "Abundancia": medias_perfil.get("Abundancia", ""),
+            "maior_contraste": perfil.get("maior_contraste_key", "") + " = " + str(perfil.get("maior_contraste_val", "")),
+            "amplitude_pct": str(perfil.get("pct_3_4", "")),
+            "padroes_ativos": "; ".join(perfil.get("flags", [])),
+            "ajustes_calibracao": str(len(st.session_state.get("calibracao_ajustes", {}))),
+            "relatorio": relatorio,
+            "respostas": respostas_finais,
+        }
+        ok_sheets, msg_sheets = registrar_no_sheets(dados_registro)
+        nome_usuario = user_info.get("nome", "")
+        email_usuario = user_info.get("email", "")
+        if email_usuario:
+            ok_email, msg_email = enviar_email(email_usuario, nome_usuario, relatorio)
+            if ok_email:
+                st.success(
+                    "Uma copia do seu relatorio foi enviada para **" + email_usuario + "**. "
+                    "Verifique sua caixa de entrada (ou spam)."
+                )
+        st.session_state.dados_registrados = True
 
     st.markdown("---")
 
     # ------------------------------------------------------------------
-    # Botao de download das respostas calibradas
+    # Botao de download das respostas calibradas (apenas modo teste)
     # ------------------------------------------------------------------
-    respostas_para_download = st.session_state.responses
-    if st.session_state.perfil_cache is not None and st.session_state.calibracao_ajustes:
-        respostas_para_download = aplicar_ajustes_calibracao(
-            st.session_state.responses, st.session_state.calibracao_ajustes
+    if MODO_TESTE:
+        respostas_para_download = st.session_state.responses
+        if st.session_state.perfil_cache is not None and st.session_state.calibracao_ajustes:
+            respostas_para_download = aplicar_ajustes_calibracao(
+                st.session_state.responses, st.session_state.calibracao_ajustes
+            )
+        _json_bytes = json.dumps(
+            {str(k): v for k, v in respostas_para_download.items()},
+            ensure_ascii=False, indent=2
+        ).encode('utf-8')
+        st.download_button(
+            label="[TESTE] Baixar respostas calibradas (ultimo_teste.json)",
+            data=_json_bytes,
+            file_name="ultimo_teste.json",
+            mime="application/json",
+            help=(
+                "Baixe este arquivo e adicione ao seu repositorio GitHub junto com o app.py. "
+                "Assim as respostas calibradas serao preservadas em futuros deploys."
+            )
         )
-    _json_bytes = json.dumps(
-        {str(k): v for k, v in respostas_para_download.items()},
-        ensure_ascii=False, indent=2
-    ).encode('utf-8')
-    st.download_button(
-        label="Baixar respostas calibradas (ultimo_teste.json)",
-        data=_json_bytes,
-        file_name="ultimo_teste.json",
-        mime="application/json",
-        help=(
-            "Baixe este arquivo e adicione ao seu repositorio GitHub junto com o app.py. "
-            "Assim as respostas calibradas serao preservadas em futuros deploys."
+        st.caption(
+            "Dica: coloque o arquivo baixado na mesma pasta do app.py no seu repositorio "
+            "para que as respostas calibradas sejam usadas automaticamente nos proximos deploys."
         )
-    )
-    st.caption(
-        "Dica: coloque o arquivo baixado na mesma pasta do app.py no seu repositorio "
-        "para que as respostas calibradas sejam usadas automaticamente nos proximos deploys."
-    )
 
     st.markdown("---")
     col1, col2 = st.columns(2)
@@ -1820,15 +2101,19 @@ else:
         if st.button("Refazer o teste"):
             for key in ["responses", "calibracao_completa", "calibracao_statements",
                         "calibracao_respostas", "calibracao_followup",
-                        "calibracao_ajustes", "perfil_cache"]:
-                if key == "responses":
+                        "calibracao_ajustes", "perfil_cache",
+                        "relatorio_gerado", "dados_registrados",
+                        "user_info", "user_info_completo"]:
+                if key in ("responses", "user_info"):
                     st.session_state[key] = {}
-                elif key in ["calibracao_statements"]:
+                elif key in ("calibracao_statements",):
                     st.session_state[key] = []
-                elif key in ["calibracao_respostas", "calibracao_followup", "calibracao_ajustes"]:
+                elif key in ("calibracao_respostas", "calibracao_followup", "calibracao_ajustes"):
                     st.session_state[key] = {}
                 elif key == "perfil_cache":
                     st.session_state[key] = None
+                elif key == "relatorio_gerado":
+                    st.session_state[key] = ""
                 else:
                     st.session_state[key] = False
             st.session_state.current_question = 1
@@ -1838,15 +2123,19 @@ else:
         if st.button("Voltar ao inicio"):
             for key in ["responses", "calibracao_completa", "calibracao_statements",
                         "calibracao_respostas", "calibracao_followup",
-                        "calibracao_ajustes", "perfil_cache"]:
-                if key == "responses":
+                        "calibracao_ajustes", "perfil_cache",
+                        "relatorio_gerado", "dados_registrados",
+                        "user_info", "user_info_completo"]:
+                if key in ("responses", "user_info"):
                     st.session_state[key] = {}
-                elif key in ["calibracao_statements"]:
+                elif key in ("calibracao_statements",):
                     st.session_state[key] = []
-                elif key in ["calibracao_respostas", "calibracao_followup", "calibracao_ajustes"]:
+                elif key in ("calibracao_respostas", "calibracao_followup", "calibracao_ajustes"):
                     st.session_state[key] = {}
                 elif key == "perfil_cache":
                     st.session_state[key] = None
+                elif key == "relatorio_gerado":
+                    st.session_state[key] = ""
                 else:
                     st.session_state[key] = False
             st.session_state.current_question = 0
