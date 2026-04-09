@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.15
+# Version: V5.16
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -35,6 +35,9 @@
 # V5.15 - Acentuação gráfica completa em português nos textos fixos
 #       - Subtítulo atualizado: 'Análise comportamental potencializada por
 #         psicologia científica e inteligência artificial avançada'
+# V5.16 - Logo Mind Insight adicionado ao cabeçalho
+#       - Pergunta de calibração de Segurança separada em duas afirmações
+#         independentes (Q55: reatividade emocional / Q59: preferência por rotina)
 # =============================================================
 import streamlit as st
 import json
@@ -1698,28 +1701,52 @@ def gerar_statements_calibracao(perfil):
     # Q55 (mudancas inesperadas incomodam), Q59 (resiste a mudar rotina que funciona)
     # Q57 invertida (se sente bem em situacoes imprevisíveis), Q62 invertida (seguro em transicoes)
     q55 = adj.get(55, 3); q59 = adj.get(59, 3)
-    if q55 >= 3 or q59 >= 3:
+    if q55 >= 3:
         statements.append({
-            "id": sid, "eixo": "Mudancas de Planos",
+            "id": sid, "eixo": "Reatividade a Mudanças",
             "texto": (
-                "Quando seus planos mudam de forma inesperada, voce tende a se incomodar mais "
-                "do que a media das pessoas. "
-                "Quando encontra uma rotina que funciona, resiste a mudar mesmo que haja opcoes melhores."
+                "Quando seus planos mudam de forma inesperada, você tende a se incomodar "
+                "mais do que a maioria das pessoas — mesmo quando a mudança é pequena."
             ),
             "followup_verdadeiro": (
-                "Isso acontece em qualquer mudanca ou so em mudancas que afetam areas importantes para voce? "
-                "(1 = so me incomoda quando afeta areas muito importantes / "
-                "5 = qualquer mudanca inesperada me tira do eixo)"
+                "Isso acontece em qualquer mudança ou só em mudanças que afetam áreas importantes para você? "
+                "(1 = só me incomoda quando afeta áreas muito importantes / "
+                "5 = qualquer mudança inesperada me tira do eixo)"
             ),
             "followup_falso": (
-                "Voce lida bem com mudancas de planos - elas nao te afetam mais do que a media? "
-                "Ou a descricao estava certa mas exagerada na intensidade? "
-                "(1 = lido bem com mudancas, me adapto facilmente / "
-                "5 = a descricao estava certa mas foi um pouco exagerada)"
+                "Você lida bem com mudanças de planos — elas não te afetam mais do que a média? "
+                "Ou a descrição estava certa mas exagerada na intensidade? "
+                "(1 = lido bem com mudanças, me adapto facilmente / "
+                "5 = a descrição estava certa mas foi um pouco exagerada)"
             ),
-            "root_questions": [55, 59],
-            "ajuste_mais_forte": {55: 1, 59: 1},
-            "ajuste_mais_fraco": {55: -1, 59: -1},
+            "root_questions": [55],
+            "ajuste_mais_forte": {55: 1},
+            "ajuste_mais_fraco": {55: -1},
+        })
+        sid += 1
+
+    if q59 >= 3:
+        statements.append({
+            "id": sid, "eixo": "Preferência por Rotina",
+            "texto": (
+                "Quando você encontra uma rotina que funciona, tende a mantê-la — "
+                "mesmo quando há opções melhores disponíveis. "
+                "Não é resistência à mudança por medo: é uma preferência genuína pelo que já foi testado e funciona."
+            ),
+            "followup_verdadeiro": (
+                "Essa preferência por rotina se aplica a todas as áreas da sua vida ou só a algumas? "
+                "(1 = só em certas áreas específicas / "
+                "5 = em praticamente todas as áreas — prefiro o que já funciona)"
+            ),
+            "followup_falso": (
+                "Você muda de rotina com facilidade quando vê uma opção melhor? "
+                "Ou a descrição estava certa mas a intensidade foi exagerada? "
+                "(1 = mudo facilmente, não tenho apego a rotinas / "
+                "5 = a descrição estava certa mas foi um pouco exagerada)"
+            ),
+            "root_questions": [59],
+            "ajuste_mais_forte": {59: 1},
+            "ajuste_mais_fraco": {59: -1},
         })
         sid += 1
 
@@ -1767,18 +1794,23 @@ def aplicar_ajustes_calibracao(respostas_originais, ajustes):
 # INTERFACE PRINCIPAL
 # =============================================================
 
-st.title("Mind Insight")
-if MODO_TESTE:
-    st.markdown(
-        '<div class="manus-badge">V5.15 | Criado com Claude (Anthropic) | '
-        'Aperfeiçoado por Manus AI | MODO TESTE ATIVO</div>',
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown(
-        '<div class="manus-badge">Análise comportamental potencializada por psicologia científica e inteligência artificial avançada</div>',
-        unsafe_allow_html=True
-    )
+# Logo + título
+col_logo, col_title = st.columns([1, 5])
+with col_logo:
+    st.image("/app/static/logo_mindinsight.png", width=80)
+with col_title:
+    st.title("Mind Insight")
+    if MODO_TESTE:
+        st.markdown(
+            '<div class="manus-badge">V5.16 | Criado com Claude (Anthropic) | '
+            'Aperfeiçoado por Manus AI | MODO TESTE ATIVO</div>',
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            '<div class="manus-badge">Análise comportamental potencializada por psicologia científica e inteligência artificial avançada</div>',
+            unsafe_allow_html=True
+        )
 
 TOTAL = len(questions)
 
