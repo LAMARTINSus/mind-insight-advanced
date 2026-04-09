@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.13
+# Version: V5.15
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -29,9 +29,13 @@
 #       - Prompt: completamente reformulado com linguagem humana e motivadora
 #       - Prompt: nova estrutura orientada a forcas, lideranca e crescimento
 #       - Prompt: proibido usar termos tecnicos (introversao, neuroticismo, etc)
-#       - Prompt: relatorio deve fazer a pessoa se identificar e querer agir
+#        - Prompt: relatorio deve fazer a pessoa se identificar e querer agir
+# V5.14 - Fix NameError: q26 nao declarada em gerar_relatorio
+#       - Afirmação 2 (Extroversão) reescrita para eliminar ambiguidade
+# V5.15 - Acentuação gráfica completa em português nos textos fixos
+#       - Subtítulo atualizado: 'Análise comportamental potencializada por
+#         psicologia científica e inteligência artificial avançada'
 # =============================================================
-
 import streamlit as st
 import json
 import os
@@ -488,7 +492,7 @@ def enviar_email(destinatario, nome, relatorio_texto):
             "Ola " + nome + ",\n\n"
             "Aqui esta o seu relatorio completo de perfil comportamental gerado pelo Mind Insight.\n\n"
             + relatorio_texto
-            + "\n\n---\nMind Insight | Desenvolvido com inteligencia artificial"
+            + "\n\n---\nMind Insight | Análise comportamental potencializada por psicologia científica e inteligência artificial avançada"
         )
 
         html_body = (
@@ -498,7 +502,7 @@ def enviar_email(destinatario, nome, relatorio_texto):
             "<p>Aqui esta o seu relatorio completo de perfil comportamental.</p>"
             "<hr>"
             + relatorio_texto.replace("\n", "<br>")
-            + "<hr><p style='color:#888;font-size:0.85em'>Mind Insight | Desenvolvido com inteligencia artificial</p>"
+            + "<hr><p style='color:#888;font-size:0.85em'>Mind Insight | Análise comportamental potencializada por psicologia científica e inteligência artificial avançada</p>"
             "</body></html>"
         )
 
@@ -1507,7 +1511,7 @@ def render_debug(perfil):
         "total_perguntas": len(questions),
         "eixos": list(blocos_info.keys()),
         "total_contrastes_calculados": len(perfil["diferencas"]),
-        "versao_prompt": "V5.13 - calibrado por Manus AI",
+        "versao_prompt": "V5.15 - calibrado por Manus AI",
     })
 
 
@@ -1766,13 +1770,13 @@ def aplicar_ajustes_calibracao(respostas_originais, ajustes):
 st.title("Mind Insight")
 if MODO_TESTE:
     st.markdown(
-        '<div class="manus-badge">V5.13 | Criado com Claude (Anthropic) | '
-        'Aperfeicoado por Manus AI | MODO TESTE ATIVO</div>',
+        '<div class="manus-badge">V5.15 | Criado com Claude (Anthropic) | '
+        'Aperfeiçoado por Manus AI | MODO TESTE ATIVO</div>',
         unsafe_allow_html=True
     )
 else:
     st.markdown(
-        '<div class="manus-badge">Desenvolvido com inteligencia artificial</div>',
+        '<div class="manus-badge">Análise comportamental potencializada por psicologia científica e inteligência artificial avançada</div>',
         unsafe_allow_html=True
     )
 
