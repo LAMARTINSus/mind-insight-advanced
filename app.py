@@ -487,22 +487,22 @@ def enviar_email(destinatario, nome, relatorio_texto):
             return False, "GMAIL_USER ou GMAIL_APP_PASSWORD nao configurados em secrets"
 
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Seu Relatorio Mind Insight"
+        msg["Subject"] = "Seu Relatório Mind Insight"
         msg["From"] = "Mind Insight <" + gmail_user + ">"
         msg["To"] = destinatario
 
         texto_plain = (
-            "Ola " + nome + ",\n\n"
-            "Aqui esta o seu relatorio completo de perfil comportamental gerado pelo Mind Insight.\n\n"
+            "Olá " + nome + ",\n\n"
+            "Aqui está o seu relatório completo de perfil comportamental gerado pelo Mind Insight.\n\n"
             + relatorio_texto
             + "\n\n---\nMind Insight | Análise comportamental potencializada por psicologia científica e inteligência artificial avançada"
         )
 
         html_body = (
             "<html><body style='font-family:Arial,sans-serif;max-width:700px;margin:auto;padding:20px'>"
-            "<h2 style='color:#1a1a1a'>Seu Relatorio Mind Insight</h2>"
-            "<p>Ola <strong>" + nome + "</strong>,</p>"
-            "<p>Aqui esta o seu relatorio completo de perfil comportamental.</p>"
+            "<h2 style='color:#1a1a1a'>Seu Relatório Mind Insight</h2>"
+            "<p>Olá <strong>" + nome + "</strong>,</p>"
+            "<p>Aqui está o seu relatório completo de perfil comportamental.</p>"
             "<hr>"
             + relatorio_texto.replace("\n", "<br>")
             + "<hr><p style='color:#888;font-size:0.85em'>Mind Insight | Análise comportamental potencializada por psicologia científica e inteligência artificial avançada</p>"
@@ -1264,26 +1264,26 @@ def gerar_relatorio(perfil):
 
         "ESTRUTURA OBRIGATORIA:\n\n"
 
-        "1. COMO VOCE FUNCIONA DE VERDADE\n"
+        "1. COMO VOCÊ FUNCIONA DE VERDADE\n"
         "Descreva o padrao de funcionamento desta pessoa usando o conhecimento sobre como os dois tracos mais altos "
         "se manifestam em comportamentos observaveis. Como ela entra em situacoes novas? "
         "Como ela reage quando algo nao sai como esperado? O que ela faz automaticamente que outras pessoas nao fazem? "
         "Use exemplos de situacoes reais do dia a dia - reuniao, projeto novo, conversa dificil, decisao sob pressao.\n\n"
 
-        "2. COMO VOCE TOMA DECISOES\n"
+        "2. COMO VOCÊ TOMA DECISÕES\n"
         "Descreva o processo de decisao real desta pessoa com base nos tracos de responsabilidade, "
         "orientacao a certeza e curiosidade intelectual. "
         "Qual e o padrao tipico de pessoas com esses scores ao tomar decisoes importantes? "
         "Onde elas decidem bem? Onde elas travam? O que elas precisam sentir antes de se comprometer com algo? "
         "Se Conscienciosidade < 3.0, descreva o padrao de entrega sob pressao sem sistema.\n\n"
 
-        "3. COMO VOCE SE RELACIONA\n"
+        "3. COMO VOCÊ SE RELACIONA\n"
         "Descreva o padrao relacional tipico de pessoas com esses scores de empatia, energia social e sensibilidade emocional. "
         "Como ela se comporta em grupos vs. em relacoes um a um? "
         "O que ela faz pelos outros que nao percebe que faz? Onde isso cobra um preco dela? "
         "Se o padrao de evitacao de conflito estiver ativo, DEVE ser descrito aqui com impacto real.\n\n"
 
-        "4. O QUE ACONTECE DENTRO DE VOCE\n"
+        "4. O QUE ACONTECE DENTRO DE VOCÊ\n"
         "Use o maior contraste do perfil ("
         + maior_contraste_key + " = %+.2f) para descrever " % maior_contraste_val
         + "o dialogo interno tipico de pessoas com essa combinacao especifica de tracos. "
@@ -1299,7 +1299,7 @@ def gerar_relatorio(perfil):
         "e quando externaliza, frequentemente surpreende quem nao esperava essa profundidade'.\n"
         + ("ANCORAS ESPECIFICAS PARA ESTA SECAO (use como base, nao ignore):\n" + linhas_ancoras + "\n\n" if linhas_ancoras else "\n")
 
-        + "5. ONDE VOCE PODE BRILHAR\n"
+        + "5. ONDE VOCÊ PODE BRILHAR\n"
         "Com base no perfil completo e no estilo de lideranca identificado, descreva 3 a 4 contextos especificos "
         "onde esta pessoa teria desempenho excepcional. "
         "Nao seja generico. Diga: qual tipo de funcao, qual tipo de ambiente, qual tipo de projeto, "
@@ -1315,7 +1315,7 @@ def gerar_relatorio(perfil):
         "Nao escreva 'voce e curioso' - escreva o que ela faz por causa dessa curiosidade. "
         "Cada forca deve ser sustentada por score >= 3.5 nos dados.\n\n"
 
-        "7. ONDE VOCE TRAVA\n"
+        "7. ONDE VOCÊ TRAVA\n"
         "Maximo 4 pontos. Formato obrigatorio: 'Porque voce tende a [padrao comportamental especifico], "
         "o que acontece na pratica e [consequencia concreta na vida real]'. "
         "Seja direto. Mostre o custo real - financeiro, profissional, relacional. "
@@ -1350,7 +1350,7 @@ def gerar_relatorio(perfil):
         "'Aprender a investir em si mesmo sem exigir retorno garantido antes de comecar - "
         "porque o crescimento mais importante frequentemente exige apostar antes de ter certeza.'\n\n"
 
-        "9. PROXIMOS PASSOS\n"
+        "9. PRÓXIMOS PASSOS\n"
         "INSTRUCAO CRITICA: Os passos abaixo foram pre-gerados com base nos padroes especificos deste perfil. "
         "Use-os como base obrigatoria. Voce pode refinar a linguagem para soar mais natural e humana, "
         "mas NAO pode substituir por passos genericos que servem para qualquer pessoa. "
@@ -1797,7 +1797,7 @@ def aplicar_ajustes_calibracao(respostas_originais, ajustes):
 # Logo + título (embutido como base64 para evitar dependência de arquivo estático)
 col_logo, col_title = st.columns([1, 5])
 with col_logo:
-    st.image("logo_mindinsight.png", width=120)
+    st.image("logo_mindinsight.png", width=220)
 with col_title:
     st.markdown("<h1 style='margin-bottom:0'>Mind Insight™</h1>", unsafe_allow_html=True)
     if MODO_TESTE:
@@ -1821,40 +1821,40 @@ if not st.session_state.modo_selecionado:
     if MODO_TESTE:
         # --- MODO TESTE: opcoes de reutilizacao ---
         st.markdown("---")
-        st.subheader("[MODO TESTE] Como voce quer comecar?")
+        st.subheader("[MODO TESTE] Como você quer começar?")
         st.caption(
-            "Opcao de reutilizacao disponivel apenas no modo teste (?modo=teste na URL). "
-            "Usuarios normais vao direto para as perguntas."
+            "Opção de reutilização disponível apenas no modo teste (?modo=teste na URL). "
+            "Usuários normais vão direto para as perguntas."
         )
 
         col_a, col_b = st.columns(2)
 
         with col_a:
-            st.markdown("**Usar respostas do ultimo teste**")
+            st.markdown("**Usar respostas do último teste**")
             _json_existe = os.path.exists(ULTIMO_TESTE_JSON)
             if _json_existe:
                 st.caption(
-                    "Serao usadas as respostas da sua **ultima sessao calibrada** (salvas automaticamente). "
-                    "Gera o relatorio em segundos sem precisar responder novamente."
+                    "Serão usadas as respostas da sua **última sessão calibrada** (salvas automaticamente). "
+                    "Gera o relatório em segundos sem precisar responder novamente."
                 )
             else:
                 st.caption(
-                    "Serao usadas as respostas de referencia (nenhuma calibracao salva ainda). "
-                    "Gera o relatorio em segundos sem precisar responder novamente."
+                    "Serão usadas as respostas de referência (nenhuma calibração salva ainda). "
+                    "Gera o relatório em segundos sem precisar responder novamente."
                 )
-            if st.button("Usar ultimo teste", key="btn_ultimo"):
+            if st.button("Usar último teste", key="btn_ultimo"):
                 st.session_state.responses = carregar_ultimo_teste()
                 st.session_state.current_question = TOTAL + 1
                 st.session_state.modo_selecionado = True
                 st.rerun()
 
         with col_b:
-            st.markdown("**Responder o questionario novamente**")
+            st.markdown("**Responder o questionário novamente**")
             st.caption(
                 "Responde todas as 74 perguntas do zero. "
                 "Use quando quiser registrar um novo conjunto de respostas."
             )
-            if st.button("Responder questionario", key="btn_novo"):
+            if st.button("Responder questionário", key="btn_novo"):
                 st.session_state.responses = {}
                 st.session_state.current_question = 1
                 st.session_state.modo_selecionado = True
@@ -1864,10 +1864,9 @@ if not st.session_state.modo_selecionado:
         # --- MODO PRODUCAO: coleta de dados do usuario ---
         if not st.session_state.user_info_completo:
             st.markdown("---")
-            st.subheader("Antes de comecar")
+            st.subheader("Antes de começar")
             st.markdown(
-                "Preencha os dados abaixo para personalizar seu relatorio. "
-                "Ao final, voce tambem recebera uma copia por email."
+                "Preencha os dados abaixo para personalizar seu relatório. Ao final, você também receberá uma cópia por email."
             )
             st.markdown("---")
 
@@ -1879,7 +1878,7 @@ if not st.session_state.modo_selecionado:
                 with col_genero:
                     genero_input = st.selectbox(
                         "Genero *",
-                        ["Prefiro nao informar", "Feminino", "Masculino", "Nao-binario", "Outro"]
+                        ["Prefiro não informar", "Feminino", "Masculino", "Nao-binario", "Outro"]
                     )
                 email_input = st.text_input("Email *", placeholder="seu@email.com")
                 st.caption("Seu email sera usado apenas para enviar uma copia do seu relatorio.")
@@ -1947,11 +1946,11 @@ elif not st.session_state.calibracao_completa:
 
     statements = st.session_state.calibracao_statements
 
-    st.title("Verificacao Rapida do Perfil")
+    st.title("Verificação Rápida do Perfil")
     st.markdown(
-        "Antes de gerar seu relatorio completo, preciso confirmar se as afirmacoes abaixo "
-        "descrevem voce com precisao. **Isso leva menos de 2 minutos** e garante que o "
-        "relatorio final seja fiel a quem voce realmente e."
+        "Antes de gerar seu relatório completo, preciso confirmar se as afirmações abaixo "
+        "descrevem você com precisão. **Isso leva menos de 2 minutos** e garante que o "
+        "relatório final seja fiel a quem você realmente é."
     )
     st.markdown("---")
 
@@ -1959,7 +1958,7 @@ elif not st.session_state.calibracao_completa:
         "Sim, isso me descreve bem",
         "Sim, mas com menos intensidade do que a realidade",
         "Sim, mas com mais intensidade do que a realidade",
-        "Nao me descreve"
+        "Não me descreve"
     ]
 
     todas_respondidas = True
@@ -1967,11 +1966,11 @@ elif not st.session_state.calibracao_completa:
 
     for stmt in statements:
         sid = stmt["id"]
-        st.markdown("**Afirmacao " + str(sid) + " — " + stmt["eixo"] + ":**")
+        st.markdown("**Afirmação " + str(sid) + " — " + stmt["eixo"] + ":**")
         st.info(stmt["texto"])
 
         resposta_stmt = st.radio(
-            "Esta afirmacao te descreve?",
+            "Esta afirmação te descreve?",
             opcoes_validacao,
             index=None,
             key="calib_stmt_" + str(sid)
@@ -1985,7 +1984,7 @@ elif not st.session_state.calibracao_completa:
             if resposta_stmt != opcoes_validacao[0]:
                 if resposta_stmt == opcoes_validacao[3]:
                     followup_txt = stmt["followup_falso"]
-                    followup_label = "Para entender melhor o que e verdadeiro para voce:"
+                    followup_label = "Para entender melhor o que é verdadeiro para você:"
                 else:
                     followup_txt = stmt["followup_verdadeiro"]
                     followup_label = "Ajude-nos a calibrar a intensidade correta:"
@@ -2015,7 +2014,7 @@ elif not st.session_state.calibracao_completa:
 
     if todas_respondidas:
         st.session_state.calibracao_ajustes = ajustes_acumulados
-        if st.button("Gerar meu relatorio completo", type="primary"):
+        if st.button("Gerar meu relatório completo", type="primary"):
             if ajustes_acumulados:
                 novas_respostas = aplicar_ajustes_calibracao(
                     st.session_state.responses, ajustes_acumulados
@@ -2035,7 +2034,7 @@ elif not st.session_state.calibracao_completa:
 # TELA 2 - Relatorio
 # ------------------------------------------------------------------
 else:
-    st.title("Seu Relatorio de Perfil")
+    st.title("Seu Relatório de Perfil")
 
     if st.session_state.perfil_cache is not None:
         perfil = st.session_state.perfil_cache
@@ -2045,11 +2044,11 @@ else:
     if st.session_state.calibracao_ajustes:
         n_ajustes = len(st.session_state.calibracao_ajustes)
         st.success(
-            "Relatorio calibrado com base nas suas respostas de validacao. "
-            + str(n_ajustes) + " ajuste(s) aplicado(s) para maior precisao."
+            "Relatório calibrado com base nas suas respostas de validação. "
+            + str(n_ajustes) + " ajuste(s) aplicado(s) para maior precisão."
         )
 
-    with st.spinner("Gerando sua analise..."):
+    with st.spinner("Gerando sua análise..."):
         relatorio = gerar_relatorio(perfil)
 
     st.markdown(relatorio)
