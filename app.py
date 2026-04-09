@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.17
+# Version: V5.18
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -442,7 +442,13 @@ def registrar_no_sheets(dados):
         sheet_url = st.secrets.get("GOOGLE_SHEET_URL", "")
         if not sheet_url:
             return False, "GOOGLE_SHEET_URL nao configurado em secrets"
-        sh = gc.open_by_url(sheet_url)
+        # Extrair o ID da planilha da URL para evitar erro 404 com open_by_url
+        import re as _re
+        _match = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sheet_url)
+        if not _match:
+            return False, "GOOGLE_SHEET_URL invalida - nao foi possivel extrair o ID"
+        sheet_id = _match.group(1)
+        sh = gc.open_by_key(sheet_id)
         ws = sh.sheet1
         # Cabecalho se planilha vazia
         if ws.row_count == 0 or ws.cell(1, 1).value != "data_hora":
@@ -1804,7 +1810,7 @@ with col_title:
     st.markdown("<h1 style='margin-bottom:0'>Mind Insight™</h1>", unsafe_allow_html=True)
     if MODO_TESTE:
         st.markdown(
-            '<div class="manus-badge">V5.17 | Criado com Claude (Anthropic) | '
+            '<div class="manus-badge">V5.18 | Criado com Claude (Anthropic) | '
             'Aperfeiçoado por Manus AI | MODO TESTE ATIVO</div>',
             unsafe_allow_html=True
         )
