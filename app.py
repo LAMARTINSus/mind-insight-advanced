@@ -433,6 +433,11 @@ def registrar_no_sheets(dados):
         creds_dict = dict(st.secrets.get("gcp_service_account", {}))
         if not creds_dict:
             return False, "gcp_service_account nao configurado em secrets"
+        # Corrigir private_key: substituir \\n literal por newline real (problema comum no Streamlit secrets)
+        if "private_key" in creds_dict:
+            pk = creds_dict["private_key"]
+            if "\\n" in pk and "\n" not in pk:
+                creds_dict["private_key"] = pk.replace("\\n", "\n")
         scopes = [
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
@@ -2101,9 +2106,9 @@ else:
         ok_sheets, msg_sheets = registrar_no_sheets(dados_registro)
         if MODO_TESTE:
             if ok_sheets:
-                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.19 ATIVA")
+                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.20 ATIVA")
             else:
-                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.19 ATIVA")
+                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.20 ATIVA")
         # Email apenas em modo producao
         if not MODO_TESTE:
             nome_usuario = user_info.get("nome", "")
