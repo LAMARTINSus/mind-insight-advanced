@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.18
+# Version: V5.19
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -1811,7 +1810,7 @@ with col_title:
     st.markdown("<h1 style='margin-bottom:0'>Mind Insight™</h1>", unsafe_allow_html=True)
     if MODO_TESTE:
         st.markdown(
-            '<div class="manus-badge">V5.18 | Criado com Claude (Anthropic) | '
+            '<div class="manus-badge">V5.19 | Criado com Claude (Anthropic) | '
             'Aperfeiçoado por Manus AI | MODO TESTE ATIVO</div>',
             unsafe_allow_html=True
         )
@@ -2100,9 +2099,9 @@ else:
         ok_sheets, msg_sheets = registrar_no_sheets(dados_registro)
         if MODO_TESTE:
             if ok_sheets:
-                st.info("[DEBUG] Registro no Google Sheets: OK")
+                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.19 ATIVA")
             else:
-                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets))
+                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.19 ATIVA")
         # Email apenas em modo producao
         if not MODO_TESTE:
             nome_usuario = user_info.get("nome", "")
