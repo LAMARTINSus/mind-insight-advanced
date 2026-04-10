@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.19
+# Version: V5.20
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -483,7 +483,9 @@ def registrar_no_sheets(dados):
         ws.append_row(linha)
         return True, "ok"
     except Exception as e:
-        return False, str(e)
+        import traceback
+        tb = traceback.format_exc().replace("\n", " | ")
+        return False, str(e) + " | DETALHE: " + tb
 
 
 def enviar_email(destinatario, nome, relatorio_texto):
