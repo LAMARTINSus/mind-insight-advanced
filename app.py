@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.20
+# Version: V5.23
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -39,6 +39,17 @@
 # V5.17 - Google Sheets: grava em modo teste e producao; mostra erro no debug; coluna modo_teste adicionada
 #       - Pergunta de calibração de Segurança separada em duas afirmações
 #         independentes (Q55: reatividade emocional / Q59: preferência por rotina)
+# V5.20 - Fix private_key newline issue no Streamlit secrets
+#       - Nova planilha Google Sheets criada e reconectada
+# V5.21 - Nova secao 10: Tracos Comportamentais de Alta Confianca
+#       - 10 desafios implementados com thresholds rigorosos
+#       - Formato: nome curto + descricao universal de 3 linhas
+# V5.22 - Secao 10 expandida com subsecoes separadas: Forcas e Desafios
+#       - 12 forcas comportamentais adicionadas
+#       - Formato padrao: 'Voce exibe tracos de...' + mecanismo + custo
+# V5.23 - 35 tracos adicionais implementados (desafios e forcas)
+#       - Total: 48 desafios + 18 forcas = 66 tracos de alta confianca
+#       - Inclui: ausencias, cluster ego defensivo, padroes limitantes
 # =============================================================
 import streamlit as st
 import json
@@ -1065,6 +1076,662 @@ def gerar_relatorio(perfil):
 
     linhas_combinacoes = "\n\n".join(combinacoes_ativas) if combinacoes_ativas else "Nenhuma combinacao critica identificada."
 
+    # --- TRACOS COMPORTAMENTAIS DE ALTA CONFIANCA ---
+    # So aparecem quando multiplas variaveis convergem com alta certeza.
+    # Tracos ambiguos ou moderados sao silenciados propositalmente.
+    # Separados em DESAFIOS (padroes limitantes) e FORCAS (padroes fortalecedores).
+
+    tracos_desafios = []
+    tracos_forcas = []
+
+    # ============================================================
+    # DESAFIOS — padroes que limitam ou cobram preco
+    # ============================================================
+
+    # IMPULSIVIDADE DECISORIA
+    if co < 2.5 and ne >= 3.5 and q16 <= 2 and q14 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem age antes de pensar.\n"
+            "Voce decide rapido, muda de plano com facilidade e frequentemente se arrepende de compromissos "
+            "assumidos no calor do momento. Nao e falta de inteligencia - e um padrao de processamento "
+            "acelerado que cobra um preco em consistencia e credibilidade."
+        )
+
+    # REATIVIDADE EMOCIONAL (EXPLOSIVIDADE)
+    if ne >= 4.0 and am < 2.5 and co < 3.0:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem reage antes de filtrar.\n"
+            "Quando contrariado ou sobrecarregado, sua reacao tende a ser intensa e imediata. "
+            "As pessoas ao seu redor percebem isso como imprevisibilidade. "
+            "O padrao tipico: voce reage forte, depois recalibra - mas o dano relacional ja aconteceu."
+        )
+
+    # PROCRASTINACAO ESTRUTURAL
+    if co < 2.8 and ne >= 3.5 and q16 <= 2 and q13 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem so age sob pressao.\n"
+            "Voce nao procrastina por preguica - procrastina porque seu sistema interno de priorizacao "
+            "nao se ativa sem urgencia. O custo e duplo: a qualidade do que entrega e comprometida "
+            "e voce carrega uma sensacao cronica de estar sempre atrasado."
+        )
+
+    # PERFECCIONISMO PARALISANTE
+    if co >= 4.0 and ne >= 3.5 and q17 >= 4 and q52 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem nunca considera algo bom o suficiente.\n"
+            "Voce revisa, questiona e refaz alem do necessario. Rumina erros passados e antecipa falhas "
+            "futuras. O resultado e que voce entrega com qualidade real, mas paga um preco de tempo "
+            "e energia desproporcional - e raramente sente que o trabalho esta realmente pronto."
+        )
+
+    # DIFICULDADE CRONICA DE DIZER NAO
+    if am >= 4.0 and ne >= 3.5 and evita_conflito and q35 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem aceita mais do que deveria.\n"
+            "Voce sente um desconforto real ao decepcionar alguem - entao aceita pedidos que nao deveria, "
+            "assume compromissos alem da capacidade e carrega culpa quando precisa recusar. "
+            "O resultado pratico: suas necessidades sistematicamente ficam em segundo lugar."
+        )
+
+    # NECESSIDADE DE VALIDACAO EXTERNA
+    if am >= 3.8 and ne >= 3.5 and se >= 3.5 and q35 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem precisa ser aprovado para se sentir seguro.\n"
+            "Voce monitora, mesmo que inconscientemente, como os outros te percebem. "
+            "Quando alguem esta insatisfeito com voce, isso cobra um preco interno desproporcional. "
+            "Isso pode fazer voce ajustar o que pensa e como age para agradar - mesmo quando vai contra o que realmente quer."
+        )
+
+    # IMPACIENCIA COM PROCESSOS LENTOS
+    if ex >= 4.0 and co >= 4.0 and ab >= 3.5 and q22 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem opera numa velocidade que os outros nao acompanham.\n"
+            "Voce processa e decide rapido, e fica frustrado quando o ritmo ao redor nao corresponde. "
+            "Em contextos burocraticos ou com pessoas que precisam de mais tempo, "
+            "voce pode ser percebido como impaciente ou arrogante - mesmo quando tem razao."
+        )
+
+    # RECOLHIMENTO SOB PRESSAO
+    if ex < 2.8 and ne >= 3.5 and q21 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem some quando mais precisa de ajuda.\n"
+            "Sob pressao ou conflito, voce tende a se fechar e processar tudo internamente. "
+            "Para quem esta ao redor, isso parece frieza ou distanciamento. "
+            "Na pratica: quanto mais voce precisa de suporte, menos voce pede."
+        )
+
+    # RESISTENCIA A MUDANCAS
+    if se >= 4.0 and q55 >= 4 and q56 >= 4 and co >= 3.5:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem resiste a mudar o que ja funciona.\n"
+            "Mudancas de plano, rotina ou ambiente geram um custo de energia real para voce. "
+            "Isso nao e apenas cautela - e uma resistencia ativa. "
+            "Voce pode recusar oportunidades genuinas simplesmente porque exigem sair do que ja conhece e controla."
+        )
+
+    # AUTOSSABOTAGEM FINANCEIRA
+    if abu < 2.5 and se >= 3.5 and q71 <= 2 and q65 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem evita investir em si mesmo sem garantia de retorno.\n"
+            "Voce tende a nao buscar aumentos, nao se candidatar a oportunidades ou nao investir "
+            "em ferramentas que poderiam multiplicar seus resultados. "
+            "O custo: voce permanece abaixo do seu potencial financeiro por excesso de cautela, nao por falta de capacidade."
+        )
+
+    # DIFICULDADE DE RECONHECER ERROS
+    if am < 2.8 and ne >= 3.5 and q7 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem tem dificuldade de assumir que errou.\n"
+            "Reconhecer um erro e percebido internamente como uma ameaca a sua competencia ou valor. "
+            "Isso faz voce reinterpretar situacoes para se colocar como correto retroativamente. "
+            "O custo: as pessoas ao redor percebem isso antes de voce - e isso corroi a confianca que depositam em voce."
+        )
+
+    # NECESSIDADE DE TER RAZAO
+    if am < 2.8 and ab < 3.0 and ne >= 3.5 and q7 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem precisa estar certo.\n"
+            "Voce transforma discordancias em disputas que precisam de um vencedor. "
+            "Dificilmente diz 'voce tinha razao' - e quando diz, custa. "
+            "As pessoas ao redor aprendem a nao discordar, o que te isola numa bolha de concordancia falsa "
+            "e bloqueia o aprendizado que viria do atrito real."
+        )
+
+    # DEPENDENCIA DE ROTINA
+    if se >= 4.0 and q53 >= 4 and q55 >= 4 and ex < 3.0:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem precisa de previsibilidade para funcionar bem.\n"
+            "Quando a rotina e quebrada ou o ambiente muda sem aviso, voce perde eficiencia e foco. "
+            "Isso nao e fraqueza - e uma estrutura interna que funciona bem em ambientes estaveis "
+            "e cobra um preco alto em contextos caoticos ou de mudanca constante."
+        )
+
+    # DIFICULDADE DE CONFIAR NOS OUTROS
+    if am < 2.8 and co >= 4.0 and q17 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem prefere fazer tudo sozinho.\n"
+            "Voce acredita, muitas vezes com razao, que ninguem vai fazer tao bem quanto voce. "
+            "Entao voce nao delega, nao pede ajuda e se sobrecarrega. "
+            "O custo: voce limita o proprio crescimento porque nao consegue escalar o que so voce pode fazer."
+        )
+
+    # PENSAMENTO CATASTROFICO
+    if ne >= 4.0 and se >= 3.5 and q44 >= 4 and q49 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem antecipa o pior cenario como o mais provavel.\n"
+            "Quando algo incerto aparece, sua mente vai direto para o que pode dar errado - "
+            "com um nivel de detalhe e intensidade que nao corresponde a probabilidade real. "
+            "Isso gera um estado de alerta cronico que consome energia antes que qualquer problema aconteca."
+        )
+
+    # ============================================================
+    # FORCAS — padroes que fortalecem e diferenciam
+    # ============================================================
+
+    # LEALDADE REAL
+    if am >= 4.0 and co >= 3.5 and q11 >= 4 and q35 >= 4:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem as pessoas sabem que podem contar.\n"
+            "Quando voce assume um compromisso, voce cumpre - mesmo quando e inconveniente. "
+            "Isso e raro e as pessoas ao seu redor percebem. "
+            "Sua presenca cria uma sensacao de seguranca que poucos conseguem oferecer."
+        )
+
+    # CONSISTENCIA SOB PRESSAO
+    if co >= 4.0 and ne < 3.0 and q11 >= 4 and q17 >= 4:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem mantem o padrao mesmo quando esta dificil.\n"
+            "Quando a situacao fica complicada, voce nao baixa o nivel do que entrega. "
+            "Isso constroi uma reputacao silenciosa e duradoura - as pessoas sabem o que esperar de voce "
+            "e isso vale mais do que qualquer autopromo\u00e7\u00e3o."
+        )
+
+    # ANALISE PROFUNDA
+    if ab >= 4.0 and co >= 3.5 and q3 >= 4 and q7 >= 4:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem enxerga o que os outros nao veem.\n"
+            "Voce percebe padroes, conexoes e causas que a maioria das pessoas passa direto. "
+            "Quando voce analisa algo, voce vai alem da superficie - e o que voce encontra "
+            "frequentemente muda a forma como a situacao e entendida."
+        )
+
+    # EMPATIA GENUINA
+    if am >= 4.0 and ne >= 3.0 and q35 >= 4 and ex >= 3.0:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem faz as pessoas se sentirem vistas.\n"
+            "Voce percebe o estado emocional dos outros antes que eles verbalizem. "
+            "Isso faz com que as pessoas se abram com voce de um jeito que nao fazem com a maioria. "
+            "E uma capacidade real - e uma das mais raras em relacoes humanas."
+        )
+
+    # CURIOSIDADE INTELECTUAL ATIVA
+    if ab >= 4.0 and q3 >= 4 and q7 >= 4 and q4 <= 2:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem nunca para de aprender.\n"
+            "Voce busca conhecimento por prazer, nao por obrigacao. "
+            "Voce muda de opiniao quando encontra um argumento melhor - o que e raro e valioso. "
+            "Isso faz com que voce acumule uma profundidade de visao que a maioria das pessoas nao tem."
+        )
+
+    # ESTABILIDADE EMOCIONAL
+    if ne < 2.5 and am >= 3.0 and q44 <= 2 and q49 <= 2:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem nao perde o equilibrio facilmente.\n"
+            "Em situacoes de pressao, conflito ou incerteza, voce mantem a cabeca fria. "
+            "As pessoas ao redor percebem isso e tendem a buscar voce quando a situacao fica dificil. "
+            "Essa estabilidade e uma ancora real para quem convive com voce."
+        )
+
+    # AUTONOMIA E INDEPENDENCIA
+    if ex < 3.0 and co >= 3.5 and ab >= 3.5 and q29 >= 3:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem funciona bem sem precisar de validacao constante.\n"
+            "Voce define o proprio ritmo, toma decisoes sem depender de aprovacao e entrega sem precisar "
+            "de supervisao. Em contextos onde a maioria precisa de direcao, voce ja sabe o que fazer."
+        )
+
+    # RECIPROCIDADE GENUINA
+    if am >= 4.0 and abu >= 3.5 and q35 >= 4 and ne < 3.5:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem da sem calcular o retorno.\n"
+            "Voce oferece ajuda, atencao e suporte de forma genuina - sem manter uma conta interna "
+            "do que vai receber de volta. Isso e percebido pelas pessoas ao redor e cria conexoes "
+            "de uma qualidade que a maioria das pessoas nunca experimenta."
+        )
+
+    # ADAPTABILIDADE REAL
+    if se < 2.8 and ab >= 3.5 and q55 <= 2 and q7 >= 4:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem funciona bem em ambientes que mudam.\n"
+            "Quando o plano muda, voce recalibra sem drama. "
+            "Voce nao precisa de previsibilidade para agir - consegue operar com informacao incompleta "
+            "e tomar decisoes em contextos de incerteza onde outros travam."
+        )
+
+    # MENTALIDADE DE ABUNDANCIA
+    if abu >= 4.0 and q67 >= 4 and q70 >= 3 and q65 <= 2:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem acredita que ha espaco para todos crescerem.\n"
+            "Voce nao vive o sucesso dos outros como uma ameaca ao seu. "
+            "Isso faz voce investir em pessoas, compartilhar oportunidades e construir parcerias reais - "
+            "enquanto quem opera por escassez fica preso em competicoes que drenam energia."
+        )
+
+    # GRATIDAO ATIVA
+    if am >= 3.8 and ne < 3.0 and abu >= 3.5 and q35 >= 3:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem reconhece o que tem sem precisar perder para valorizar.\n"
+            "Voce percebe e expressa reconhecimento genuino pelas pessoas e situacoes ao redor. "
+            "Isso nao e ingenuidade - e uma capacidade de ver o que esta funcionando enquanto "
+            "a maioria das pessoas so percebe o que falta."
+        )
+
+    # CORAGEM RELACIONAL
+    if am >= 3.0 and ne < 3.0 and not evita_conflito and q37 >= 4:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem diz o que pensa mesmo quando e dificil.\n"
+            "Voce da feedback real, tem conversas dificeis sem adiar e nao ajusta o que pensa "
+            "para evitar desconforto. Isso e raro e as pessoas que convivem com voce sabem "
+            "que o que voce diz e o que voce realmente pensa."
+        )
+
+    # ============================================================
+    # DESAFIOS ADICIONAIS
+    # ============================================================
+
+    # EVITACAO DE CONFLITO
+    if evita_conflito and am >= 3.5 and q33 <= 2 and q39 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem engole o que pensa para evitar atrito.\n"
+            "Voce formula a resposta honesta internamente, decide nao dar, e oferece uma versao suavizada. "
+            "Isso parece ser gentileza - mas e autoprotecao. "
+            "O custo: as pessoas nunca sabem o que voce realmente pensa, e voce acumula um ressentimento silencioso que um dia cobra o preco."
+        )
+
+    # AUTOSSABOTAGEM (GERAL)
+    if ne >= 3.5 and co < 3.0 and abu < 3.0 and q18 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem sabota o proprio progresso antes de chegar la.\n"
+            "Quando o sucesso esta proximo, algo interno encontra uma razao para recuar - "
+            "um problema que aparece, uma decisao que trava, uma oportunidade que 'nao era o momento certo'. "
+            "Isso nao e azar. E um padrao de autoprotecao que impede voce de chegar onde quer."
+        )
+
+    # RIGIDEZ DE OPINIAO
+    if ab < 2.8 and q7 <= 2 and q4 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem dificilmente muda de posicao.\n"
+            "Quando voce forma uma opiniao, ela tende a ficar. Argumentos novos sao filtrados pelo que voce ja acredita - "
+            "os que confirmam entram, os que contradizem sao descartados. "
+            "O custo: voce perde atualizacoes importantes e fecha portas que nao percebe que fechou."
+        )
+
+    # COMPARACAO COM OS OUTROS
+    if ne >= 3.5 and abu < 3.0 and q65 >= 4 and q67 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem mede o proprio valor pelo que os outros tem.\n"
+            "Quando alguem ao seu redor conquista algo, voce sente um desconforto que nao e bem inveja - "
+            "e uma sensacao de que voce esta ficando para tras. "
+            "Isso coloca sua autoestima nas maos de uma comparacao que voce nunca vai vencer, "
+            "porque sempre vai existir alguem com mais."
+        )
+
+    # COMPETITIVIDADE EXCESSIVA
+    if abu < 2.8 and q70 >= 4 and q67 <= 2 and ex >= 3.5:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem transforma situacoes neutras em competicoes.\n"
+            "Voce opera com um instinto de vencer que vai alem do necessario. "
+            "Em contextos onde colaborar seria mais eficiente, voce ainda calcula quem esta na frente. "
+            "Isso pode isolar voce de parcerias que teriam multiplicado seus resultados."
+        )
+
+    # PARALISIA ANALITICA
+    if ab >= 4.0 and co >= 3.5 and ne >= 3.5 and q14 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem analisa tanto que nao decide.\n"
+            "Voce precisa de mais informacao, mais certeza, mais tempo para processar - e enquanto isso, "
+            "a janela de oportunidade fecha. "
+            "O problema nao e falta de capacidade de decisao. E um padrao de buscar certeza num mundo que nao oferece."
+        )
+
+    # SUPEREXPLICACAO
+    if ne >= 3.5 and am >= 3.5 and evita_conflito and q35 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem justifica demais as proprias decisoes.\n"
+            "Quando voce decide algo, voce sente uma necessidade de explicar o raciocinio completo - "
+            "mesmo quando ninguem pediu. "
+            "Isso nao e transparencia. E uma forma de buscar aprovacao antecipada e se proteger do julgamento."
+        )
+
+    # LEALDADE EXCESSIVA A SITUACOES PREJUDICIAIS
+    if am >= 4.0 and se >= 3.5 and co >= 3.5 and q55 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem permanece em situacoes que ja deveriam ter acabado.\n"
+            "Voce mantem relacionamentos, empregos ou compromissos que ja nao servem mais - "
+            "por senso de obrigacao, por medo de decepcionar ou por nao querer admitir que foi longe demais. "
+            "O custo e que voce gasta energia protegendo o que ja deveria ter largado."
+        )
+
+    # ASSUMIR RESPONSABILIDADE PELOS OUTROS
+    if am >= 4.0 and ne >= 3.5 and q35 >= 4 and evita_conflito:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem carrega o problema dos outros como se fosse seu.\n"
+            "Quando alguem ao seu redor esta mal, voce sente uma responsabilidade de resolver - "
+            "mesmo quando o problema nao e seu e a solucao nao depende de voce. "
+            "Isso gera um esgotamento emocional real e cria relacoes onde os outros aprendem a depender de voce."
+        )
+
+    # MINIMIZAR A SI MESMO
+    if ne >= 3.5 and am >= 3.8 and se >= 3.5 and q30 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem diminui o proprio valor antes que os outros o facam.\n"
+            "Voce minimiza conquistas, subestima capacidades e coloca ressalvas antes de qualquer afirmacao positiva sobre si mesmo. "
+            "Isso nao e humildade - e uma armadura. "
+            "O custo: as pessoas acreditam no que voce diz sobre si mesmo, e voce fica menor do que e."
+        )
+
+    # DIFICULDADE DE PEDIR PERDAO
+    if am < 2.8 and ne >= 3.5 and q33 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem sabe que errou mas nao consegue verbalizar.\n"
+            "Pedir perdao e percebido internamente como uma humilhacao, nao como um ato de forca. "
+            "Entao voce compensa de outras formas - age diferente, faz algo pela pessoa - mas nao diz as palavras. "
+            "O custo: quem foi magoado nao recebe o fechamento que precisava, e a relacao fica com uma rachadura que nao fecha."
+        )
+
+    # NECESSIDADE DE DAR A ULTIMA PALAVRA
+    if am < 2.8 and ne >= 3.5 and ex >= 3.5 and q30 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem precisa fechar toda interacao no controle.\n"
+            "Quando uma discussao termina sem voce ter a ultima palavra, fica uma sensacao de incompletude. "
+            "Voce volta ao assunto, adiciona um comentario final, envia uma mensagem depois. "
+            "As pessoas ao redor percebem isso - e aprendem a evitar discussoes com voce."
+        )
+
+    # NECESSIDADE DE SER SUPERIOR
+    if abu < 2.8 and am < 2.8 and q70 >= 4 and q67 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem precisa estar acima dos outros para se sentir bem.\n"
+            "Voce mede o proprio valor em comparacao - nao pelo que voce e, mas por estar na frente. "
+            "Quando alguem ao redor cresce, isso e sentido como uma ameaca, nao como uma inspiracao. "
+            "Isso constroi uma autoestima que nunca e solida porque depende de uma posicao relativa que muda o tempo todo."
+        )
+
+    # DIFICULDADE DE CELEBRAR CONQUISTAS
+    if co >= 4.0 and ne >= 3.5 and q52 >= 4 and q18 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem passa de uma meta para a proxima sem parar para reconhecer o que conquistou.\n"
+            "Quando voce chega num objetivo, a satisfacao dura pouco - logo aparece o proximo problema, "
+            "a proxima lacuna, o proximo nivel a atingir. "
+            "Isso gera uma sensacao cronica de insuficiencia que nenhuma conquista consegue preencher."
+        )
+
+    # DIFICULDADE DE RECEBER CRITICA
+    if ne >= 3.5 and am < 3.0 and q7 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem interpreta feedback como ataque pessoal.\n"
+            "Quando alguem aponta algo que voce poderia fazer melhor, a reacao interna e de defesa - "
+            "nao de curiosidade. Voce rebate, justifica ou se afasta. "
+            "O custo: voce bloqueia exatamente o aprendizado que poderia acelerar seu crescimento."
+        )
+
+    # AUSENCIA DE EMPATIA REAL
+    if am < 2.5 and ex >= 3.5 and q35 <= 2 and q33 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem ouve mas nao sente o que o outro esta sentindo.\n"
+            "Voce processa o conteudo do que e dito mas frequentemente passa pela emocao por tras. "
+            "Voce responde ao problema, nao a pessoa. "
+            "As pessoas ao redor sentem isso - e aprendem a nao buscar voce quando precisam ser entendidas, so quando precisam de solucao."
+        )
+
+    # AUSENCIA DE AUTOCRITICA
+    if am < 2.5 and ne < 2.5 and q7 <= 2 and q52 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem raramente questiona o proprio comportamento.\n"
+            "Quando algo da errado, a origem do problema e quase sempre externa - a situacao, as outras pessoas, o timing. "
+            "Voce nao faz isso por ma-fe. E um ponto cego real. "
+            "O custo: os padroes que te limitam se repetem porque nunca sao examinados."
+        )
+
+    # AUSENCIA DE VULNERABILIDADE
+    if ne < 2.5 and am < 3.0 and ex < 3.0 and q21 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem nunca mostra que esta com dificuldade.\n"
+            "Voce mantem a compostura mesmo quando esta sobrecarregado. "
+            "Para os outros, voce parece sempre bem - o que significa que ninguem oferece ajuda porque ninguem sabe que voce precisa. "
+            "O custo: voce carrega sozinho o que poderia ser dividido, e cria relacoes que ficam na superficie."
+        )
+
+    # AUSENCIA DE ALEGRIA GENUINA
+    if ne >= 3.5 and co >= 4.0 and abu < 3.0 and q52 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem funciona mas raramente desfruta.\n"
+            "Voce produz, entrega e cumpre - mas o prazer genuino no processo e raro. "
+            "Ha sempre algo que poderia ser melhor, um problema que precisa de atencao, uma meta que ainda nao foi atingida. "
+            "Voce vive mais no que falta do que no que tem."
+        )
+
+    # AUSENCIA DE CAPACIDADE DE DESCANSO
+    if co >= 4.0 and ne >= 3.5 and q12 >= 4 and q17 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem nao consegue parar sem culpa.\n"
+            "Quando voce nao esta produzindo, aparece uma sensacao de que deveria estar fazendo algo. "
+            "O descanso e percebido como improdutividade disfarçada. "
+            "O custo: voce nunca recarrega de verdade, e o rendimento cai exatamente porque voce nao para."
+        )
+
+    # AUSENCIA DE RECIPROCIDADE
+    if am < 2.5 and ex >= 3.5 and q35 <= 2 and abu < 3.0:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem recebe mais do que oferece nas relacoes.\n"
+            "Voce aceita atencao, suporte e presenca - mas raramente oferece de volta com a mesma intensidade. "
+            "Isso nao e intencional. E um padrao que as pessoas ao redor percebem antes de voce. "
+            "Com o tempo, elas param de oferecer."
+        )
+
+    # AUSENCIA DE CURIOSIDADE SOBRE O OUTRO
+    if ex >= 3.5 and am < 3.0 and q35 <= 2 and q26 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem fala mais sobre si do que pergunta sobre o outro.\n"
+            "Nas conversas, voce tende a compartilhar, opinar e narrar - mas raramente faz perguntas genuinas "
+            "sobre o que a outra pessoa esta vivendo. "
+            "As relacoes ficam rasas nao por falta de interesse declarado, mas por falta de curiosidade real."
+        )
+
+    # AUSENCIA DE PRESENCA NAS CONVERSAS
+    if ab >= 3.5 and ex < 3.0 and ne >= 3.5 and q44 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem esta fisicamente presente mas mentalmente em outro lugar.\n"
+            "Durante conversas, sua mente frequentemente vai para o que precisa ser resolvido, "
+            "para o que vai acontecer depois, ou para o que foi dito antes. "
+            "As pessoas sentem que nao foram realmente ouvidas - mesmo quando voce estava la."
+        )
+
+    # AUSENCIA DE LIMITES
+    if am >= 4.0 and ne >= 3.5 and evita_conflito and q33 <= 2 and q39 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem nao sabe onde termina voce e onde comeca o outro.\n"
+            "Voce absorve o estado emocional das pessoas ao redor, assume problemas que nao sao seus "
+            "e tem dificuldade de separar o que voce sente do que o outro esta sentindo. "
+            "Isso gera um esgotamento que parece vir de lugar nenhum - mas vem de tudo que voce absorveu."
+        )
+
+    # AUSENCIA DE PACIENCIA CONSIGO MESMO
+    if ne >= 4.0 and co >= 4.0 and q52 >= 4 and q17 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem exige de si o que nao exigiria de ninguem.\n"
+            "Quando voce erra, a autocritica e desproporcional. "
+            "Voce aplicaria o mesmo nivel de julgamento a outra pessoa? Provavelmente nao. "
+            "Mas para voce mesmo, o padrao e diferente - e isso cobra um preco de energia que poderia ir para o que realmente importa."
+        )
+
+    # AUSENCIA DE CLAREZA SOBRE O QUE QUER
+    if ab >= 3.5 and ne >= 3.5 and q18 <= 2 and q14 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem sabe o que nao quer com precisao, mas nao consegue articular o que quer.\n"
+            "Voce tem clareza sobre o que rejeita - situacoes, pessoas, ambientes. "
+            "Mas quando a pergunta e 'o que voce quer de verdade?', a resposta e vaga ou ausente. "
+            "Isso faz voce navegar por eliminacao, nao por direcao."
+        )
+
+    # AUSENCIA DE INICIATIVA
+    if co < 2.8 and ex < 3.0 and se >= 3.5 and q22 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem espera as condicoes certas para agir.\n"
+            "Voce tem ideias, tem capacidade - mas espera o momento ideal, o sinal certo, a certeza suficiente. "
+            "O problema e que o momento ideal raramente chega. "
+            "As oportunidades passam enquanto voce se prepara para estar pronto."
+        )
+
+    # AUSENCIA DE CONSISTENCIA
+    if co < 2.8 and ab >= 3.5 and q11 <= 2 and q20 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem comeca bem mas nao sustenta.\n"
+            "O inicio de um projeto, relacionamento ou habito tem energia real. "
+            "Mas quando a novidade passa e vem a fase de manutencao, o interesse cai. "
+            "Esse padrao se repete em varias areas da vida - e as pessoas ao redor ja sabem disso antes de voce."
+        )
+
+    # AUSENCIA DE TOLERANCIA A AMBIGUIDADE
+    if se >= 4.0 and ne >= 3.5 and q53 >= 4 and q49 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem precisa de respostas claras para agir.\n"
+            "Quando a situacao e incerta, voce trava. "
+            "Voce busca mais informacao, mais garantia, mais clareza - e enquanto isso, o tempo passa. "
+            "Em contextos onde a ambiguidade e a norma, esse padrao cobra um preco real em velocidade e oportunidades."
+        )
+
+    # SENSIBILIDADE A REJEICAO
+    if ne >= 4.0 and am >= 3.5 and se >= 3.5 and q49 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem interpreta sinais neutros como rejeicao.\n"
+            "Uma mensagem sem resposta, um tom de voz diferente, um olhar que nao veio - "
+            "voce preenche o silencio com a pior interpretacao possivel. "
+            "Isso gera um estado de alerta constante nas relacoes que drena energia e distorce o que esta realmente acontecendo."
+        )
+
+    # DIFICULDADE DE PEDIR AJUDA
+    if ne < 2.5 and co >= 4.0 and ex < 3.0 and q21 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem prefere se sobrecarregar a pedir ajuda.\n"
+            "Pedir ajuda e percebido como admitir fraqueza ou incompetencia. "
+            "Entao voce resolve sozinho, mesmo quando levaria metade do tempo com suporte. "
+            "O custo: voce carrega mais do que deveria e perde a chance de construir relacoes de verdade, "
+            "que so se formam quando ha troca real."
+        )
+
+    # DIFICULDADE DE TERMINAR O QUE COMECA
+    if ab >= 4.0 and co < 2.8 and q12 <= 2 and q16 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem tem energia para comecar mas nao para terminar.\n"
+            "A fase de exploracao e ideacao e onde voce funciona melhor. "
+            "Quando o projeto entra na fase de execucao repetitiva, o interesse cai e aparece algo novo mais interessante. "
+            "O resultado: um rastro de projetos incompletos que representam potencial que nunca se materializou."
+        )
+
+    # DIFICULDADE DE RECEBER ELOGIOS
+    if ne >= 3.5 and am >= 3.5 and se >= 3.5 and q30 <= 2:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem nao sabe o que fazer quando e reconhecido.\n"
+            "Quando alguem elogia voce, a reacao automatica e minimizar, desviar ou devolver o elogio. "
+            "Receber reconhecimento gera um desconforto que e dificil de explicar. "
+            "O custo: as pessoas param de oferecer reconhecimento porque voce consistentemente rejeita."
+        )
+
+    # DIFICULDADE DE VIVER NO PRESENTE
+    if ne >= 4.0 and q44 >= 4 and q49 >= 4 and q52 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem raramente esta onde esta.\n"
+            "Sua mente oscila entre o que deveria ter feito diferente no passado e o que pode dar errado no futuro. "
+            "O momento presente e um lugar de passagem, nao de chegada. "
+            "Isso significa que voce raramente experimenta o que conquistou - porque ja esta pensando no proximo problema."
+        )
+
+    # DIFICULDADE DE PERDOAR
+    if ne >= 4.0 and am < 3.0 and q52 >= 4 and q33 >= 4:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem guarda magoas por mais tempo do que seria util.\n"
+            "Quando alguem te magoa, voce nao esquece. A situacao fica registrada e volta em momentos de tensao. "
+            "Isso nao e fraqueza - e uma memoria emocional que nao tem botao de reset. "
+            "O custo: voce carrega um peso que cobra mais de voce do que de quem errou."
+        )
+
+    # ============================================================
+    # FORCAS ADICIONAIS
+    # ============================================================
+
+    # CAPACIDADE DE OUVIR DE VERDADE
+    if am >= 4.0 and ex < 3.5 and q35 >= 4 and not evita_conflito:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem ouve de verdade, nao so espera a vez de falar.\n"
+            "Quando alguem esta falando com voce, voce esta presente - nao formulando a resposta enquanto a pessoa ainda fala. "
+            "Isso e mais raro do que parece, e as pessoas percebem. "
+            "Elas saem de conversas com voce sentindo que foram realmente ouvidas."
+        )
+
+    # CAPACIDADE DE DIZER VERDADES DIFICEIS
+    if am >= 3.0 and ne < 3.0 and not evita_conflito and q30 >= 4:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem diz o que precisa ser dito, mesmo quando e dificil.\n"
+            "Voce nao adia conversas dificeis nem suaviza tanto que a mensagem se perde. "
+            "Isso constroi uma reputacao de honestidade que e rara - "
+            "as pessoas sabem que quando voce diz que esta tudo bem, esta tudo bem de verdade."
+        )
+
+    # CAPACIDADE DE PERDOAR E SEGUIR EM FRENTE
+    if am >= 4.0 and ne < 3.0 and q52 <= 2:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem nao carrega magoa por muito tempo.\n"
+            "Quando algo da errado numa relacao, voce processa, fecha e segue. "
+            "Voce nao acumula ressentimento nem volta ao assunto depois que foi resolvido. "
+            "Isso libera uma energia que a maioria das pessoas gasta carregando o passado."
+        )
+
+    # CLAREZA DE PROPOSITO
+    if co >= 4.0 and ab >= 3.5 and q18 >= 4 and ne < 3.5:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem sabe para onde esta indo.\n"
+            "Voce tem clareza sobre o que quer construir e por que. "
+            "Isso nao elimina as duvidas do caminho, mas significa que voce nao perde tempo em decisoes que nao importam. "
+            "Quando o caminho fica dificil, voce tem uma referencia interna que a maioria das pessoas nao tem."
+        )
+
+    # TOLERANCIA A AMBIGUIDADE
+    if se < 2.8 and ab >= 3.5 and ne < 3.0 and q49 <= 2:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem age mesmo sem ter todas as respostas.\n"
+            "Voce consegue tomar decisoes com informacao incompleta sem paralisar. "
+            "Em situacoes onde outros precisam de certeza para agir, voce ja esta em movimento. "
+            "Isso e uma vantagem real em contextos de mudanca rapida."
+        )
+
+    # CAPACIDADE DE CELEBRAR O OUTRO
+    if am >= 4.0 and abu >= 3.5 and q67 >= 4 and ne < 3.5:
+        tracos_forcas.append(
+            "Voce exibe tracos de quem consegue celebrar o sucesso dos outros de verdade.\n"
+            "Quando alguem ao seu redor conquista algo, voce sente alegria genuina - nao ameaca. "
+            "Isso e mais raro do que parece. "
+            "As pessoas que convivem com voce sabem que seu reconhecimento e real, nao estrategico."
+        )
+
+    # MONTAR BLOCOS FINAIS
+    linhas_desafios = "\n\n".join(tracos_desafios) if tracos_desafios else ""
+    linhas_forcas = "\n\n".join(tracos_forcas) if tracos_forcas else ""
+
+    partes_tracos = []
+    if tracos_forcas:
+        partes_tracos.append("FORCAS COMPORTAMENTAIS IDENTIFICADAS:\n" + linhas_forcas)
+    if tracos_desafios:
+        partes_tracos.append("DESAFIOS COMPORTAMENTAIS IDENTIFICADOS:\n" + linhas_desafios)
+
+    bloco_tracos = (
+        "TRACOS COMPORTAMENTAIS DE ALTA CONFIANCA:\n"
+        "(Identificados por multiplas variaveis convergentes. "
+        "Use APENAS os tracos listados abaixo - nao adicione nem invente outros. "
+        "Se uma subsecao estiver vazia, omita-a completamente.)\n\n"
+        + "\n\n".join(partes_tracos)
+    ) if (tracos_forcas or tracos_desafios) else ""
+
     # --- CALIBRACAO 2: Ancoras concretas para secao interna ---
     # Pre-calcula frases especificas baseadas nos dados reais para guiar o AI
     ancoras_internas = []
@@ -1249,6 +1916,8 @@ def gerar_relatorio(perfil):
         "(Use estas combinacoes como base para identificar os padroes comportamentais reais)\n\n"
         + linhas_combinacoes + "\n\n"
 
+        + (bloco_tracos + "\n\n" if bloco_tracos else "")
+
         + estilo_lideranca + "\n\n"
 
         "REGRAS ABSOLUTAS - VIOLACAO INVALIDA O RELATORIO:\n"
@@ -1365,7 +2034,21 @@ def gerar_relatorio(perfil):
         "'Aprender a investir em si mesmo sem exigir retorno garantido antes de comecar - "
         "porque o crescimento mais importante frequentemente exige apostar antes de ter certeza.'\n\n"
 
-        "9. PRÓXIMOS PASSOS\n"
+        "10. TRAÇOS COMPORTAMENTAIS IDENTIFICADOS\n"
+        "INSTRUCAO CRITICA: Esta secao so deve existir se houver tracos listados em "
+        "'TRACOS COMPORTAMENTAIS DE ALTA CONFIANCA' acima. "
+        "Se nao houver nenhum traco listado, OMITA completamente esta secao. "
+        "Se houver tracos, divida em duas subsecoes separadas:\n"
+        "   O QUE TE FORTALECE - apresente os tracos listados em FORCAS COMPORTAMENTAIS IDENTIFICADAS. "
+        "Se nao houver forcas listadas, omita esta subsecao.\n"
+        "   O QUE TE DESAFIA - apresente os tracos listados em DESAFIOS COMPORTAMENTAIS IDENTIFICADOS. "
+        "Se nao houver desafios listados, omita esta subsecao.\n"
+        "Para cada traco: mantenha o formato 'Voce exibe tracos de [nome curto]' como primeira linha, "
+        "seguido da descricao de 2 a 3 linhas. "
+        "NAO use os rotulos tecnicos internos. NAO invente tracos que nao estao na lista. "
+        "Maximo 3 forcas e 3 desafios - se houver mais listados, escolha os de maior impacto.\n\n"
+
+        "11. PRÓXIMOS PASSOS\n"
         "INSTRUCAO CRITICA: Os passos abaixo foram pre-gerados com base nos padroes especificos deste perfil. "
         "Use-os como base obrigatoria. Voce pode refinar a linguagem para soar mais natural e humana, "
         "mas NAO pode substituir por passos genericos que servem para qualquer pessoa. "
@@ -1529,7 +2212,7 @@ def render_debug(perfil):
         "total_perguntas": len(questions),
         "eixos": list(blocos_info.keys()),
         "total_contrastes_calculados": len(perfil["diferencas"]),
-        "versao_prompt": "V5.15 - calibrado por Manus AI",
+        "versao_prompt": "V5.23 - calibrado por Manus AI",
     })
 
 
@@ -2106,9 +2789,9 @@ else:
         ok_sheets, msg_sheets = registrar_no_sheets(dados_registro)
         if MODO_TESTE:
             if ok_sheets:
-                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.20 ATIVA")
+                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.23 ATIVA")
             else:
-                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.20 ATIVA")
+                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.23 ATIVA")
         # Email apenas em modo producao
         if not MODO_TESTE:
             nome_usuario = user_info.get("nome", "")
