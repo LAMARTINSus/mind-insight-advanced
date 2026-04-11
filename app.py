@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.27
+# Version: V5.28
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -59,6 +59,8 @@
 #       - Fix: q_adj.get(28) substituido por q_adj.get(29) (Q28 removida)
 #       - Fix: ULTIMO_TESTE atualizado com Q75-Q89 e sem perguntas removidas
 #       - Versao exibida no inicio das telas de debug e relatorio
+# V5.28 - Fix: KeyError no questionario - perguntas deletadas (Q6,Q9,Q10...) causavam crash
+#       - Questionario agora usa QUESTION_KEYS (lista ordenada) em vez de contador sequencial
 # =============================================================
 import streamlit as st
 import json
@@ -2151,7 +2153,7 @@ def gerar_relatorio(perfil):
 
 def render_debug(perfil):
     st.markdown("---")
-    st.markdown("**Versão: V5.27**", unsafe_allow_html=False)
+    st.markdown("**Versão: V5.28**", unsafe_allow_html=False)
     st.header("Debug - Transparência Total do Perfil")
     st.caption(
         "Este painel mostra todos os dados, calculos e logica usados para gerar o relatorio. "
@@ -2555,7 +2557,7 @@ with col_title:
     st.markdown("<h1 style='margin-bottom:0'>Mind Insight™</h1>", unsafe_allow_html=True)
     if MODO_TESTE:
         st.markdown(
-            '<div class="manus-badge">V5.27 | Criado com Claude (Anthropic) | '
+            '<div class="manus-badge">V5.28 | Criado com Claude (Anthropic) | '
             'Aperfeiçoado por Manus AI | MODO TESTE ATIVO</div>',
             unsafe_allow_html=True
         )
@@ -2566,7 +2568,7 @@ with col_title:
         )
 
 TOTAL = len(questions)
-
+QUESTION_KEYS = sorted(questions.keys())  # lista ordenada das perguntas existentes (sem gaps)
 # ------------------------------------------------------------------
 # TELA 0 - Coleta de dados do usuario (producao) ou selecao de modo (teste)
 # ------------------------------------------------------------------
@@ -2665,20 +2667,19 @@ if not st.session_state.modo_selecionado:
 # TELA 1 - Questionario
 # ------------------------------------------------------------------
 elif st.session_state.current_question <= TOTAL:
-    q_num = st.session_state.current_question
-    progresso = (q_num - 1) / TOTAL
-
+    # current_question e um indice 1-based na lista QUESTION_KEYS (nao o numero da pergunta)
+    idx = st.session_state.current_question - 1  # indice 0-based
+    q_num = QUESTION_KEYS[idx]
+    progresso = (st.session_state.current_question - 1) / TOTAL
     st.progress(progresso)
-    st.caption("Pergunta " + str(q_num) + " de " + str(TOTAL))
+    st.caption("Pergunta " + str(st.session_state.current_question) + " de " + str(TOTAL))
     st.markdown("### " + questions_display[q_num])
-
     resposta = st.radio(
         "Sua resposta:",
         scale,
         index=None,
         key="q_" + str(q_num),
     )
-
     if st.button("Proxima"):
         if resposta is not None:
             valor = int(resposta.split(" - ")[0])
@@ -2789,7 +2790,7 @@ elif not st.session_state.calibracao_completa:
 else:
     st.title("Seu Relatório de Perfil")
     if MODO_TESTE:
-        st.caption("Versão: V5.27 | MODO TESTE ATIVO")
+        st.caption("Versão: V5.28 | MODO TESTE ATIVO")
 
     if st.session_state.perfil_cache is not None:
         perfil = st.session_state.perfil_cache
@@ -2884,9 +2885,9 @@ else:
         ok_sheets, msg_sheets = registrar_no_sheets(dados_registro)
         if MODO_TESTE:
             if ok_sheets:
-                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.27 ATIVA")
+                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.28 ATIVA")
             else:
-                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.27 ATIVA")
+                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.28 ATIVA")
         # Email apenas em modo producao
         if not MODO_TESTE:
             nome_usuario = user_info.get("nome", "")
