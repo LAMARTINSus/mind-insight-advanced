@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.25
+# Version: V5.27
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -50,6 +50,15 @@
 # V5.23 - 35 tracos adicionais implementados (desafios e forcas)
 #       - Total: 48 desafios + 18 forcas = 66 tracos de alta confianca
 #       - Inclui: ausencias, cluster ego defensivo, padroes limitantes
+# V5.24 - Secao 10 injetada diretamente pelo Python (nao pela IA)
+# V5.25 - Thresholds recalibrados para perfis moderados (eixos 2.8-3.8)
+#       - 10 perguntas redundantes removidas (Q6,Q9,Q10,Q15,Q19,Q27,Q28,Q34,Q40,Q41)
+#       - 15 novas perguntas adicionadas (Q75-Q89)
+# V5.26 - Base limpa recebida do usuario
+# V5.27 - Fix: _media_formal indefinida em gerar_perfil
+#       - Fix: q_adj.get(28) substituido por q_adj.get(29) (Q28 removida)
+#       - Fix: ULTIMO_TESTE atualizado com Q75-Q89 e sem perguntas removidas
+#       - Versao exibida no inicio das telas de debug e relatorio
 # =============================================================
 import streamlit as st
 import json
@@ -89,13 +98,23 @@ MODO_TESTE = DEBUG_MODE
 # =============================================================
 
 ULTIMO_TESTE = {
-    1: 4, 2: 2, 3: 4, 4: 2, 5: 4, 6: 2, 7: 4, 8: 4, 9: 2, 10: 4,
-    11: 4, 12: 2, 13: 3, 14: 2, 15: 3, 16: 3, 17: 4, 18: 3, 19: 3, 20: 4,
-    21: 3, 22: 3, 23: 3, 24: 3, 25: 3, 26: 3, 27: 3, 28: 3, 29: 3, 30: 3,
-    31: 4, 32: 4, 33: 3, 34: 3, 35: 4, 36: 3, 37: 3, 38: 4, 39: 3, 40: 4, 41: 3,
+    # ABERTURA (Q1-Q8, sem Q6, Q9, Q10)
+    1: 4, 2: 2, 3: 4, 4: 2, 5: 4, 7: 4, 8: 4,
+    # CONSCIENCIOSIDADE (Q11-Q20, sem Q15, Q19)
+    11: 4, 12: 2, 13: 3, 14: 2, 16: 3, 17: 4, 18: 3, 20: 4,
+    # EXTROVERSAO (Q21-Q30, sem Q27, Q28)
+    21: 3, 22: 3, 23: 3, 24: 3, 25: 3, 26: 3, 29: 3, 30: 3,
+    # AMABILIDADE (Q31-Q41, sem Q34, Q40, Q41)
+    31: 4, 32: 4, 33: 3, 35: 4, 36: 3, 37: 3, 38: 4, 39: 3,
+    # NEUROTICISMO (Q42-Q52)
     42: 3, 43: 3, 44: 4, 45: 3, 46: 3, 47: 3, 48: 3, 49: 4, 50: 3, 51: 3, 52: 3,
-    53: 4, 54: 4, 55: 4, 56: 4, 57: 3, 58: 3, 59: 4, 60: 3, 61: 4, 62: 3, 63: 4,
+    # SEGURANCA (Q53-Q63)
+    53: 4, 54: 4, 55: 4, 56: 4, 57: 3, 58: 3, 59: 4, 61: 4, 62: 3, 63: 4,
+    # ABUNDANCIA (Q64-Q74)
     64: 4, 65: 2, 66: 3, 67: 3, 68: 4, 69: 3, 70: 3, 71: 3, 72: 3, 73: 3, 74: 3,
+    # NOVAS Q75-Q89
+    75: 3, 76: 3, 77: 3, 78: 3, 79: 3, 80: 2, 81: 3, 82: 3, 83: 4, 84: 3,
+    85: 3, 86: 3, 87: 3, 88: 3, 89: 2,
 }
 
 # =============================================================
@@ -665,9 +684,10 @@ def gerar_perfil(respostas):
     _q30 = respostas_ajustadas.get(30, 3)
     _q21 = respostas_ajustadas.get(21, 3)
     _q26 = respostas_ajustadas.get(26, 3)
-    _q28 = respostas_ajustadas.get(28, 3)
-    _media_formal   = (_q22 + _q24 + _q30) / 3
-    _media_informal = (_q21 + _q26 + _q28) / 3
+    _q22 = respostas_ajustadas.get(22, 3)
+    _q24 = respostas_ajustadas.get(24, 3)
+    _media_formal = (_q22 + _q24 + _q30) / 3
+    _media_informal = (_q21 + _q26) / 2
     if _media_formal >= 3.5 and _media_informal < 3.0:
         flags.append("extroversao bimodal: assertivo em contextos formais/tecnicos, reservado socialmente")
     if medias["Amabilidade"] >= 4.0:
@@ -928,13 +948,13 @@ def gerar_relatorio(perfil):
             "Tem opinioes fortes que raramente externaliza sem ser provocada. "
             "Pode ser subestimada por quem confunde silencio com falta de ideias." % (ab, ex)
         )
-    elif 3.0 <= ab < 3.5 and q4 <= 2 and q6 <= 2 and (q3 >= 4 or q7 >= 4):
+    elif 3.0 <= ab < 3.5 and q4 <= 2 and (q3 >= 4 or q7 >= 4):
         combinacoes_ativas.append(
             "CURIOSIDADE PRATICA (Abertura %.2f, busca_conhecimento=%d, muda_opiniao_por_argumento=%d, "
-            "incomoda_abstracionismo=%d, prefere_pratico=%d): "
+            "prefere_pratico=%d): "
             "Esta pessoa e curiosa, mas com foco pratico. Ela busca conhecimento que pode usar, "
             "muda de opiniao quando o argumento e solido, mas se incomoda com abstracionismo excessivo. "
-            "Ela nao e teorica - e uma pessoa que aprende para aplicar." % (ab, q3, q7, q4, q6)
+            "Ela nao e teorica - e uma pessoa que aprende para aplicar." % (ab, q3, q7, q4)
         )
 
     # 2. Conscienciosidade
@@ -1088,7 +1108,7 @@ def gerar_relatorio(perfil):
 
     # 8b. Extroversao bimodal
     _media_formal_ex   = (q22 + q24 + q30) / 3
-    _media_informal_ex = (q21 + q26 + q_adj.get(28, 3)) / 3
+    _media_informal_ex = (q21 + q26 + q_adj.get(29, 3)) / 3
     if _media_formal_ex >= 3.5 and _media_informal_ex < 3.0:
         combinacoes_ativas.append(
             "EXTROVERSAO BIMODAL (formal=%.2f, informal=%.2f): "
@@ -1121,7 +1141,7 @@ def gerar_relatorio(perfil):
             "e pode ser subestimada por gestores que confundem silencio com falta de contribuicao. "
             "Funcoes que exigem apresentacoes frequentes, vendas ou exposicao constante sao de alto custo. "
             "Funcoes que permitem contribuicao por escrito, analise profunda e trabalho autonomo "
-            "sao onde ela brilha." % (ex, q22, q24, q27, q29, q30)
+            "sao onde ela brilha." % (ex, q22, q24, q29, q30)
         )
 
     linhas_combinacoes = "\n\n".join(combinacoes_ativas) if combinacoes_ativas else "Nenhuma combinacao critica identificada."
@@ -1920,15 +1940,13 @@ def gerar_relatorio(perfil):
         scores_extremos_linhas += "   - sistema_prioridades=%d (MUITO BAIXO - sem sistema de organizacao)\n" % q13
     if q16 <= 1:
         scores_extremos_linhas += "   - deixa_ultima_hora=%d (MUITO BAIXO - frequentemente deixa para ultima hora)\n" % q16
-    if q27 <= 1:
-        scores_extremos_linhas += "   - prefere_escrever_a_falar=%d (MUITO BAIXO - prefere escrita a fala)\n" % q27
     if q29 <= 1:
         scores_extremos_linhas += "   - fica_ouvindo_grupo=%d (MUITO BAIXO - fica ouvindo em grupos)\n" % q29
     # Adicionar scores moderados relevantes quando amplitude e comprimida
     if q33 == 3 and q35 >= 3 and q37 == 3 and q39 == 3:
         scores_extremos_linhas += "   - padrao_evitacao_conflito_moderado: q33=%d, q35=%d, q37=%d, q39=%d (moderado mas consistente)\n" % (q33, q35, q37, q39)
-    if q27 == 3 and q29 == 3 and ex < 3.5:
-        scores_extremos_linhas += "   - preferencia_por_escuta_e_escrita: q27=%d, q29=%d (moderado mas consistente com Extroversao %.2f)\n" % (q27, q29, ex)
+    if q29 == 3 and ex < 3.5:
+        scores_extremos_linhas += "   - preferencia_por_escuta: q29=%d (moderado mas consistente com Extroversao %.2f)\n" % (q29, ex)
     if not scores_extremos_linhas:
         scores_extremos_linhas = "   Nenhum score extremo identificado.\n"
 
@@ -2133,7 +2151,8 @@ def gerar_relatorio(perfil):
 
 def render_debug(perfil):
     st.markdown("---")
-    st.header("Debug - Transparencia Total do Perfil")
+    st.markdown("**Versão: V5.27**", unsafe_allow_html=False)
+    st.header("Debug - Transparência Total do Perfil")
     st.caption(
         "Este painel mostra todos os dados, calculos e logica usados para gerar o relatorio. "
         "Para desativar: mude DEBUG_MODE = False no topo do arquivo."
@@ -2248,7 +2267,7 @@ def render_debug(perfil):
         "total_perguntas": len(questions),
         "eixos": list(blocos_info.keys()),
         "total_contrastes_calculados": len(perfil["diferencas"]),
-        "versao_prompt": "V5.25 - calibrado por Manus AI",
+        "versao_prompt": "V5.26 - calibrado por Manus AI",
     })
 
 
@@ -2536,7 +2555,7 @@ with col_title:
     st.markdown("<h1 style='margin-bottom:0'>Mind Insight™</h1>", unsafe_allow_html=True)
     if MODO_TESTE:
         st.markdown(
-            '<div class="manus-badge">V5.19 | Criado com Claude (Anthropic) | '
+            '<div class="manus-badge">V5.27 | Criado com Claude (Anthropic) | '
             'Aperfeiçoado por Manus AI | MODO TESTE ATIVO</div>',
             unsafe_allow_html=True
         )
@@ -2769,6 +2788,8 @@ elif not st.session_state.calibracao_completa:
 # ------------------------------------------------------------------
 else:
     st.title("Seu Relatório de Perfil")
+    if MODO_TESTE:
+        st.caption("Versão: V5.27 | MODO TESTE ATIVO")
 
     if st.session_state.perfil_cache is not None:
         perfil = st.session_state.perfil_cache
@@ -2863,9 +2884,9 @@ else:
         ok_sheets, msg_sheets = registrar_no_sheets(dados_registro)
         if MODO_TESTE:
             if ok_sheets:
-                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.25 ATIVA")
+                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.27 ATIVA")
             else:
-                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.25 ATIVA")
+                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.27 ATIVA")
         # Email apenas em modo producao
         if not MODO_TESTE:
             nome_usuario = user_info.get("nome", "")
