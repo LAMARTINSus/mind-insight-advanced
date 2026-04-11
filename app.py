@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.23
+# Version: V5.25
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -189,63 +189,53 @@ if "perfil_cache" not in st.session_state:
 
 # =============================================================
 # PERGUNTAS
-# 74 questoes - 10 ou 11 por eixo
+# 79 questoes# V5.25: removidas Q6,Q9,Q10,Q15,Q19,Q27,Q28,Q34,Q40,Q41 + 15 novas Q75-Q89)
 # (I) = pontuacao invertida
-# ABERTURA        Q1-Q10   (10 questoes)
-# CONSCIENCIA     Q11-Q20  (10 questoes)
-# EXTROVERSAO     Q21-Q30  (10 questoes)
-# AMABILIDADE     Q31-Q41  (11 questoes)
-# NEUROTICISMO    Q42-Q52  (11 questoes)
-# SEGURANCA       Q53-Q63  (11 questoes)
-# ABUNDANCIA      Q64-Q74  (11 questoes)
+# ABERTURA        Q1,Q2,Q3,Q4,Q5,Q7,Q8  (7 questoes)
+# CONSCIENCIA     Q11,Q12,Q13,Q14,Q16,Q17,Q18,Q20,Q75,Q77,Q78  (11 questoes)
+# EXTROVERSAO     Q21,Q22,Q23,Q24,Q25,Q26,Q29,Q30,Q81  (9 questoes)
+# AMABILIDADE     Q31,Q32,Q33,Q35,Q36,Q37,Q38,Q39,Q73,Q74,Q85,Q87  (12 questoes)
+# NEUROTICISMO    Q42,Q43,Q44,Q45,Q46,Q47,Q48,Q49,Q50,Q51,Q52,Q79,Q80,Q86,Q89  (15 questoes)
+# SEGURANCA       Q53,Q54,Q55,Q56,Q57,Q58,Q59,Q60,Q61,Q62,Q63,Q88  (12 questoes)
+# ABUNDANCIA      Q64,Q65,Q66,Q67,Q68,Q69,Q70,Q71,Q72,Q76,Q83  (11 questoes)
 # =============================================================
 
 questions = {
-    # ABERTURA
+    # ABERTURA (7 questoes: removidas Q6, Q9, Q10)
     1:  "Fico genuinamente curioso quando encontro uma ideia que contradiz o que eu penso.",
     2:  "Prefiro solucoes ja testadas a experimentar abordagens novas.",
     3:  "Busco conhecimento em assuntos novos por prazer, nao por obrigacao.",
     4:  "Me incomoda quando conversas ficam muito abstratas ou filosoficas.",
     5:  "Consigo encontrar conexoes entre assuntos que parecem nao ter nada a ver.",
-    6:  "Prefiro que as coisas sejam diretas e praticas, sem muita especulacao.",
     7:  "Ja mudei uma opiniao importante por causa de um argumento bem fundamentado.",
     8:  "Me atrai explorar areas onde ainda nao tenho dominio.",
-    9:  "Acho desgastante quando alguem fica questionando como as coisas sempre foram feitas.",
-    10: "Tenho imaginacao ativa - frequentemente visualizo cenarios, historias ou possibilidades.",
-    # CONSCIENCIOSIDADE
+    # CONSCIENCIOSIDADE (9 questoes: removidas Q15, Q19; novas Q75,Q77,Q78 adicionadas abaixo)
     11: "Quando assumo um compromisso, cumpro - mesmo quando nao tenho mais vontade.",
     12: "Comeco tarefas importantes so quando estou com disposicao para isso.",
     13: "Tenho um sistema claro para organizar minhas prioridades do dia.",
     14: "Deixo para decidir na hora em vez de planejar com antecedencia.",
-    15: "Quando comeco algo, tenho dificuldade de parar antes de terminar.",
     16: "Frequentemente percebo que deixei algo importante para a ultima hora.",
     17: "Reviso meu trabalho antes de entregar, mesmo quando estou confiante.",
     18: "Tenho clareza sobre o que precisa ser feito hoje para chegar onde quero em um ano.",
-    19: "Me distraio com facilidade quando deveria estar focado em algo importante.",
     20: "Mantenho meus compromissos mesmo quando surgem opcoes mais atraentes.",
-    # EXTROVERSAO
+    # EXTROVERSAO (8 questoes: removidas Q27, Q28; nova Q81 adicionada abaixo)
     21: "Me sinto com mais energia depois de passar tempo com pessoas do que antes.",
     22: "Em grupos, costumo tomar a iniciativa de falar primeiro.",
     23: "Prefiro pensar sozinho antes de discutir ideias com outros.",
     24: "Me sinto confortavel sendo o porta-voz de um grupo em situacoes formais.",
     25: "Depois de um dia social intenso, preciso de tempo sozinho para recarregar.",
     26: "Busco ativamente conhecer pessoas novas em ambientes sociais.",
-    27: "Prefiro me comunicar por escrito a falar ao vivo quando tenho algo importante a dizer.",
-    28: "Me sinto bem em ambientes barulhentos e movimentados.",
     29: "Em conversas em grupo, frequentemente fico mais ouvindo do que falando.",
     30: "Quando tenho uma opiniao, nao tenho dificuldade de exprimi-la mesmo que outros discordem.",
-    # AMABILIDADE
+    # AMABILIDADE (7 questoes: removidas Q34, Q40, Q41; novas Q73,Q74,Q85,Q87 adicionadas abaixo)
     31: "Quando alguem esta passando por algo dificil, meu primeiro instinto e ajudar.",
     32: "Tenho facilidade para identificar como o outro esta se sentindo, mesmo sem ele dizer.",
     33: "Em desacordos, prefiro ceder do que prolongar o conflito.",
-    34: "Me importo mais com o resultado certo do que com o que as pessoas vao pensar de mim.",
     35: "Fico desconfortavel quando percebo que decepcionei alguem.",
     36: "Consigo discordar de alguem sem que isso afete a relacao.",
     37: "Evito dar feedback negativo para nao criar tensao.",
     38: "Confio nas pessoas ate que me provem o contrario.",
     39: "Quando preciso dizer algo dificil, costumo adiar mais do que deveria.",
-    40: "Me preocupo genuinamente com o bem-estar das pessoas ao meu redor, nao so das proximas.",
-    41: "Frequentemente coloco as necessidades dos outros a frente das minhas, mesmo quando isso me custa.",
     # NEUROTICISMO
     42: "Quando algo da errado, fico remoendo o que aconteceu por horas ou dias.",
     43: "Me recupero emocionalmente rapido depois de situacoes dificeis.",
@@ -282,55 +272,67 @@ questions = {
     72: "Me sinto a vontade para pedir o que acredito que meu trabalho vale.",
     73: "Sinto que, independente do que faco, nunca e suficiente.",
     74: "A possibilidade de perder o que ja tenho me preocupa mais do que a possibilidade de ganhar algo novo.",
+    # NOVAS QUESTOES V5.24 (Q75-Q89) - 15 novas perguntas
+    # AMABILIDADE novas
+    75: "Quando reconheco que errei com alguem, consigo pedir desculpas diretamente, sem rodeios.",
+    85: "Consigo ouvir o outro numa conversa sem ja estar formulando minha resposta enquanto ele fala.",
+    87: "Consigo dizer nao para pedidos que me sobrecarregariam, mesmo quando a pessoa vai ficar desapontada.",
+    # ABUNDANCIA novas
+    76: "Consigo me sentir satisfeito com meu trabalho mesmo quando ninguem comenta ou reconhece o que fiz.",
+    83: "Quando alguem proximo tem uma conquista importante, minha reacao genuina e de alegria, nao de comparacao.",
+    # CONSCIENCIOSIDADE novas
+    77: "Quando vejo algo que precisa ser feito e ninguem esta fazendo, costumo ser a pessoa que toma a frente.",
+    78: "Consigo entregar uma tarefa importante para outra pessoa sem ficar verificando como ela esta sendo feita.",
+    82: "Quando comeco um projeto, consigo manter o interesse mesmo depois que a novidade passa.",
+    84: "Quando alguem me pergunta o que eu realmente quero para minha vida, consigo responder com clareza.",
+    # EXTROVERSAO nova
+    81: "Consigo pedir ajuda quando estou sobrecarregado, sem sentir que isso me diminui.",
+    # SEGURANCA nova
+    88: "Consigo dizer o que penso mesmo quando sei que vai gerar desconforto ou discordancia.",
+    # NEUROTICISMO novas (invertidas: concordar = neuroticismo baixo = BOM)
+    79: "Consigo descansar sem sentir que deveria estar fazendo algo produtivo.",
+    80: "Quando alguem me elogia, consigo receber sem minimizar ou desviar o assunto.",
+    86: "Consigo estar presente numa conversa sem que minha mente va para o que preciso fazer depois.",
+    89: "Quando alguem me pergunta sobre algo que fiz bem, consigo falar sobre isso sem diminuir o que conquistei.",
 }
 
 # Versao com acentuacao completa para exibicao na tela
 questions_display = {
-    # ABERTURA
+    # ABERTURA (7 questoes: removidas Q6, Q9, Q10)
     1:  "Fico genuinamente curioso quando encontro uma ideia que contradiz o que eu penso.",
     2:  "Prefiro soluções já testadas a experimentar abordagens novas.",
     3:  "Busco conhecimento em assuntos novos por prazer, não por obrigação.",
     4:  "Me incomoda quando conversas ficam muito abstratas ou filosóficas.",
     5:  "Consigo encontrar conexões entre assuntos que parecem não ter nada a ver.",
-    6:  "Prefiro que as coisas sejam diretas e práticas, sem muita especulação.",
     7:  "Já mudei uma opinião importante por causa de um argumento bem fundamentado.",
     8:  "Me atrai explorar áreas onde ainda não tenho domínio.",
-    9:  "Acho desgastante quando alguém fica questionando como as coisas sempre foram feitas.",
-    10: "Tenho imaginação ativa — frequentemente visualizo cenários, histórias ou possibilidades.",
-    # CONSCIENCIOSIDADE
+    # CONSCIENCIOSIDADE (8 questoes: removidas Q15, Q19)
     11: "Quando assumo um compromisso, cumpro — mesmo quando não tenho mais vontade.",
     12: "Começo tarefas importantes só quando estou com disposição para isso.",
     13: "Tenho um sistema claro para organizar minhas prioridades do dia.",
     14: "Deixo para decidir na hora em vez de planejar com antecedência.",
-    15: "Quando começo algo, tenho dificuldade de parar antes de terminar.",
     16: "Frequentemente percebo que deixei algo importante para a última hora.",
     17: "Reviso meu trabalho antes de entregar, mesmo quando estou confiante.",
     18: "Tenho clareza sobre o que precisa ser feito hoje para chegar onde quero em um ano.",
-    19: "Me distraio com facilidade quando deveria estar focado em algo importante.",
     20: "Mantenho meus compromissos mesmo quando surgem opções mais atraentes.",
-    # EXTROVERSAO
+    # EXTROVERSAO (8 questoes: removidas Q27, Q28)
     21: "Me sinto com mais energia depois de passar tempo com pessoas do que antes.",
     22: "Em grupos, costumo tomar a iniciativa de falar primeiro.",
     23: "Prefiro pensar sozinho antes de discutir ideias com outros.",
     24: "Me sinto confortável sendo o porta-voz de um grupo em situações formais.",
     25: "Depois de um dia social intenso, preciso de tempo sozinho para recarregar.",
     26: "Busco ativamente conhecer pessoas novas em ambientes sociais.",
-    27: "Prefiro me comunicar por escrito a falar ao vivo quando tenho algo importante a dizer.",
-    28: "Me sinto bem em ambientes barulhentos e movimentados.",
     29: "Em conversas em grupo, frequentemente fico mais ouvindo do que falando.",
     30: "Quando tenho uma opinião, não tenho dificuldade de exprimi-la mesmo que outros discordem.",
-    # AMABILIDADE
+    # AMABILIDADE (8 questoes: removidas Q34, Q40, Q41)
     31: "Quando alguém está passando por algo difícil, meu primeiro instinto é ajudar.",
     32: "Tenho facilidade para identificar como o outro está se sentindo, mesmo sem ele dizer.",
     33: "Em desacordos, prefiro ceder do que prolongar o conflito.",
-    34: "Me importo mais com o resultado certo do que com o que as pessoas vão pensar de mim.",
     35: "Fico desconfortável quando percebo que decepcionei alguém.",
     36: "Consigo discordar de alguém sem que isso afete a relação.",
     37: "Evito dar feedback negativo para não criar tensão.",
     38: "Confio nas pessoas até que me provem o contrário.",
     39: "Quando preciso dizer algo difícil, costumo adiar mais do que deveria.",
-    40: "Me preocupo genuinamente com o bem-estar das pessoas ao meu redor, não só das próximas.",
-    41: "Frequentemente coloco as necessidades dos outros à frente das minhas, mesmo quando isso me custa.",
     # NEUROTICISMO
     42: "Quando algo dá errado, fico remoendo o que aconteceu por horas ou dias.",
     43: "Me recupero emocionalmente rápido depois de situações difíceis.",
@@ -367,6 +369,28 @@ questions_display = {
     72: "Me sinto à vontade para pedir o que acredito que meu trabalho vale.",
     73: "Sinto que, independente do que faço, nunca é suficiente.",
     74: "A possibilidade de perder o que já tenho me preocupa mais do que a possibilidade de ganhar algo novo.",
+    # NOVAS QUESTOES V5.24 (Q75-Q89)
+    # AMABILIDADE novas
+    75: "Quando reconheço que errei com alguém, consigo pedir desculpas diretamente, sem rodeios.",
+    85: "Consigo ouvir o outro numa conversa sem já estar formulando minha resposta enquanto ele fala.",
+    87: "Consigo dizer não para pedidos que me sobrecarregariam, mesmo quando a pessoa vai ficar desapontada.",
+    # ABUNDANCIA novas
+    76: "Consigo me sentir satisfeito com meu trabalho mesmo quando ninguém comenta ou reconhece o que fiz.",
+    83: "Quando alguém próximo tem uma conquista importante, minha reação genuína é de alegria, não de comparação.",
+    # CONSCIENCIOSIDADE novas
+    77: "Quando vejo algo que precisa ser feito e ninguém está fazendo, costumo ser a pessoa que toma a frente.",
+    78: "Consigo entregar uma tarefa importante para outra pessoa sem ficar verificando como ela está sendo feita.",
+    82: "Quando começo um projeto, consigo manter o interesse mesmo depois que a novidade passa.",
+    84: "Quando alguém me pergunta o que eu realmente quero para minha vida, consigo responder com clareza.",
+    # EXTROVERSAO nova
+    81: "Consigo pedir ajuda quando estou sobrecarregado, sem sentir que isso me diminui.",
+    # SEGURANCA nova
+    88: "Consigo dizer o que penso mesmo quando sei que vai gerar desconforto ou discordância.",
+    # NEUROTICISMO novas (invertidas: concordar = neuroticismo baixo = BOM)
+    79: "Consigo descansar sem sentir que deveria estar fazendo algo produtivo.",
+    80: "Quando alguém me elogia, consigo receber sem minimizar ou desviar o assunto.",
+    86: "Consigo estar presente numa conversa sem que minha mente vá para o que preciso fazer depois.",
+    89: "Quando alguém me pergunta sobre algo que fiz bem, consigo falar sobre isso sem diminuir o que conquistei.",
 }
 
 scale = [
@@ -385,13 +409,22 @@ scale = [
 # =============================================================
 
 PERGUNTAS_INVERTIDAS = {
-    2, 4, 6, 9,
-    12, 14, 16, 19,
-    23, 25, 27, 29,
-    33, 34, 37, 39,
+    # ABERTURA: concordar = baixa abertura
+    2, 4,
+    # CONSCIENCIOSIDADE: concordar = baixa conscienciosidade
+    12, 14, 16,
+    # EXTROVERSAO: concordar = introversao
+    23, 25, 29,
+    # AMABILIDADE: concordar = baixa amabilidade
+    33, 37, 39,
+    # NEUROTICISMO: concordar = estabilidade emocional (baixo neuroticismo)
     43, 45, 48, 51,
-    54, 57, 60, 62, 63,
-    65, 67, 69, 71, 73, 74
+    # SEGURANCA: concordar = alta seguranca
+    54, 57, 60, 62,
+    # ABUNDANCIA: concordar = mentalidade escassez
+    65, 67, 69, 71, 73, 74,
+    # NOVAS Q75-Q89: concordar = traco positivo (invertidas para que score alto = traco presente)
+    75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89
 }
 
 def aplicar_inversao(q, score):
@@ -562,18 +595,18 @@ def gerar_perfil(respostas):
     )
 
     blocos = {
-        "Abertura":          (1,  10),
-        "Conscienciosidade": (11, 20),
-        "Extroversao":       (21, 30),
-        "Amabilidade":       (31, 41),
-        "Neuroticismo":      (42, 52),
-        "Seguranca":         (53, 63),
-        "Abundancia":        (64, 74),
+        "Abertura":          [1, 2, 3, 4, 5, 7, 8],
+        "Conscienciosidade": [11, 12, 13, 14, 16, 17, 18, 20, 77, 78, 82],
+        "Extroversao":       [21, 22, 23, 24, 25, 26, 29, 30, 81],
+        "Amabilidade":       [31, 32, 33, 35, 36, 37, 38, 39, 75, 85, 87],
+        "Neuroticismo":      [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 79, 80, 86, 89],
+        "Seguranca":         [53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 88],
+        "Abundancia":        [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 76, 83, 84],
     }
 
     medias = {
-        k: round(df[(df["Q"] >= i) & (df["Q"] <= f)]["Score"].mean(), 2)
-        for k, (i, f) in blocos.items()
+        k: round(df[df["Q"].isin(qs)]["Score"].mean(), 2)
+        for k, qs in blocos.items()
     }
 
     eixo_mais_alto  = max(medias, key=medias.get)
@@ -728,7 +761,9 @@ def gerar_perfil(respostas):
             "ajuda_instintivamente_Q31":    adj.get(31, 3),
             "le_emocoes_dos_outros_Q32":    adj.get(32, 3),
             "fica_mal_ao_decepcionar_Q35":  adj.get(35, 3),
-            "coloca_outros_na_frente_Q41": adj.get(41, 3),
+            "pede_desculpas_Q75":           adj.get(75, 3),
+            "ouve_sem_formular_Q85":        adj.get(85, 3),
+            "consegue_dizer_nao_Q87":       adj.get(87, 3),
         },
         "Neuroticismo": {
             "preocupa_com_futuro_Q44":      adj.get(44, 3),
@@ -830,15 +865,30 @@ def gerar_relatorio(perfil):
     q22 = q_adj.get(22, 3)   # toma iniciativa em grupo
     q24 = q_adj.get(24, 3)   # porta-voz de grupo
     q26 = q_adj.get(26, 3)   # busca novas pessoas
-    q27 = q_adj.get(27, 3)   # prefere escrever a falar (invertida)
     q29 = q_adj.get(29, 3)   # fica ouvindo em grupo (invertida)
     q30 = q_adj.get(30, 3)   # exprime opiniao quando discordam
+    q81 = q_adj.get(81, 3)   # pede ajuda sem sentir diminuido
 
     # Abertura
     q3  = q_adj.get(3, 3)    # busca conhecimento por prazer
     q4  = q_adj.get(4, 3)    # incomoda conversas abstratas (invertida)
-    q6  = q_adj.get(6, 3)    # prefere direto e pratico (invertida)
     q7  = q_adj.get(7, 3)    # muda opiniao por argumento
+
+    # Novas questoes Q75-Q89
+    q75 = q_adj.get(75, 3)   # pede desculpas quando reconhece erro
+    q76 = q_adj.get(76, 3)   # satisfeito sem reconhecimento externo
+    q77 = q_adj.get(77, 3)   # toma iniciativa quando necessario
+    q78 = q_adj.get(78, 3)   # consegue delegar sem microgerenciar
+    q79 = q_adj.get(79, 3)   # consegue descansar sem culpa
+    q80 = q_adj.get(80, 3)   # recebe elogio sem minimizar
+    q82 = q_adj.get(82, 3)   # mantem interesse em projetos longos
+    q83 = q_adj.get(83, 3)   # alegria genuina com conquistas alheias
+    q84 = q_adj.get(84, 3)   # clareza sobre o que quer na vida
+    q85 = q_adj.get(85, 3)   # ouve sem formular resposta
+    q86 = q_adj.get(86, 3)   # presente nas conversas
+    q87 = q_adj.get(87, 3)   # consegue dizer nao
+    q88 = q_adj.get(88, 3)   # diz o que pensa mesmo gerando desconforto
+    q89 = q_adj.get(89, 3)   # fala de conquistas sem diminuir
 
     # Abundancia
     q65 = q_adj.get(65, 3)   # oportunidades limitadas (invertida: 1->5)
@@ -1089,7 +1139,7 @@ def gerar_relatorio(perfil):
     # ============================================================
 
     # IMPULSIVIDADE DECISORIA
-    if co < 2.5 and ne >= 3.5 and q16 <= 2 and q14 <= 2:
+    if co < 3.0 and ne >= 3.0 and (q16 <= 2 or q14 <= 2):
         tracos_desafios.append(
             "Voce exibe tracos de quem age antes de pensar.\n"
             "Voce decide rapido, muda de plano com facilidade e frequentemente se arrepende de compromissos "
@@ -1098,7 +1148,7 @@ def gerar_relatorio(perfil):
         )
 
     # REATIVIDADE EMOCIONAL (EXPLOSIVIDADE)
-    if ne >= 4.0 and am < 2.5 and co < 3.0:
+    if ne >= 3.5 and am < 3.0 and co < 3.5:
         tracos_desafios.append(
             "Voce exibe tracos de quem reage antes de filtrar.\n"
             "Quando contrariado ou sobrecarregado, sua reacao tende a ser intensa e imediata. "
@@ -1107,7 +1157,7 @@ def gerar_relatorio(perfil):
         )
 
     # PROCRASTINACAO ESTRUTURAL
-    if co < 2.8 and ne >= 3.5 and q16 <= 2 and q13 <= 2:
+    if co < 3.2 and ne >= 3.0 and (q16 <= 2 or q13 <= 2):
         tracos_desafios.append(
             "Voce exibe tracos de quem so age sob pressao.\n"
             "Voce nao procrastina por preguica - procrastina porque seu sistema interno de priorizacao "
@@ -1116,7 +1166,7 @@ def gerar_relatorio(perfil):
         )
 
     # PERFECCIONISMO PARALISANTE
-    if co >= 4.0 and ne >= 3.5 and q17 >= 4 and q52 >= 4:
+    if co >= 3.5 and ne >= 3.0 and q17 >= 4 and q52 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem nunca considera algo bom o suficiente.\n"
             "Voce revisa, questiona e refaz alem do necessario. Rumina erros passados e antecipa falhas "
@@ -1125,7 +1175,7 @@ def gerar_relatorio(perfil):
         )
 
     # DIFICULDADE CRONICA DE DIZER NAO
-    if am >= 4.0 and ne >= 3.5 and evita_conflito and q35 >= 4:
+    if am >= 3.5 and ne >= 3.0 and evita_conflito and q35 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem aceita mais do que deveria.\n"
             "Voce sente um desconforto real ao decepcionar alguem - entao aceita pedidos que nao deveria, "
@@ -1134,7 +1184,7 @@ def gerar_relatorio(perfil):
         )
 
     # NECESSIDADE DE VALIDACAO EXTERNA
-    if am >= 3.8 and ne >= 3.5 and se >= 3.5 and q35 >= 4:
+    if am >= 3.5 and ne >= 3.0 and se >= 3.0 and q35 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem precisa ser aprovado para se sentir seguro.\n"
             "Voce monitora, mesmo que inconscientemente, como os outros te percebem. "
@@ -1143,7 +1193,7 @@ def gerar_relatorio(perfil):
         )
 
     # IMPACIENCIA COM PROCESSOS LENTOS
-    if ex >= 4.0 and co >= 4.0 and ab >= 3.5 and q22 >= 4:
+    if ex >= 3.5 and co >= 3.5 and ab >= 3.0 and q22 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem opera numa velocidade que os outros nao acompanham.\n"
             "Voce processa e decide rapido, e fica frustrado quando o ritmo ao redor nao corresponde. "
@@ -1152,7 +1202,7 @@ def gerar_relatorio(perfil):
         )
 
     # RECOLHIMENTO SOB PRESSAO
-    if ex < 2.8 and ne >= 3.5 and q21 <= 2:
+    if ex < 3.2 and ne >= 3.0 and q21 <= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem some quando mais precisa de ajuda.\n"
             "Sob pressao ou conflito, voce tende a se fechar e processar tudo internamente. "
@@ -1161,7 +1211,7 @@ def gerar_relatorio(perfil):
         )
 
     # RESISTENCIA A MUDANCAS
-    if se >= 4.0 and q55 >= 4 and q56 >= 4 and co >= 3.5:
+    if se >= 3.5 and (q55 >= 3 or q56 >= 3) and co >= 3.0:
         tracos_desafios.append(
             "Voce exibe tracos de quem resiste a mudar o que ja funciona.\n"
             "Mudancas de plano, rotina ou ambiente geram um custo de energia real para voce. "
@@ -1170,7 +1220,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUTOSSABOTAGEM FINANCEIRA
-    if abu < 2.5 and se >= 3.5 and q71 <= 2 and q65 >= 4:
+    if abu < 3.0 and se >= 3.0 and (q71 <= 2 or q65 >= 4):
         tracos_desafios.append(
             "Voce exibe tracos de quem evita investir em si mesmo sem garantia de retorno.\n"
             "Voce tende a nao buscar aumentos, nao se candidatar a oportunidades ou nao investir "
@@ -1179,7 +1229,7 @@ def gerar_relatorio(perfil):
         )
 
     # DIFICULDADE DE RECONHECER ERROS
-    if am < 2.8 and ne >= 3.5 and q7 <= 2:
+    if am < 3.2 and ne >= 3.0 and q7 <= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem tem dificuldade de assumir que errou.\n"
             "Reconhecer um erro e percebido internamente como uma ameaca a sua competencia ou valor. "
@@ -1188,7 +1238,7 @@ def gerar_relatorio(perfil):
         )
 
     # NECESSIDADE DE TER RAZAO
-    if am < 2.8 and ab < 3.0 and ne >= 3.5 and q7 <= 2:
+    if am < 3.0 and ab < 3.2 and ne >= 3.0 and q7 <= 2:
         tracos_desafios.append(
             "Voce exibe tracos de quem precisa estar certo.\n"
             "Voce transforma discordancias em disputas que precisam de um vencedor. "
@@ -1198,7 +1248,7 @@ def gerar_relatorio(perfil):
         )
 
     # DEPENDENCIA DE ROTINA
-    if se >= 4.0 and q53 >= 4 and q55 >= 4 and ex < 3.0:
+    if se >= 3.5 and q53 >= 3 and q55 >= 3 and ex < 3.5:
         tracos_desafios.append(
             "Voce exibe tracos de quem precisa de previsibilidade para funcionar bem.\n"
             "Quando a rotina e quebrada ou o ambiente muda sem aviso, voce perde eficiencia e foco. "
@@ -1207,7 +1257,7 @@ def gerar_relatorio(perfil):
         )
 
     # DIFICULDADE DE CONFIAR NOS OUTROS
-    if am < 2.8 and co >= 4.0 and q17 >= 4:
+    if am < 3.2 and co >= 3.5 and q17 >= 4:
         tracos_desafios.append(
             "Voce exibe tracos de quem prefere fazer tudo sozinho.\n"
             "Voce acredita, muitas vezes com razao, que ninguem vai fazer tao bem quanto voce. "
@@ -1216,7 +1266,7 @@ def gerar_relatorio(perfil):
         )
 
     # PENSAMENTO CATASTROFICO
-    if ne >= 4.0 and se >= 3.5 and q44 >= 4 and q49 >= 4:
+    if ne >= 3.5 and se >= 3.0 and q44 >= 3 and q49 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem antecipa o pior cenario como o mais provavel.\n"
             "Quando algo incerto aparece, sua mente vai direto para o que pode dar errado - "
@@ -1229,7 +1279,7 @@ def gerar_relatorio(perfil):
     # ============================================================
 
     # LEALDADE REAL
-    if am >= 4.0 and co >= 3.5 and q11 >= 4 and q35 >= 4:
+    if am >= 3.5 and co >= 3.0 and q11 >= 4 and q35 >= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem as pessoas sabem que podem contar.\n"
             "Quando voce assume um compromisso, voce cumpre - mesmo quando e inconveniente. "
@@ -1238,7 +1288,7 @@ def gerar_relatorio(perfil):
         )
 
     # CONSISTENCIA SOB PRESSAO
-    if co >= 4.0 and ne < 3.0 and q11 >= 4 and q17 >= 4:
+    if co >= 3.5 and ne < 3.5 and q11 >= 4 and q17 >= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem mantem o padrao mesmo quando esta dificil.\n"
             "Quando a situacao fica complicada, voce nao baixa o nivel do que entrega. "
@@ -1247,7 +1297,7 @@ def gerar_relatorio(perfil):
         )
 
     # ANALISE PROFUNDA
-    if ab >= 4.0 and co >= 3.5 and q3 >= 4 and q7 >= 4:
+    if ab >= 3.5 and co >= 3.0 and q3 >= 3 and q7 >= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem enxerga o que os outros nao veem.\n"
             "Voce percebe padroes, conexoes e causas que a maioria das pessoas passa direto. "
@@ -1256,7 +1306,7 @@ def gerar_relatorio(perfil):
         )
 
     # EMPATIA GENUINA
-    if am >= 4.0 and ne >= 3.0 and q35 >= 4 and ex >= 3.0:
+    if am >= 3.5 and ne >= 2.5 and q35 >= 3 and ex >= 2.5:
         tracos_forcas.append(
             "Voce exibe tracos de quem faz as pessoas se sentirem vistas.\n"
             "Voce percebe o estado emocional dos outros antes que eles verbalizem. "
@@ -1265,7 +1315,7 @@ def gerar_relatorio(perfil):
         )
 
     # CURIOSIDADE INTELECTUAL ATIVA
-    if ab >= 4.0 and q3 >= 4 and q7 >= 4 and q4 <= 2:
+    if ab >= 3.5 and q3 >= 3 and q7 >= 3 and q4 <= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem nunca para de aprender.\n"
             "Voce busca conhecimento por prazer, nao por obrigacao. "
@@ -1274,7 +1324,7 @@ def gerar_relatorio(perfil):
         )
 
     # ESTABILIDADE EMOCIONAL
-    if ne < 2.5 and am >= 3.0 and q44 <= 2 and q49 <= 2:
+    if ne < 3.0 and am >= 2.8 and q44 <= 3 and q49 <= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem nao perde o equilibrio facilmente.\n"
             "Em situacoes de pressao, conflito ou incerteza, voce mantem a cabeca fria. "
@@ -1283,7 +1333,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUTONOMIA E INDEPENDENCIA
-    if ex < 3.0 and co >= 3.5 and ab >= 3.5 and q29 >= 3:
+    if ex < 3.5 and co >= 3.0 and ab >= 3.0 and q29 >= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem funciona bem sem precisar de validacao constante.\n"
             "Voce define o proprio ritmo, toma decisoes sem depender de aprovacao e entrega sem precisar "
@@ -1291,7 +1341,7 @@ def gerar_relatorio(perfil):
         )
 
     # RECIPROCIDADE GENUINA
-    if am >= 4.0 and abu >= 3.5 and q35 >= 4 and ne < 3.5:
+    if am >= 3.5 and abu >= 3.0 and q35 >= 3 and ne < 3.5:
         tracos_forcas.append(
             "Voce exibe tracos de quem da sem calcular o retorno.\n"
             "Voce oferece ajuda, atencao e suporte de forma genuina - sem manter uma conta interna "
@@ -1300,7 +1350,7 @@ def gerar_relatorio(perfil):
         )
 
     # ADAPTABILIDADE REAL
-    if se < 2.8 and ab >= 3.5 and q55 <= 2 and q7 >= 4:
+    if se < 3.2 and ab >= 3.0 and q55 <= 3 and q7 >= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem funciona bem em ambientes que mudam.\n"
             "Quando o plano muda, voce recalibra sem drama. "
@@ -1309,7 +1359,7 @@ def gerar_relatorio(perfil):
         )
 
     # MENTALIDADE DE ABUNDANCIA
-    if abu >= 4.0 and q67 >= 4 and q70 >= 3 and q65 <= 2:
+    if abu >= 3.5 and q67 >= 3 and q70 >= 3 and q65 <= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem acredita que ha espaco para todos crescerem.\n"
             "Voce nao vive o sucesso dos outros como uma ameaca ao seu. "
@@ -1318,7 +1368,7 @@ def gerar_relatorio(perfil):
         )
 
     # GRATIDAO ATIVA
-    if am >= 3.8 and ne < 3.0 and abu >= 3.5 and q35 >= 3:
+    if am >= 3.5 and ne < 3.5 and abu >= 3.0 and q35 >= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem reconhece o que tem sem precisar perder para valorizar.\n"
             "Voce percebe e expressa reconhecimento genuino pelas pessoas e situacoes ao redor. "
@@ -1327,7 +1377,7 @@ def gerar_relatorio(perfil):
         )
 
     # CORAGEM RELACIONAL
-    if am >= 3.0 and ne < 3.0 and not evita_conflito and q37 >= 4:
+    if am >= 3.0 and ne < 3.5 and not evita_conflito and q37 >= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem diz o que pensa mesmo quando e dificil.\n"
             "Voce da feedback real, tem conversas dificeis sem adiar e nao ajusta o que pensa "
@@ -1340,7 +1390,7 @@ def gerar_relatorio(perfil):
     # ============================================================
 
     # EVITACAO DE CONFLITO
-    if evita_conflito and am >= 3.5 and q33 <= 2 and q39 <= 2:
+    if evita_conflito and am >= 3.0 and (q33 <= 3 or q39 <= 3):
         tracos_desafios.append(
             "Voce exibe tracos de quem engole o que pensa para evitar atrito.\n"
             "Voce formula a resposta honesta internamente, decide nao dar, e oferece uma versao suavizada. "
@@ -1349,7 +1399,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUTOSSABOTAGEM (GERAL)
-    if ne >= 3.5 and co < 3.0 and abu < 3.0 and q18 <= 2:
+    if ne >= 3.0 and co < 3.5 and abu < 3.5 and q18 <= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem sabota o proprio progresso antes de chegar la.\n"
             "Quando o sucesso esta proximo, algo interno encontra uma razao para recuar - "
@@ -1358,7 +1408,7 @@ def gerar_relatorio(perfil):
         )
 
     # RIGIDEZ DE OPINIAO
-    if ab < 2.8 and q7 <= 2 and q4 >= 4:
+    if ab < 3.2 and q7 <= 2 and q4 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem dificilmente muda de posicao.\n"
             "Quando voce forma uma opiniao, ela tende a ficar. Argumentos novos sao filtrados pelo que voce ja acredita - "
@@ -1367,7 +1417,7 @@ def gerar_relatorio(perfil):
         )
 
     # COMPARACAO COM OS OUTROS
-    if ne >= 3.5 and abu < 3.0 and q65 >= 4 and q67 <= 2:
+    if ne >= 3.0 and abu < 3.5 and q65 >= 3 and q67 <= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem mede o proprio valor pelo que os outros tem.\n"
             "Quando alguem ao seu redor conquista algo, voce sente um desconforto que nao e bem inveja - "
@@ -1377,7 +1427,7 @@ def gerar_relatorio(perfil):
         )
 
     # COMPETITIVIDADE EXCESSIVA
-    if abu < 2.8 and q70 >= 4 and q67 <= 2 and ex >= 3.5:
+    if abu < 3.2 and q70 >= 4 and q67 <= 2 and ex >= 3.0:
         tracos_desafios.append(
             "Voce exibe tracos de quem transforma situacoes neutras em competicoes.\n"
             "Voce opera com um instinto de vencer que vai alem do necessario. "
@@ -1386,7 +1436,7 @@ def gerar_relatorio(perfil):
         )
 
     # PARALISIA ANALITICA
-    if ab >= 4.0 and co >= 3.5 and ne >= 3.5 and q14 <= 2:
+    if ab >= 3.5 and co >= 3.0 and ne >= 3.0 and q14 <= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem analisa tanto que nao decide.\n"
             "Voce precisa de mais informacao, mais certeza, mais tempo para processar - e enquanto isso, "
@@ -1395,7 +1445,7 @@ def gerar_relatorio(perfil):
         )
 
     # SUPEREXPLICACAO
-    if ne >= 3.5 and am >= 3.5 and evita_conflito and q35 >= 4:
+    if ne >= 3.0 and am >= 3.0 and evita_conflito and q35 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem justifica demais as proprias decisoes.\n"
             "Quando voce decide algo, voce sente uma necessidade de explicar o raciocinio completo - "
@@ -1404,7 +1454,7 @@ def gerar_relatorio(perfil):
         )
 
     # LEALDADE EXCESSIVA A SITUACOES PREJUDICIAIS
-    if am >= 4.0 and se >= 3.5 and co >= 3.5 and q55 >= 4:
+    if am >= 3.5 and se >= 3.0 and co >= 3.0 and q55 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem permanece em situacoes que ja deveriam ter acabado.\n"
             "Voce mantem relacionamentos, empregos ou compromissos que ja nao servem mais - "
@@ -1413,7 +1463,7 @@ def gerar_relatorio(perfil):
         )
 
     # ASSUMIR RESPONSABILIDADE PELOS OUTROS
-    if am >= 4.0 and ne >= 3.5 and q35 >= 4 and evita_conflito:
+    if am >= 3.5 and ne >= 3.0 and q35 >= 3 and evita_conflito:
         tracos_desafios.append(
             "Voce exibe tracos de quem carrega o problema dos outros como se fosse seu.\n"
             "Quando alguem ao seu redor esta mal, voce sente uma responsabilidade de resolver - "
@@ -1422,7 +1472,7 @@ def gerar_relatorio(perfil):
         )
 
     # MINIMIZAR A SI MESMO
-    if ne >= 3.5 and am >= 3.8 and se >= 3.5 and q30 <= 2:
+    if ne >= 3.0 and am >= 3.5 and se >= 3.0 and q30 <= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem diminui o proprio valor antes que os outros o facam.\n"
             "Voce minimiza conquistas, subestima capacidades e coloca ressalvas antes de qualquer afirmacao positiva sobre si mesmo. "
@@ -1431,7 +1481,7 @@ def gerar_relatorio(perfil):
         )
 
     # DIFICULDADE DE PEDIR PERDAO
-    if am < 2.8 and ne >= 3.5 and q33 >= 4:
+    if am < 3.2 and ne >= 3.0 and q33 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem sabe que errou mas nao consegue verbalizar.\n"
             "Pedir perdao e percebido internamente como uma humilhacao, nao como um ato de forca. "
@@ -1440,7 +1490,7 @@ def gerar_relatorio(perfil):
         )
 
     # NECESSIDADE DE DAR A ULTIMA PALAVRA
-    if am < 2.8 and ne >= 3.5 and ex >= 3.5 and q30 >= 4:
+    if am < 3.0 and ne >= 3.0 and ex >= 3.0 and q30 >= 4:
         tracos_desafios.append(
             "Voce exibe tracos de quem precisa fechar toda interacao no controle.\n"
             "Quando uma discussao termina sem voce ter a ultima palavra, fica uma sensacao de incompletude. "
@@ -1449,7 +1499,7 @@ def gerar_relatorio(perfil):
         )
 
     # NECESSIDADE DE SER SUPERIOR
-    if abu < 2.8 and am < 2.8 and q70 >= 4 and q67 <= 2:
+    if abu < 3.0 and am < 3.0 and q70 >= 4 and q67 <= 2:
         tracos_desafios.append(
             "Voce exibe tracos de quem precisa estar acima dos outros para se sentir bem.\n"
             "Voce mede o proprio valor em comparacao - nao pelo que voce e, mas por estar na frente. "
@@ -1458,7 +1508,7 @@ def gerar_relatorio(perfil):
         )
 
     # DIFICULDADE DE CELEBRAR CONQUISTAS
-    if co >= 4.0 and ne >= 3.5 and q52 >= 4 and q18 >= 4:
+    if co >= 3.5 and ne >= 3.0 and q52 >= 3 and q18 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem passa de uma meta para a proxima sem parar para reconhecer o que conquistou.\n"
             "Quando voce chega num objetivo, a satisfacao dura pouco - logo aparece o proximo problema, "
@@ -1467,7 +1517,7 @@ def gerar_relatorio(perfil):
         )
 
     # DIFICULDADE DE RECEBER CRITICA
-    if ne >= 3.5 and am < 3.0 and q7 <= 2:
+    if ne >= 3.0 and am < 3.5 and q7 <= 2:
         tracos_desafios.append(
             "Voce exibe tracos de quem interpreta feedback como ataque pessoal.\n"
             "Quando alguem aponta algo que voce poderia fazer melhor, a reacao interna e de defesa - "
@@ -1476,7 +1526,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE EMPATIA REAL
-    if am < 2.5 and ex >= 3.5 and q35 <= 2 and q33 >= 4:
+    if am < 3.0 and ex >= 3.0 and q35 <= 2 and q33 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem ouve mas nao sente o que o outro esta sentindo.\n"
             "Voce processa o conteudo do que e dito mas frequentemente passa pela emocao por tras. "
@@ -1485,7 +1535,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE AUTOCRITICA
-    if am < 2.5 and ne < 2.5 and q7 <= 2 and q52 <= 2:
+    if am < 3.0 and ne < 2.8 and q7 <= 2 and q52 <= 2:
         tracos_desafios.append(
             "Voce exibe tracos de quem raramente questiona o proprio comportamento.\n"
             "Quando algo da errado, a origem do problema e quase sempre externa - a situacao, as outras pessoas, o timing. "
@@ -1494,7 +1544,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE VULNERABILIDADE
-    if ne < 2.5 and am < 3.0 and ex < 3.0 and q21 <= 2:
+    if ne < 3.0 and am < 3.2 and ex < 3.2 and q21 <= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem nunca mostra que esta com dificuldade.\n"
             "Voce mantem a compostura mesmo quando esta sobrecarregado. "
@@ -1503,7 +1553,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE ALEGRIA GENUINA
-    if ne >= 3.5 and co >= 4.0 and abu < 3.0 and q52 >= 4:
+    if ne >= 3.0 and co >= 3.5 and abu < 3.5 and q52 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem funciona mas raramente desfruta.\n"
             "Voce produz, entrega e cumpre - mas o prazer genuino no processo e raro. "
@@ -1512,7 +1562,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE CAPACIDADE DE DESCANSO
-    if co >= 4.0 and ne >= 3.5 and q12 >= 4 and q17 >= 4:
+    if co >= 3.5 and ne >= 3.0 and q12 >= 3 and q17 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem nao consegue parar sem culpa.\n"
             "Quando voce nao esta produzindo, aparece uma sensacao de que deveria estar fazendo algo. "
@@ -1521,7 +1571,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE RECIPROCIDADE
-    if am < 2.5 and ex >= 3.5 and q35 <= 2 and abu < 3.0:
+    if am < 3.0 and ex >= 3.0 and q35 <= 2 and abu < 3.5:
         tracos_desafios.append(
             "Voce exibe tracos de quem recebe mais do que oferece nas relacoes.\n"
             "Voce aceita atencao, suporte e presenca - mas raramente oferece de volta com a mesma intensidade. "
@@ -1530,7 +1580,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE CURIOSIDADE SOBRE O OUTRO
-    if ex >= 3.5 and am < 3.0 and q35 <= 2 and q26 >= 4:
+    if ex >= 3.0 and am < 3.2 and q35 <= 2 and q26 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem fala mais sobre si do que pergunta sobre o outro.\n"
             "Nas conversas, voce tende a compartilhar, opinar e narrar - mas raramente faz perguntas genuinas "
@@ -1539,7 +1589,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE PRESENCA NAS CONVERSAS
-    if ab >= 3.5 and ex < 3.0 and ne >= 3.5 and q44 >= 4:
+    if ab >= 3.0 and ex < 3.5 and ne >= 3.0 and q44 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem esta fisicamente presente mas mentalmente em outro lugar.\n"
             "Durante conversas, sua mente frequentemente vai para o que precisa ser resolvido, "
@@ -1548,7 +1598,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE LIMITES
-    if am >= 4.0 and ne >= 3.5 and evita_conflito and q33 <= 2 and q39 <= 2:
+    if am >= 3.5 and ne >= 3.0 and evita_conflito and (q33 <= 3 or q39 <= 3):
         tracos_desafios.append(
             "Voce exibe tracos de quem nao sabe onde termina voce e onde comeca o outro.\n"
             "Voce absorve o estado emocional das pessoas ao redor, assume problemas que nao sao seus "
@@ -1557,7 +1607,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE PACIENCIA CONSIGO MESMO
-    if ne >= 4.0 and co >= 4.0 and q52 >= 4 and q17 >= 4:
+    if ne >= 3.5 and co >= 3.5 and q52 >= 3 and q17 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem exige de si o que nao exigiria de ninguem.\n"
             "Quando voce erra, a autocritica e desproporcional. "
@@ -1566,7 +1616,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE CLAREZA SOBRE O QUE QUER
-    if ab >= 3.5 and ne >= 3.5 and q18 <= 2 and q14 <= 2:
+    if ab >= 3.0 and ne >= 3.0 and (q18 <= 2 or q14 <= 2):
         tracos_desafios.append(
             "Voce exibe tracos de quem sabe o que nao quer com precisao, mas nao consegue articular o que quer.\n"
             "Voce tem clareza sobre o que rejeita - situacoes, pessoas, ambientes. "
@@ -1575,7 +1625,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE INICIATIVA
-    if co < 2.8 and ex < 3.0 and se >= 3.5 and q22 <= 2:
+    if co < 3.2 and ex < 3.2 and se >= 3.0 and q22 <= 2:
         tracos_desafios.append(
             "Voce exibe tracos de quem espera as condicoes certas para agir.\n"
             "Voce tem ideias, tem capacidade - mas espera o momento ideal, o sinal certo, a certeza suficiente. "
@@ -1584,7 +1634,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE CONSISTENCIA
-    if co < 2.8 and ab >= 3.5 and q11 <= 2 and q20 <= 2:
+    if co < 3.0 and ab >= 3.0 and (q11 <= 2 or q20 <= 2):
         tracos_desafios.append(
             "Voce exibe tracos de quem comeca bem mas nao sustenta.\n"
             "O inicio de um projeto, relacionamento ou habito tem energia real. "
@@ -1593,7 +1643,7 @@ def gerar_relatorio(perfil):
         )
 
     # AUSENCIA DE TOLERANCIA A AMBIGUIDADE
-    if se >= 4.0 and ne >= 3.5 and q53 >= 4 and q49 >= 4:
+    if se >= 3.5 and ne >= 3.0 and q53 >= 3 and q49 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem precisa de respostas claras para agir.\n"
             "Quando a situacao e incerta, voce trava. "
@@ -1602,7 +1652,7 @@ def gerar_relatorio(perfil):
         )
 
     # SENSIBILIDADE A REJEICAO
-    if ne >= 4.0 and am >= 3.5 and se >= 3.5 and q49 >= 4:
+    if ne >= 3.5 and am >= 3.0 and se >= 3.0 and q49 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem interpreta sinais neutros como rejeicao.\n"
             "Uma mensagem sem resposta, um tom de voz diferente, um olhar que nao veio - "
@@ -1611,7 +1661,7 @@ def gerar_relatorio(perfil):
         )
 
     # DIFICULDADE DE PEDIR AJUDA
-    if ne < 2.5 and co >= 4.0 and ex < 3.0 and q21 <= 2:
+    if ne < 3.0 and co >= 3.5 and ex < 3.2 and q21 <= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem prefere se sobrecarregar a pedir ajuda.\n"
             "Pedir ajuda e percebido como admitir fraqueza ou incompetencia. "
@@ -1621,7 +1671,7 @@ def gerar_relatorio(perfil):
         )
 
     # DIFICULDADE DE TERMINAR O QUE COMECA
-    if ab >= 4.0 and co < 2.8 and q12 <= 2 and q16 <= 2:
+    if ab >= 3.5 and co < 3.2 and (q12 <= 2 or q16 <= 2):
         tracos_desafios.append(
             "Voce exibe tracos de quem tem energia para comecar mas nao para terminar.\n"
             "A fase de exploracao e ideacao e onde voce funciona melhor. "
@@ -1630,7 +1680,7 @@ def gerar_relatorio(perfil):
         )
 
     # DIFICULDADE DE RECEBER ELOGIOS
-    if ne >= 3.5 and am >= 3.5 and se >= 3.5 and q30 <= 2:
+    if ne >= 3.0 and am >= 3.0 and se >= 3.0 and q30 <= 2:
         tracos_desafios.append(
             "Voce exibe tracos de quem nao sabe o que fazer quando e reconhecido.\n"
             "Quando alguem elogia voce, a reacao automatica e minimizar, desviar ou devolver o elogio. "
@@ -1639,7 +1689,7 @@ def gerar_relatorio(perfil):
         )
 
     # DIFICULDADE DE VIVER NO PRESENTE
-    if ne >= 4.0 and q44 >= 4 and q49 >= 4 and q52 >= 4:
+    if ne >= 3.5 and q44 >= 3 and q49 >= 3 and q52 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem raramente esta onde esta.\n"
             "Sua mente oscila entre o que deveria ter feito diferente no passado e o que pode dar errado no futuro. "
@@ -1648,7 +1698,7 @@ def gerar_relatorio(perfil):
         )
 
     # DIFICULDADE DE PERDOAR
-    if ne >= 4.0 and am < 3.0 and q52 >= 4 and q33 >= 4:
+    if ne >= 3.5 and am < 3.2 and q52 >= 3 and q33 >= 3:
         tracos_desafios.append(
             "Voce exibe tracos de quem guarda magoas por mais tempo do que seria util.\n"
             "Quando alguem te magoa, voce nao esquece. A situacao fica registrada e volta em momentos de tensao. "
@@ -1661,7 +1711,7 @@ def gerar_relatorio(perfil):
     # ============================================================
 
     # CAPACIDADE DE OUVIR DE VERDADE
-    if am >= 4.0 and ex < 3.5 and q35 >= 4 and not evita_conflito:
+    if am >= 3.5 and ex < 3.5 and q35 >= 3 and not evita_conflito:
         tracos_forcas.append(
             "Voce exibe tracos de quem ouve de verdade, nao so espera a vez de falar.\n"
             "Quando alguem esta falando com voce, voce esta presente - nao formulando a resposta enquanto a pessoa ainda fala. "
@@ -1670,7 +1720,7 @@ def gerar_relatorio(perfil):
         )
 
     # CAPACIDADE DE DIZER VERDADES DIFICEIS
-    if am >= 3.0 and ne < 3.0 and not evita_conflito and q30 >= 4:
+    if am >= 3.0 and ne < 3.5 and not evita_conflito and q30 >= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem diz o que precisa ser dito, mesmo quando e dificil.\n"
             "Voce nao adia conversas dificeis nem suaviza tanto que a mensagem se perde. "
@@ -1679,7 +1729,7 @@ def gerar_relatorio(perfil):
         )
 
     # CAPACIDADE DE PERDOAR E SEGUIR EM FRENTE
-    if am >= 4.0 and ne < 3.0 and q52 <= 2:
+    if am >= 3.5 and ne < 3.2 and q52 <= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem nao carrega magoa por muito tempo.\n"
             "Quando algo da errado numa relacao, voce processa, fecha e segue. "
@@ -1688,7 +1738,7 @@ def gerar_relatorio(perfil):
         )
 
     # CLAREZA DE PROPOSITO
-    if co >= 4.0 and ab >= 3.5 and q18 >= 4 and ne < 3.5:
+    if co >= 3.5 and ab >= 3.0 and q18 >= 4 and ne < 3.5:
         tracos_forcas.append(
             "Voce exibe tracos de quem sabe para onde esta indo.\n"
             "Voce tem clareza sobre o que quer construir e por que. "
@@ -1697,7 +1747,7 @@ def gerar_relatorio(perfil):
         )
 
     # TOLERANCIA A AMBIGUIDADE
-    if se < 2.8 and ab >= 3.5 and ne < 3.0 and q49 <= 2:
+    if se < 3.2 and ab >= 3.0 and ne < 3.2 and q49 <= 3:
         tracos_forcas.append(
             "Voce exibe tracos de quem age mesmo sem ter todas as respostas.\n"
             "Voce consegue tomar decisoes com informacao incompleta sem paralisar. "
@@ -1706,7 +1756,7 @@ def gerar_relatorio(perfil):
         )
 
     # CAPACIDADE DE CELEBRAR O OUTRO
-    if am >= 4.0 and abu >= 3.5 and q67 >= 4 and ne < 3.5:
+    if am >= 3.5 and abu >= 3.0 and q67 >= 3 and ne < 3.5:
         tracos_forcas.append(
             "Voce exibe tracos de quem consegue celebrar o sucesso dos outros de verdade.\n"
             "Quando alguem ao seu redor conquista algo, voce sente alegria genuina - nao ameaca. "
@@ -2034,20 +2084,6 @@ def gerar_relatorio(perfil):
         "'Aprender a investir em si mesmo sem exigir retorno garantido antes de comecar - "
         "porque o crescimento mais importante frequentemente exige apostar antes de ter certeza.'\n\n"
 
-        "10. TRAÇOS COMPORTAMENTAIS IDENTIFICADOS\n"
-        "INSTRUCAO CRITICA: Esta secao so deve existir se houver tracos listados em "
-        "'TRACOS COMPORTAMENTAIS DE ALTA CONFIANCA' acima. "
-        "Se nao houver nenhum traco listado, OMITA completamente esta secao. "
-        "Se houver tracos, divida em duas subsecoes separadas:\n"
-        "   O QUE TE FORTALECE - apresente os tracos listados em FORCAS COMPORTAMENTAIS IDENTIFICADAS. "
-        "Se nao houver forcas listadas, omita esta subsecao.\n"
-        "   O QUE TE DESAFIA - apresente os tracos listados em DESAFIOS COMPORTAMENTAIS IDENTIFICADOS. "
-        "Se nao houver desafios listados, omita esta subsecao.\n"
-        "Para cada traco: mantenha o formato 'Voce exibe tracos de [nome curto]' como primeira linha, "
-        "seguido da descricao de 2 a 3 linhas. "
-        "NAO use os rotulos tecnicos internos. NAO invente tracos que nao estao na lista. "
-        "Maximo 3 forcas e 3 desafios - se houver mais listados, escolha os de maior impacto.\n\n"
-
         "11. PRÓXIMOS PASSOS\n"
         "INSTRUCAO CRITICA: Os passos abaixo foram pre-gerados com base nos padroes especificos deste perfil. "
         "Use-os como base obrigatoria. Voce pode refinar a linguagem para soar mais natural e humana, "
@@ -2087,9 +2123,9 @@ def gerar_relatorio(perfil):
             ],
             temperature=0.4,
         )
-        return response.choices[0].message.content
+        return response.choices[0].message.content, tracos_forcas, tracos_desafios
     except Exception as e:
-        return "Erro ao gerar relatorio:\n\n" + str(e)
+        return "Erro ao gerar relatorio:\n\n" + str(e), [], []
 
 # =============================================================
 # DEBUG RENDER
@@ -2212,7 +2248,7 @@ def render_debug(perfil):
         "total_perguntas": len(questions),
         "eixos": list(blocos_info.keys()),
         "total_contrastes_calculados": len(perfil["diferencas"]),
-        "versao_prompt": "V5.23 - calibrado por Manus AI",
+        "versao_prompt": "V5.25 - calibrado por Manus AI",
     })
 
 
@@ -2747,7 +2783,45 @@ else:
         )
 
     with st.spinner("Gerando sua análise..."):
-        relatorio = gerar_relatorio(perfil)
+        relatorio_ai, tracos_forcas_exib, tracos_desafios_exib = gerar_relatorio(perfil)
+
+    # --- Montar relatorio final com secao 10 injetada diretamente pelo codigo ---
+    secao10_partes = []
+    if tracos_forcas_exib:
+        linhas_f = []
+        for t in tracos_forcas_exib:
+            linhas = t.split("\n", 1)
+            titulo = linhas[0].strip()
+            descricao = linhas[1].strip() if len(linhas) > 1 else ""
+            linhas_f.append("**" + titulo + "**  \n" + descricao)
+        secao10_partes.append("### O QUE TE FORTALECE\n\n" + "\n\n".join(linhas_f))
+    if tracos_desafios_exib:
+        linhas_d = []
+        for t in tracos_desafios_exib:
+            linhas = t.split("\n", 1)
+            titulo = linhas[0].strip()
+            descricao = linhas[1].strip() if len(linhas) > 1 else ""
+            linhas_d.append("**" + titulo + "**  \n" + descricao)
+        secao10_partes.append("### O QUE TE DESAFIA\n\n" + "\n\n".join(linhas_d))
+
+    if secao10_partes:
+        secao10_bloco = "\n\n## 10. TRAÇOS COMPORTAMENTAIS IDENTIFICADOS\n\n" + "\n\n".join(secao10_partes)
+        # Inserir secao 10 antes da secao 11 (Proximos Passos) se existir, senao no final
+        if "11." in relatorio_ai or "PRÓXIMOS PASSOS" in relatorio_ai.upper():
+            import re
+            relatorio = re.sub(
+                r'(##?\s*1[01]\.\s*PR[OÓ]XIMOS PASSOS)',
+                secao10_bloco + "\n\n" + r'\1',
+                relatorio_ai,
+                count=1,
+                flags=re.IGNORECASE
+            )
+            if relatorio == relatorio_ai:  # regex nao encontrou, adicionar no final
+                relatorio = relatorio_ai + secao10_bloco
+        else:
+            relatorio = relatorio_ai + secao10_bloco
+    else:
+        relatorio = relatorio_ai
 
     st.markdown(relatorio)
 
@@ -2789,9 +2863,9 @@ else:
         ok_sheets, msg_sheets = registrar_no_sheets(dados_registro)
         if MODO_TESTE:
             if ok_sheets:
-                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.23 ATIVA")
+                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.25 ATIVA")
             else:
-                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.23 ATIVA")
+                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.25 ATIVA")
         # Email apenas em modo producao
         if not MODO_TESTE:
             nome_usuario = user_info.get("nome", "")
