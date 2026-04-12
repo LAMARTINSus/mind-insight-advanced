@@ -2,7 +2,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.28
+# Version: V5.29
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
@@ -61,6 +61,10 @@
 #       - Versao exibida no inicio das telas de debug e relatorio
 # V5.28 - Fix: KeyError no questionario - perguntas deletadas (Q6,Q9,Q10...) causavam crash
 #       - Questionario agora usa QUESTION_KEYS (lista ordenada) em vez de contador sequencial
+# V5.29 - Fix: TypeError em PADRAO DE BAIXO IMPULSO SOCIAL (6 specs vs 5 vars)
+#       - Corrigido: removido %d de prefere_escrever_a_falar (Q27/Q28 foram deletadas)
+#       - Labels do debug atualizados para refletir ranges reais dos eixos
+#       - versao_prompt atualizado para V5.29
 # =============================================================
 import streamlit as st
 import json
@@ -210,7 +214,7 @@ if "perfil_cache" not in st.session_state:
 
 # =============================================================
 # PERGUNTAS
-# 79 questoes# V5.25: removidas Q6,Q9,Q10,Q15,Q19,Q27,Q28,Q34,Q40,Q41 + 15 novas Q75-Q89)
+# 78 questoes (V5.25: removidas Q6,Q9,Q10,Q15,Q19,Q27,Q28,Q34,Q40,Q41,Q60 + 15 novas Q75-Q89)
 # (I) = pontuacao invertida
 # ABERTURA        Q1,Q2,Q3,Q4,Q5,Q7,Q8  (7 questoes)
 # CONSCIENCIA     Q11,Q12,Q13,Q14,Q16,Q17,Q18,Q20,Q75,Q77,Q78  (11 questoes)
@@ -1133,7 +1137,7 @@ def gerar_relatorio(perfil):
         combinacoes_ativas.append(
             "PADRAO DE BAIXO IMPULSO SOCIAL (Extroversao %.2f): "
             "Este e um dos eixos mais extremos do perfil e precisa ser descrito com seriedade. "
-            "Scores: toma_iniciativa_grupo=%d, porta_voz=%d, prefere_escrever_a_falar=%d, "
+            "Scores: toma_iniciativa_grupo=%d, porta_voz=%d, "
             "fica_ouvindo_grupo=%d, exprime_opiniao_quando_discordam=%d. "
             "Esta pessoa NAO busca estimulo em grupos, NAO toma iniciativa em situacoes sociais, "
             "NAO se sente confortavel como porta-voz, e PREFERE comunicacao escrita a oral. "
@@ -2153,7 +2157,7 @@ def gerar_relatorio(perfil):
 
 def render_debug(perfil):
     st.markdown("---")
-    st.markdown("**Versão: V5.28**", unsafe_allow_html=False)
+    st.markdown("**Versão: V5.29**", unsafe_allow_html=False)
     st.header("Debug - Transparência Total do Perfil")
     st.caption(
         "Este painel mostra todos os dados, calculos e logica usados para gerar o relatorio. "
@@ -2161,13 +2165,13 @@ def render_debug(perfil):
     )
 
     blocos_info = {
-        "Abertura":          (1,  10),
-        "Conscienciosidade": (11, 20),
+        "Abertura":          (1,  8),
+        "Conscienciosidade": (11, 82),
         "Extroversao":       (21, 30),
-        "Amabilidade":       (31, 41),
-        "Neuroticismo":      (42, 52),
-        "Seguranca":         (53, 63),
-        "Abundancia":        (64, 74),
+        "Amabilidade":       (31, 87),
+        "Neuroticismo":      (42, 89),
+        "Seguranca":         (53, 88),
+        "Abundancia":        (64, 84),
     }
 
     st.subheader("1. Respostas Brutas")
@@ -2269,7 +2273,7 @@ def render_debug(perfil):
         "total_perguntas": len(questions),
         "eixos": list(blocos_info.keys()),
         "total_contrastes_calculados": len(perfil["diferencas"]),
-        "versao_prompt": "V5.26 - calibrado por Manus AI",
+        "versao_prompt": "V5.29 - calibrado por Manus AI",
     })
 
 
@@ -2557,7 +2561,7 @@ with col_title:
     st.markdown("<h1 style='margin-bottom:0'>Mind Insight™</h1>", unsafe_allow_html=True)
     if MODO_TESTE:
         st.markdown(
-            '<div class="manus-badge">V5.28 | Criado com Claude (Anthropic) | '
+            '<div class="manus-badge">V5.29 | Criado com Claude (Anthropic) | '
             'Aperfeiçoado por Manus AI | MODO TESTE ATIVO</div>',
             unsafe_allow_html=True
         )
@@ -2790,7 +2794,7 @@ elif not st.session_state.calibracao_completa:
 else:
     st.title("Seu Relatório de Perfil")
     if MODO_TESTE:
-        st.caption("Versão: V5.28 | MODO TESTE ATIVO")
+        st.caption("Versão: V5.29 | MODO TESTE ATIVO")
 
     if st.session_state.perfil_cache is not None:
         perfil = st.session_state.perfil_cache
@@ -2885,9 +2889,9 @@ else:
         ok_sheets, msg_sheets = registrar_no_sheets(dados_registro)
         if MODO_TESTE:
             if ok_sheets:
-                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.28 ATIVA")
+                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.29 ATIVA")
             else:
-                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.28 ATIVA")
+                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.29 ATIVA")
         # Email apenas em modo producao
         if not MODO_TESTE:
             nome_usuario = user_info.get("nome", "")
