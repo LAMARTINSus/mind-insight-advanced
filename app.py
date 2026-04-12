@@ -1,63 +1,113 @@
 import streamlit as st
 from openai import OpenAI
 
-# 🔐 CONFIGURE SUA API KEY AQUI
-client = OpenAI(api_key="COLE_SUA_API_KEY_AQUI")
+# =========================
+# CONFIGURAÇÃO
+# =========================
+st.set_page_config(page_title="Teste Comportamental", layout="centered")
 
-st.set_page_config(page_title="Teste de Perfil", layout="centered")
+# ⚠️ COLOQUE SUA API KEY AQUI
+client = OpenAI(api_key="SUA_API_KEY_AQUI")
 
 st.title("Teste Comportamental")
+st.write("Responda de 1 (Discordo totalmente) a 5 (Concordo totalmente)")
 
-st.write("Responda as perguntas abaixo de 1 a 5")
+# =========================
+# PERGUNTAS (ESTRUTURA ESCALÁVEL)
+# =========================
 
-# ---------------------------
-# PERGUNTAS (EXEMPLO BASE)
-# ---------------------------
 questions = [
-    "Evito conflitos sempre que possível",
-    "Prefiro me manter em silêncio em situações difíceis",
-    "Tenho dificuldade em dizer não",
-    "Falo o que penso mesmo que desagrade",
+    {"text": "Evito conflitos sempre que possível", "trait": "conflito", "reverse": False},
+    {"text": "Prefiro me manter em silêncio em situações difíceis", "trait": "conflito", "reverse": False},
+    {"text": "Tenho dificuldade em dizer não", "trait": "conflito", "reverse": False},
+    {"text": "Falo o que penso mesmo que desagrade", "trait": "assertividade", "reverse": False},
 ]
 
-# Armazena respostas
 responses = []
 
+# =========================
+# CAPTURA RESPOSTAS
+# =========================
+
 for i, q in enumerate(questions):
-    r = st.slider(f"{i+1}. {q}", 1, 5, 3)
-    responses.append(r)
+    r = st.slider(f"{i+1}. {q['text']}", 1, 5, 3)
+    responses.append({
+        "value": r,
+        "trait": q["trait"],
+        "reverse": q["reverse"]
+    })
 
-# ---------------------------
-# LÓGICA DE PERFIL
-# ---------------------------
-def analyze_profile(responses):
-    evita_conflito = (responses[0] + responses[1] + responses[2]) / 3
-    assertividade = responses[3]
+# =========================
+# PROCESSAMENTO
+# =========================
 
-    if evita_conflito > 3.5 and assertividade < 3:
-        return "Você tende a evitar conflitos e pode ter dificuldade em se posicionar."
-    elif evita_conflito < 2.5 and assertividade > 3.5:
-        return "Você é assertivo e se posiciona com facilidade."
+def process_responses(responses):
+    scores = {}
+
+    for r in responses:
+        value = r["value"]
+
+        # Correção de inversão (se existir)
+        if r["reverse"]:
+            value = 6 - value
+
+        trait = r["trait"]
+
+        if trait not in scores:
+            scores[trait] = []
+
+        scores[trait].append(value)
+
+    # Média por traço
+    final_scores = {k: sum(v)/len(v) for k, v in scores.items()}
+    return final_scores
+
+# =========================
+# INTERPRETAÇÃO
+# =========================
+
+def generate_profile(scores):
+    conflito = scores.get("conflito", 0)
+    assertividade = scores.get("assertividade", 0)
+
+    if conflito > 3.5 and assertividade < 3:
+        return "Perfil evitador de conflitos. Tende a se calar e evitar confrontos."
+    
+    elif conflito < 2.5 and assertividade > 3.5:
+        return "Perfil altamente assertivo. Se posiciona com clareza e firmeza."
+    
     else:
-        return "Você possui um perfil equilibrado entre evitar conflitos e assertividade."
+        return "Perfil equilibrado entre cautela e assertividade."
 
-# ---------------------------
-# BOTÃO DE RESULTADO
-# ---------------------------
+# =========================
+# BOTÃO RESULTADO
+# =========================
+
 if st.button("Ver Resultado"):
-    resultado = analyze_profile(responses)
 
-    st.subheader("Resultado:")
-    st.write(resultado)
+    scores = process_responses(responses)
 
-    # ---------------------------
-    # GPT (RELATÓRIO AVANÇADO)
-    # ---------------------------
+    st.subheader("Pontuação por Perfil")
+    for k, v in scores.items():
+        st.write(f"{k}: {round(v,2)}")
+
+    profile = generate_profile(scores)
+
+    st.subheader("Resultado")
+    st.write(profile)
+
+    # =========================
+    # GPT (ANÁLISE AVANÇADA)
+    # =========================
+
     prompt = f"""
-    O usuário respondeu o seguinte perfil:
-    {resultado}
+    Analise o seguinte perfil comportamental:
 
-    Gere um relatório comportamental profundo, claro e prático.
+    Scores: {scores}
+    Interpretação base: {profile}
+
+    Gere uma análise profunda, prática e direta.
+    Explique forças, riscos e recomendações claras.
     """
 
     try:
@@ -66,10 +116,10 @@ if st.button("Ver Resultado"):
             input=prompt
         )
 
-        texto = response.output[0].content[0].text
+        analysis = response.output[0].content[0].text
 
-        st.subheader("Análise Detalhada")
-        st.write(texto)
+        st.subheader("Análise Avançada")
+        st.write(analysis)
 
     except Exception as e:
         st.error(f"Erro ao gerar análise: {e}")
