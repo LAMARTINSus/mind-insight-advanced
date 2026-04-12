@@ -2,73 +2,18 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V5.31
+# Version: V5.33
 # Criado com: Claude (Anthropic)
 # Aperfeicoado por: Manus AI
 #
-# Historico de versoes:
-# V5.0 - Versao original: 74 questoes, 7 eixos, gpt-4o
-# V5.1 - Prompt recalibrado: 5 regras de validacao cruzada,
-#         ranking de eixos, maior contraste obrigatorio
-# V5.2 - Acentuacao completa em portugues
-#       - Opcao de reutilizar respostas do ultimo teste
-#       - Cabecalho atualizado com credito ao Manus AI
-#       - Debug mantido ativo para fase de calibracao
-# V5.3 - Engine: calcula todos os 21 contrastes (antes: 4 fixos)
-#       - Engine: maior contraste real sempre capturado
-#       - Engine: hipotese de combinacao Abertura+Extroversao adicionada
-#       - Prompt: regra 3 agora usa contraste real (nao pre-definido)
-#       - Prompt: regra 6 anti-contradicao de combinacao alta+baixa
-#       - Prompt: secao 5 proibe comportamento extrovertido se Extroversao < 3.5
-#       - Debug: exibe todos os 21 contrastes no painel
-#       - Aviso de amplitude comprimida quando > 60% respostas sao 3-4
-#       - Q63 removida das invertidas (semantica ambigua revisada)
-# V5.4 - Q63 REESCRITA: nova pergunta mede aversao a risco/imprevisibilidade
-#       - Q63 volta a ser invertida (semantica agora clara)
-#       - Engine: scores diagnosticos por eixo passados ao prompt
-#       - Prompt: completamente reformulado com linguagem humana e motivadora
-#       - Prompt: nova estrutura orientada a forcas, lideranca e crescimento
-#       - Prompt: proibido usar termos tecnicos (introversao, neuroticismo, etc)
-#        - Prompt: relatorio deve fazer a pessoa se identificar e querer agir
-# V5.14 - Fix NameError: q26 nao declarada em gerar_relatorio
-#       - Afirmação 2 (Extroversão) reescrita para eliminar ambiguidade
-# V5.15 - Acentuação gráfica completa em português nos textos fixos
-#       - Subtítulo atualizado: 'Análise comportamental potencializada por
-#         psicologia científica e inteligência artificial avançada'
-# V5.16 - Logo Mind Insight adicionado ao cabeçalho
-# V5.17 - Google Sheets: grava em modo teste e producao; mostra erro no debug; coluna modo_teste adicionada
-#       - Pergunta de calibração de Segurança separada em duas afirmações
-#         independentes (Q55: reatividade emocional / Q59: preferência por rotina)
-# V5.20 - Fix private_key newline issue no Streamlit secrets
-#       - Nova planilha Google Sheets criada e reconectada
-# V5.21 - Nova secao 10: Tracos Comportamentais de Alta Confianca
-#       - 10 desafios implementados com thresholds rigorosos
-#       - Formato: nome curto + descricao universal de 3 linhas
-# V5.22 - Secao 10 expandida com subsecoes separadas: Forcas e Desafios
-#       - 12 forcas comportamentais adicionadas
-#       - Formato padrao: 'Voce exibe tracos de...' + mecanismo + custo
-# V5.23 - 35 tracos adicionais implementados (desafios e forcas)
-#       - Total: 48 desafios + 18 forcas = 66 tracos de alta confianca
-#       - Inclui: ausencias, cluster ego defensivo, padroes limitantes
-# V5.24 - Secao 10 injetada diretamente pelo Python (nao pela IA)
-# V5.25 - Thresholds recalibrados para perfis moderados (eixos 2.8-3.8)
-#       - 10 perguntas redundantes removidas (Q6,Q9,Q10,Q15,Q19,Q27,Q28,Q34,Q40,Q41)
-#       - 15 novas perguntas adicionadas (Q75-Q89)
-# V5.26 - Base limpa recebida do usuario
-# V5.27 - Fix: _media_formal indefinida em gerar_perfil
-#       - Fix: q_adj.get(28) substituido por q_adj.get(29) (Q28 removida)
-#       - Fix: ULTIMO_TESTE atualizado com Q75-Q89 e sem perguntas removidas
-#       - Versao exibida no inicio das telas de debug e relatorio
-# V5.28 - Fix: KeyError no questionario - perguntas deletadas (Q6,Q9,Q10...) causavam crash
-#       - Questionario agora usa QUESTION_KEYS (lista ordenada) em vez de contador sequencial
-# V5.29 - Fix: TypeError em PADRAO DE BAIXO IMPULSO SOCIAL (6 specs vs 5 vars)
-#       - Corrigido: removido %d de prefere_escrever_a_falar (Q27/Q28 foram deletadas)
-#       - Labels do debug atualizados para refletir ranges reais dos eixos
-#       - versao_prompt atualizado para V5.29
-# V5.31 - Fix CRITICO: logica evita_conflito estava invertida (Q33/Q37/Q39 sao invertidas)
-#       - Corrigido: condicao mudou de <= 3 para >= 4 (alto ajustado = evita conflito)
-#       - Tracos "diz o que pensa" e "diz verdades dificeis" agora so ativam quando correto
-#       - Corrigidas condicoes de "guarda magoa" e "dificuldade de pedir perdao"
+# V5.33 - Correcoes psicometricas e de consistencia
+#       - Q75-Q89 removidas de PERGUNTAS_INVERTIDAS
+#       - Q84 movida para Conscienciosidade
+#       - Q88 movida para Extroversao
+#       - evita_conflito agora usa respostas brutas
+#       - scores diagnosticos enviados ao prompt usam o sentido literal da pergunta
+#       - calibracao de conflito corrigida
+#       - Google Sheets registra todas as perguntas reais
 # =============================================================
 import streamlit as st
 import json
@@ -88,8 +33,6 @@ except ImportError:
 
 # =============================================================
 # MODO DE OPERACAO
-# Producao (padrao): sem debug, sem reutilizacao de respostas
-# Teste: acesse a URL com ?modo=teste para ativar o modo de desenvolvimento
 # =============================================================
 
 def detectar_modo():
@@ -103,8 +46,7 @@ DEBUG_MODE = detectar_modo()
 MODO_TESTE = DEBUG_MODE
 
 # =============================================================
-# RESPOSTAS DO ULTIMO TESTE (para reutilizacao rapida)
-# Remover esta secao apos a fase de calibracao
+# RESPOSTAS DO ULTIMO TESTE
 # =============================================================
 
 ULTIMO_TESTE = {
@@ -119,7 +61,7 @@ ULTIMO_TESTE = {
     # NEUROTICISMO (Q42-Q52)
     42: 3, 43: 3, 44: 4, 45: 3, 46: 3, 47: 3, 48: 3, 49: 4, 50: 3, 51: 3, 52: 3,
     # SEGURANCA (Q53-Q63)
-    53: 4, 54: 4, 55: 4, 56: 4, 57: 3, 58: 3, 59: 4, 61: 4, 62: 3, 63: 4,
+    53: 4, 54: 4, 55: 4, 56: 4, 57: 3, 58: 3, 59: 4, 60: 3, 61: 4, 62: 3, 63: 4,
     # ABUNDANCIA (Q64-Q74)
     64: 4, 65: 2, 66: 3, 67: 3, 68: 4, 69: 3, 70: 3, 71: 3, 72: 3, 73: 3, 74: 3,
     # NOVAS Q75-Q89
@@ -203,34 +145,13 @@ if "calibracao_ajustes" not in st.session_state:
     st.session_state.calibracao_ajustes = {}
 if "perfil_cache" not in st.session_state:
     st.session_state.perfil_cache = None
-if "calibracao_completa" not in st.session_state:
-    st.session_state.calibracao_completa = False
-if "calibracao_statements" not in st.session_state:
-    st.session_state.calibracao_statements = []
-if "calibracao_respostas" not in st.session_state:
-    st.session_state.calibracao_respostas = {}
-if "calibracao_followup" not in st.session_state:
-    st.session_state.calibracao_followup = {}
-if "calibracao_ajustes" not in st.session_state:
-    st.session_state.calibracao_ajustes = {}
-if "perfil_cache" not in st.session_state:
-    st.session_state.perfil_cache = None
 
 # =============================================================
 # PERGUNTAS
-# 78 questoes (V5.25: removidas Q6,Q9,Q10,Q15,Q19,Q27,Q28,Q34,Q40,Q41,Q60 + 15 novas Q75-Q89)
-# (I) = pontuacao invertida
-# ABERTURA        Q1,Q2,Q3,Q4,Q5,Q7,Q8  (7 questoes)
-# CONSCIENCIA     Q11,Q12,Q13,Q14,Q16,Q17,Q18,Q20,Q75,Q77,Q78  (11 questoes)
-# EXTROVERSAO     Q21,Q22,Q23,Q24,Q25,Q26,Q29,Q30,Q81  (9 questoes)
-# AMABILIDADE     Q31,Q32,Q33,Q35,Q36,Q37,Q38,Q39,Q73,Q74,Q85,Q87  (12 questoes)
-# NEUROTICISMO    Q42,Q43,Q44,Q45,Q46,Q47,Q48,Q49,Q50,Q51,Q52,Q79,Q80,Q86,Q89  (15 questoes)
-# SEGURANCA       Q53,Q54,Q55,Q56,Q57,Q58,Q59,Q60,Q61,Q62,Q63,Q88  (12 questoes)
-# ABUNDANCIA      Q64,Q65,Q66,Q67,Q68,Q69,Q70,Q71,Q72,Q76,Q83  (11 questoes)
 # =============================================================
 
 questions = {
-    # ABERTURA (7 questoes: removidas Q6, Q9, Q10)
+    # ABERTURA
     1:  "Fico genuinamente curioso quando encontro uma ideia que contradiz o que eu penso.",
     2:  "Prefiro solucoes ja testadas a experimentar abordagens novas.",
     3:  "Busco conhecimento em assuntos novos por prazer, nao por obrigacao.",
@@ -238,7 +159,7 @@ questions = {
     5:  "Consigo encontrar conexoes entre assuntos que parecem nao ter nada a ver.",
     7:  "Ja mudei uma opiniao importante por causa de um argumento bem fundamentado.",
     8:  "Me atrai explorar areas onde ainda nao tenho dominio.",
-    # CONSCIENCIOSIDADE (9 questoes: removidas Q15, Q19; novas Q75,Q77,Q78 adicionadas abaixo)
+    # CONSCIENCIOSIDADE
     11: "Quando assumo um compromisso, cumpro - mesmo quando nao tenho mais vontade.",
     12: "Comeco tarefas importantes so quando estou com disposicao para isso.",
     13: "Tenho um sistema claro para organizar minhas prioridades do dia.",
@@ -247,7 +168,7 @@ questions = {
     17: "Reviso meu trabalho antes de entregar, mesmo quando estou confiante.",
     18: "Tenho clareza sobre o que precisa ser feito hoje para chegar onde quero em um ano.",
     20: "Mantenho meus compromissos mesmo quando surgem opcoes mais atraentes.",
-    # EXTROVERSAO (8 questoes: removidas Q27, Q28; nova Q81 adicionada abaixo)
+    # EXTROVERSAO
     21: "Me sinto com mais energia depois de passar tempo com pessoas do que antes.",
     22: "Em grupos, costumo tomar a iniciativa de falar primeiro.",
     23: "Prefiro pensar sozinho antes de discutir ideias com outros.",
@@ -256,7 +177,7 @@ questions = {
     26: "Busco ativamente conhecer pessoas novas em ambientes sociais.",
     29: "Em conversas em grupo, frequentemente fico mais ouvindo do que falando.",
     30: "Quando tenho uma opiniao, nao tenho dificuldade de exprimi-la mesmo que outros discordem.",
-    # AMABILIDADE (7 questoes: removidas Q34, Q40, Q41; novas Q73,Q74,Q85,Q87 adicionadas abaixo)
+    # AMABILIDADE
     31: "Quando alguem esta passando por algo dificil, meu primeiro instinto e ajudar.",
     32: "Tenho facilidade para identificar como o outro esta se sentindo, mesmo sem ele dizer.",
     33: "Em desacordos, prefiro ceder do que prolongar o conflito.",
@@ -301,59 +222,45 @@ questions = {
     72: "Me sinto a vontade para pedir o que acredito que meu trabalho vale.",
     73: "Sinto que, independente do que faco, nunca e suficiente.",
     74: "A possibilidade de perder o que ja tenho me preocupa mais do que a possibilidade de ganhar algo novo.",
-    # NOVAS QUESTOES V5.24 (Q75-Q89) - 15 novas perguntas
-    # AMABILIDADE novas
+    # NOVAS Q75-Q89
     75: "Quando reconheco que errei com alguem, consigo pedir desculpas diretamente, sem rodeios.",
-    85: "Consigo ouvir o outro numa conversa sem ja estar formulando minha resposta enquanto ele fala.",
-    87: "Consigo dizer nao para pedidos que me sobrecarregariam, mesmo quando a pessoa vai ficar desapontada.",
-    # ABUNDANCIA novas
     76: "Consigo me sentir satisfeito com meu trabalho mesmo quando ninguem comenta ou reconhece o que fiz.",
-    83: "Quando alguem proximo tem uma conquista importante, minha reacao genuina e de alegria, nao de comparacao.",
-    # CONSCIENCIOSIDADE novas
     77: "Quando vejo algo que precisa ser feito e ninguem esta fazendo, costumo ser a pessoa que toma a frente.",
     78: "Consigo entregar uma tarefa importante para outra pessoa sem ficar verificando como ela esta sendo feita.",
-    82: "Quando comeco um projeto, consigo manter o interesse mesmo depois que a novidade passa.",
-    84: "Quando alguem me pergunta o que eu realmente quero para minha vida, consigo responder com clareza.",
-    # EXTROVERSAO nova
-    81: "Consigo pedir ajuda quando estou sobrecarregado, sem sentir que isso me diminui.",
-    # SEGURANCA nova
-    88: "Consigo dizer o que penso mesmo quando sei que vai gerar desconforto ou discordancia.",
-    # NEUROTICISMO novas (invertidas: concordar = neuroticismo baixo = BOM)
     79: "Consigo descansar sem sentir que deveria estar fazendo algo produtivo.",
     80: "Quando alguem me elogia, consigo receber sem minimizar ou desviar o assunto.",
+    81: "Consigo pedir ajuda quando estou sobrecarregado, sem sentir que isso me diminui.",
+    82: "Quando comeco um projeto, consigo manter o interesse mesmo depois que a novidade passa.",
+    83: "Quando alguem proximo tem uma conquista importante, minha reacao genuina e de alegria, nao de comparacao.",
+    84: "Quando alguem me pergunta o que eu realmente quero para minha vida, consigo responder com clareza.",
+    85: "Consigo ouvir o outro numa conversa sem ja estar formulando minha resposta enquanto ele fala.",
     86: "Consigo estar presente numa conversa sem que minha mente va para o que preciso fazer depois.",
+    87: "Consigo dizer nao para pedidos que me sobrecarregariam, mesmo quando a pessoa vai ficar desapontada.",
+    88: "Consigo dizer o que penso mesmo quando sei que vai gerar desconforto ou discordancia.",
     89: "Quando alguem me pergunta sobre algo que fiz bem, consigo falar sobre isso sem diminuir o que conquistei.",
 }
 
-# Versao com acentuacao completa para exibicao na tela
 questions_display = {
-    # ABERTURA (7 questoes: removidas Q6, Q9, Q10)
-    1:  "Fico genuinamente curioso quando encontro uma ideia que contradiz o que eu penso.",
-    2:  "Prefiro soluções já testadas a experimentar abordagens novas.",
-    3:  "Busco conhecimento em assuntos novos por prazer, não por obrigação.",
-    4:  "Me incomoda quando conversas ficam muito abstratas ou filosóficas.",
-    5:  "Consigo encontrar conexões entre assuntos que parecem não ter nada a ver.",
-    7:  "Já mudei uma opinião importante por causa de um argumento bem fundamentado.",
-    8:  "Me atrai explorar áreas onde ainda não tenho domínio.",
-    # CONSCIENCIOSIDADE (8 questoes: removidas Q15, Q19)
-    11: "Quando assumo um compromisso, cumpro — mesmo quando não tenho mais vontade.",
+    q: text.replace("nao", "não").replace("solucoes", "soluções").replace("situacoes", "situações").replace("opiniao", "opinião").replace("voce", "você").replace("tambem", "também").replace("ja", "já").replace("facil", "fácil") if False else text
+    for q, text in questions.items()
+}
+# Ajustes manuais de exibição com acentuação mais completa
+questions_display.update({
+    2: "Prefiro soluções já testadas a experimentar abordagens novas.",
+    3: "Busco conhecimento em assuntos novos por prazer, não por obrigação.",
+    4: "Me incomoda quando conversas ficam muito abstratas ou filosóficas.",
+    5: "Consigo encontrar conexões entre assuntos que parecem não ter nada a ver.",
+    7: "Já mudei uma opinião importante por causa de um argumento bem fundamentado.",
+    8: "Me atrai explorar áreas onde ainda não tenho domínio.",
+    11: "Quando assumo um compromisso, cumpro - mesmo quando não tenho mais vontade.",
     12: "Começo tarefas importantes só quando estou com disposição para isso.",
-    13: "Tenho um sistema claro para organizar minhas prioridades do dia.",
     14: "Deixo para decidir na hora em vez de planejar com antecedência.",
     16: "Frequentemente percebo que deixei algo importante para a última hora.",
-    17: "Reviso meu trabalho antes de entregar, mesmo quando estou confiante.",
     18: "Tenho clareza sobre o que precisa ser feito hoje para chegar onde quero em um ano.",
     20: "Mantenho meus compromissos mesmo quando surgem opções mais atraentes.",
-    # EXTROVERSAO (8 questoes: removidas Q27, Q28)
     21: "Me sinto com mais energia depois de passar tempo com pessoas do que antes.",
-    22: "Em grupos, costumo tomar a iniciativa de falar primeiro.",
-    23: "Prefiro pensar sozinho antes de discutir ideias com outros.",
     24: "Me sinto confortável sendo o porta-voz de um grupo em situações formais.",
-    25: "Depois de um dia social intenso, preciso de tempo sozinho para recarregar.",
-    26: "Busco ativamente conhecer pessoas novas em ambientes sociais.",
     29: "Em conversas em grupo, frequentemente fico mais ouvindo do que falando.",
-    30: "Quando tenho uma opinião, não tenho dificuldade de exprimi-la mesmo que outros discordem.",
-    # AMABILIDADE (8 questoes: removidas Q34, Q40, Q41)
     31: "Quando alguém está passando por algo difícil, meu primeiro instinto é ajudar.",
     32: "Tenho facilidade para identificar como o outro está se sentindo, mesmo sem ele dizer.",
     33: "Em desacordos, prefiro ceder do que prolongar o conflito.",
@@ -362,23 +269,19 @@ questions_display = {
     37: "Evito dar feedback negativo para não criar tensão.",
     38: "Confio nas pessoas até que me provem o contrário.",
     39: "Quando preciso dizer algo difícil, costumo adiar mais do que deveria.",
-    # NEUROTICISMO
     42: "Quando algo dá errado, fico remoendo o que aconteceu por horas ou dias.",
     43: "Me recupero emocionalmente rápido depois de situações difíceis.",
     44: "Frequentemente me preocupo com coisas que ainda não aconteceram.",
     45: "Consigo manter a calma em situações de pressão alta.",
-    46: "Pequenos contratempos do dia me afetam mais do que deveriam.",
     47: "Quando estou sob estresse, minha capacidade de tomar decisões piora visivelmente.",
     48: "Me sinto estável emocionalmente na maior parte do tempo.",
     49: "Fico ansioso quando não sei o que esperar de uma situação.",
     50: "Críticas, mesmo construtivas, me afetam emocionalmente por um tempo.",
     51: "Consigo separar o que sinto do que preciso fazer, mesmo em momentos difíceis.",
     52: "Quando cometo um erro, fico muito mais tempo me cobrando do que a situação justificaria.",
-    # SEGURANCA
     53: "Me sinto mais confortável quando sei exatamente o que esperar de uma situação.",
     54: "Consigo agir com confiança mesmo quando não tenho todas as informações.",
     55: "Mudanças inesperadas nos meus planos me deixam mais incomodado do que a maioria.",
-    56: "Prefiro uma oportunidade menor mas garantida a uma maior mas incerta.",
     57: "Me sinto bem entrando em situações onde não sei exatamente o que vai acontecer.",
     58: "Demoro para confiar em pessoas ou ambientes novos.",
     59: "Quando estou numa rotina que funciona, resisto a mudar mesmo que haja opções melhores.",
@@ -386,41 +289,31 @@ questions_display = {
     61: "Sinto desconforto real quando preciso tomar decisões sem um plano claro.",
     62: "Me sinto seguro mesmo em fases de transição ou incerteza na minha vida.",
     63: "Prefiro confirmar os detalhes antes de agir do que improvisar no momento.",
-    # ABUNDANCIA
     64: "Quando vejo alguém bem-sucedido, meu primeiro pensamento é de inspiração, não de comparação.",
     65: "Sinto que as oportunidades disponíveis para mim são limitadas.",
-    66: "Consigo gastar dinheiro em algo que vale a pena sem sentir culpa depois.",
     67: "Frequentemente sinto que estou ficando para trás em relação a onde deveria estar.",
-    68: "Acredito que há espaço para todo mundo crescer — o sucesso dos outros não diminui o meu.",
+    68: "Acredito que há espaço para todo mundo crescer - o sucesso dos outros não diminui o meu.",
     69: "Pensar em dinheiro me gera mais ansiedade do que clareza.",
-    70: "Quando surge uma oportunidade nova, meu primeiro instinto é ver o que posso ganhar.",
     71: "Tenho dificuldade de investir em mim mesmo quando não vejo retorno garantido.",
     72: "Me sinto à vontade para pedir o que acredito que meu trabalho vale.",
     73: "Sinto que, independente do que faço, nunca é suficiente.",
     74: "A possibilidade de perder o que já tenho me preocupa mais do que a possibilidade de ganhar algo novo.",
-    # NOVAS QUESTOES V5.24 (Q75-Q89)
-    # AMABILIDADE novas
     75: "Quando reconheço que errei com alguém, consigo pedir desculpas diretamente, sem rodeios.",
-    85: "Consigo ouvir o outro numa conversa sem já estar formulando minha resposta enquanto ele fala.",
-    87: "Consigo dizer não para pedidos que me sobrecarregariam, mesmo quando a pessoa vai ficar desapontada.",
-    # ABUNDANCIA novas
     76: "Consigo me sentir satisfeito com meu trabalho mesmo quando ninguém comenta ou reconhece o que fiz.",
-    83: "Quando alguém próximo tem uma conquista importante, minha reação genuína é de alegria, não de comparação.",
-    # CONSCIENCIOSIDADE novas
     77: "Quando vejo algo que precisa ser feito e ninguém está fazendo, costumo ser a pessoa que toma a frente.",
     78: "Consigo entregar uma tarefa importante para outra pessoa sem ficar verificando como ela está sendo feita.",
-    82: "Quando começo um projeto, consigo manter o interesse mesmo depois que a novidade passa.",
-    84: "Quando alguém me pergunta o que eu realmente quero para minha vida, consigo responder com clareza.",
-    # EXTROVERSAO nova
-    81: "Consigo pedir ajuda quando estou sobrecarregado, sem sentir que isso me diminui.",
-    # SEGURANCA nova
-    88: "Consigo dizer o que penso mesmo quando sei que vai gerar desconforto ou discordância.",
-    # NEUROTICISMO novas (invertidas: concordar = neuroticismo baixo = BOM)
     79: "Consigo descansar sem sentir que deveria estar fazendo algo produtivo.",
     80: "Quando alguém me elogia, consigo receber sem minimizar ou desviar o assunto.",
+    81: "Consigo pedir ajuda quando estou sobrecarregado, sem sentir que isso me diminui.",
+    82: "Quando começo um projeto, consigo manter o interesse mesmo depois que a novidade passa.",
+    83: "Quando alguém próximo tem uma conquista importante, minha reação genuína é de alegria, não de comparação.",
+    84: "Quando alguém me pergunta o que eu realmente quero para minha vida, consigo responder com clareza.",
+    85: "Consigo ouvir o outro numa conversa sem já estar formulando minha resposta enquanto ele fala.",
     86: "Consigo estar presente numa conversa sem que minha mente vá para o que preciso fazer depois.",
+    87: "Consigo dizer não para pedidos que me sobrecarregariam, mesmo quando a pessoa vai ficar desapontada.",
+    88: "Consigo dizer o que penso mesmo quando sei que vai gerar desconforto ou discordância.",
     89: "Quando alguém me pergunta sobre algo que fiz bem, consigo falar sobre isso sem diminuir o que conquistei.",
-}
+})
 
 scale = [
     "1 - Discordo totalmente",
@@ -430,30 +323,21 @@ scale = [
     "5 - Concordo totalmente",
 ]
 
+QUESTION_KEYS = sorted(questions.keys())
+TOTAL = len(questions)
+
 # =============================================================
 # INVERSAO DE PONTUACAO
-# Perguntas onde concordar = traco BAIXO
-# score_invertido = 6 - score_original
-# Exemplo: resposta 5 vira 1 / resposta 4 vira 2
 # =============================================================
 
 PERGUNTAS_INVERTIDAS = {
-    # ABERTURA: concordar = baixa abertura
     2, 4,
-    # CONSCIENCIOSIDADE: concordar = baixa conscienciosidade
     12, 14, 16,
-    # EXTROVERSAO: concordar = introversao
     23, 25, 29,
-    # AMABILIDADE: concordar = baixa amabilidade
     33, 37, 39,
-    # NEUROTICISMO: concordar = estabilidade emocional (baixo neuroticismo)
     43, 45, 48, 51,
-    # SEGURANCA: concordar = alta seguranca
     54, 57, 60, 62,
-    # ABUNDANCIA: concordar = mentalidade escassez
     65, 67, 69, 71, 73, 74,
-    # NOVAS Q75-Q89: concordar = traco positivo (invertidas para que score alto = traco presente)
-    75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89
 }
 
 def aplicar_inversao(q, score):
@@ -462,36 +346,28 @@ def aplicar_inversao(q, score):
     return score
 
 # =============================================================
-# PERSISTENCIA DE RESPOSTAS CALIBRADAS
+# PERSISTENCIA
 # =============================================================
 
 ULTIMO_TESTE_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ultimo_teste.json")
 
 def salvar_ultimo_teste(respostas):
-    """Salva as respostas calibradas em JSON para reutilizacao futura."""
     try:
-        # Converte chaves para string para compatibilidade JSON
         data = {str(k): v for k, v in respostas.items()}
         with open(ULTIMO_TESTE_JSON, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return True
-    except Exception as e:
+    except Exception:
         return False
 
 def carregar_ultimo_teste():
-    """
-    Carrega as respostas do ultimo teste.
-    Prioridade: arquivo JSON (respostas calibradas) > ULTIMO_TESTE hardcoded.
-    """
     if os.path.exists(ULTIMO_TESTE_JSON):
         try:
             with open(ULTIMO_TESTE_JSON, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            # Converte chaves de volta para int
             return {int(k): v for k, v in data.items()}
         except Exception:
             pass
-    # Fallback para hardcoded
     return dict(ULTIMO_TESTE)
 
 # =============================================================
@@ -499,18 +375,18 @@ def carregar_ultimo_teste():
 # =============================================================
 
 def registrar_no_sheets(dados):
-    """Envia uma linha de dados para o Google Sheets configurado em st.secrets."""
     if not GSPREAD_OK:
         return False, "gspread nao instalado"
     try:
         creds_dict = dict(st.secrets.get("gcp_service_account", {}))
         if not creds_dict:
             return False, "gcp_service_account nao configurado em secrets"
-        # Corrigir private_key: substituir \\n literal por newline real (problema comum no Streamlit secrets)
+
         if "private_key" in creds_dict:
             pk = creds_dict["private_key"]
             if "\\n" in pk and "\n" not in pk:
                 creds_dict["private_key"] = pk.replace("\\n", "\n")
+
         scopes = [
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
@@ -520,15 +396,17 @@ def registrar_no_sheets(dados):
         sheet_url = st.secrets.get("GOOGLE_SHEET_URL", "")
         if not sheet_url:
             return False, "GOOGLE_SHEET_URL nao configurado em secrets"
-        # Extrair o ID da planilha da URL para evitar erro 404 com open_by_url
+
         import re as _re
         _match = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sheet_url)
         if not _match:
             return False, "GOOGLE_SHEET_URL invalida - nao foi possivel extrair o ID"
+
         sheet_id = _match.group(1)
         sh = gc.open_by_key(sheet_id)
         ws = sh.sheet1
-        # Cabecalho se planilha vazia
+        question_keys = sorted(questions.keys())
+
         if ws.row_count == 0 or ws.cell(1, 1).value != "data_hora":
             cabecalho = [
                 "data_hora", "modo_teste", "nome", "idade", "genero", "email",
@@ -536,8 +414,9 @@ def registrar_no_sheets(dados):
                 "Amabilidade", "Neuroticismo", "Seguranca", "Abundancia",
                 "maior_contraste", "amplitude_pct", "padroes_ativos",
                 "ajustes_calibracao", "relatorio"
-            ] + ["Q" + str(i) for i in range(1, 75)]
+            ] + ["Q" + str(i) for i in question_keys]
             ws.append_row(cabecalho)
+
         linha = [
             dados.get("data_hora", ""),
             dados.get("modo_teste", "NAO"),
@@ -556,8 +435,8 @@ def registrar_no_sheets(dados):
             dados.get("amplitude_pct", ""),
             dados.get("padroes_ativos", ""),
             dados.get("ajustes_calibracao", ""),
-            dados.get("relatorio", "")[:5000],  # limitar tamanho
-        ] + [dados.get("respostas", {}).get(i, "") for i in range(1, 75)]
+            dados.get("relatorio", "")[:5000],
+        ] + [dados.get("respostas", {}).get(i, "") for i in question_keys]
         ws.append_row(linha)
         return True, "ok"
     except Exception as e:
@@ -567,7 +446,6 @@ def registrar_no_sheets(dados):
 
 
 def enviar_email(destinatario, nome, relatorio_texto):
-    """Envia o relatorio por email via Gmail configurado em st.secrets."""
     try:
         gmail_user = st.secrets.get("GMAIL_USER", "")
         gmail_pass = st.secrets.get("GMAIL_APP_PASSWORD", "")
@@ -607,7 +485,6 @@ def enviar_email(destinatario, nome, relatorio_texto):
     except Exception as e:
         return False, str(e)
 
-
 # =============================================================
 # ENGINE DE CALCULO DO PERFIL
 # =============================================================
@@ -625,12 +502,12 @@ def gerar_perfil(respostas):
 
     blocos = {
         "Abertura":          [1, 2, 3, 4, 5, 7, 8],
-        "Conscienciosidade": [11, 12, 13, 14, 16, 17, 18, 20, 77, 78, 82],
-        "Extroversao":       [21, 22, 23, 24, 25, 26, 29, 30, 81],
+        "Conscienciosidade": [11, 12, 13, 14, 16, 17, 18, 20, 77, 78, 82, 84],
+        "Extroversao":       [21, 22, 23, 24, 25, 26, 29, 30, 81, 88],
         "Amabilidade":       [31, 32, 33, 35, 36, 37, 38, 39, 75, 85, 87],
         "Neuroticismo":      [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 79, 80, 86, 89],
-        "Seguranca":         [53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 88],
-        "Abundancia":        [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 76, 83, 84],
+        "Seguranca":         [53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63],
+        "Abundancia":        [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 76, 83],
     }
 
     medias = {
@@ -641,7 +518,6 @@ def gerar_perfil(respostas):
     eixo_mais_alto  = max(medias, key=medias.get)
     eixo_mais_baixo = min(medias, key=medias.get)
 
-    # Calcular TODOS os 21 contrastes possiveis entre os 7 eixos
     eixos_lista = list(medias.keys())
     diferencas = {}
     for i in range(len(eixos_lista)):
@@ -649,9 +525,9 @@ def gerar_perfil(respostas):
             e1, e2 = eixos_lista[i], eixos_lista[j]
             diferencas[e1 + "_vs_" + e2] = round(medias[e1] - medias[e2], 2)
 
-    media_geral   = round(df["Score"].mean(), 2)
+    media_geral = round(df["Score"].mean(), 2)
     desvio_padrao = round(float(df["Score"].std(ddof=0)), 3)
-    amplitude     = int(df["Score"].max() - df["Score"].min())
+    amplitude = int(df["Score"].max() - df["Score"].min())
 
     tipo_resposta = "discriminante"
     if desvio_padrao == 0 and media_geral == 3:
@@ -688,14 +564,12 @@ def gerar_perfil(respostas):
         flags.append("abertura intelectual e curiosidade acima da media")
     if medias["Extroversao"] < 3:
         flags.append("introversao predominante - energia social mais contida")
-    # Detectar extroversao bimodal: reservado socialmente mas assertivo em contextos formais/tecnicos
+
     _q22 = respostas_ajustadas.get(22, 3)
     _q24 = respostas_ajustadas.get(24, 3)
     _q30 = respostas_ajustadas.get(30, 3)
     _q21 = respostas_ajustadas.get(21, 3)
     _q26 = respostas_ajustadas.get(26, 3)
-    _q22 = respostas_ajustadas.get(22, 3)
-    _q24 = respostas_ajustadas.get(24, 3)
     _media_formal = (_q22 + _q24 + _q30) / 3
     _media_informal = (_q21 + _q26) / 2
     if _media_formal >= 3.5 and _media_informal < 3.0:
@@ -743,211 +617,190 @@ def gerar_perfil(respostas):
             return "muito baixo - ausencia marcante"
 
     intensidades = {k: intensidade(v) for k, v in medias.items()}
-
-    # Ranking de eixos do mais alto ao mais baixo
     ranking_eixos = sorted(medias.items(), key=lambda x: -x[1])
-
-    # Maior contraste absoluto entre TODOS os 21 pares
     maior_contraste_key = max(diferencas, key=lambda k: abs(diferencas[k]))
     maior_contraste_val = diferencas[maior_contraste_key]
 
-    # Aviso de amplitude comprimida
     all_adj_vals = list(respostas_ajustadas.values())
     pct_3_4 = sum(1 for v in all_adj_vals if v in (3, 4)) / len(all_adj_vals) * 100
     alerta_amplitude = pct_3_4 > 60
 
-    # Eixos abaixo de 3.0 (limitantes)
     eixos_baixos = {k: v for k, v in medias.items() if v < 3.0}
-
-    # Eixos moderados (3.0-3.4) - nao devem ser tratados como problematicos
     eixos_moderados = {k: v for k, v in medias.items() if 3.0 <= v < 3.5}
 
-    # Scores diagnosticos por eixo (questoes mais reveladoras)
-    adj = respostas_ajustadas
+    raw = respostas
     scores_diagnosticos = {
         "Conscienciosidade": {
-            "cumpre_compromissos_Q11":      adj.get(11, 3),
-            "revisa_antes_entregar_Q17":    adj.get(17, 3),
-            "mantem_compromissos_Q20":      adj.get(20, 3),
-            "tem_sistema_prioridades_Q13":  adj.get(13, 3),
-            "clareza_metas_longo_prazo_Q18": adj.get(18, 3),
-            "toma_iniciativa_espontanea_Q77": adj.get(77, 3),
-            "delega_sem_microgerenciar_Q78": adj.get(78, 3),
-            "mantem_interesse_longo_prazo_Q82": adj.get(82, 3),
-            "clareza_sobre_o_que_quer_Q84": adj.get(84, 3),
+            "cumpre_compromissos_Q11": raw.get(11, 3),
+            "revisa_antes_entregar_Q17": raw.get(17, 3),
+            "mantem_compromissos_Q20": raw.get(20, 3),
+            "tem_sistema_prioridades_Q13": raw.get(13, 3),
+            "clareza_metas_longo_prazo_Q18": raw.get(18, 3),
+            "toma_iniciativa_espontanea_Q77": raw.get(77, 3),
+            "delega_sem_microgerenciar_Q78": raw.get(78, 3),
+            "mantem_interesse_longo_prazo_Q82": raw.get(82, 3),
+            "clareza_sobre_o_que_quer_Q84": raw.get(84, 3),
         },
         "Seguranca": {
-            "prefere_saber_o_que_esperar_Q53":  adj.get(53, 3),
-            "mudancas_incomodam_Q55":           adj.get(55, 3),
-            "prefere_menor_garantido_Q56":      adj.get(56, 3),
-            "resiste_mudar_rotina_Q59":         adj.get(59, 3),
-            "age_sem_informacoes_Q54":          adj.get(54, 3),
-            "confirma_antes_de_agir_Q63":       adj.get(63, 3),
-            "diz_o_que_pensa_mesmo_incomodo_Q88": adj.get(88, 3),
+            "prefere_saber_o_que_esperar_Q53": raw.get(53, 3),
+            "mudancas_incomodam_Q55": raw.get(55, 3),
+            "prefere_menor_garantido_Q56": raw.get(56, 3),
+            "resiste_mudar_rotina_Q59": raw.get(59, 3),
+            "age_sem_todas_as_informacoes_Q54": raw.get(54, 3),
+            "confirma_antes_de_agir_Q63": raw.get(63, 3),
         },
         "Extroversao": {
-            "energia_com_pessoas_Q21":      adj.get(21, 3),
-            "toma_iniciativa_grupo_Q22":    adj.get(22, 3),
-            "busca_pessoas_novas_Q26":      adj.get(26, 3),
-            "prefere_pensar_sozinho_Q23":   adj.get(23, 3),
-            "pede_ajuda_sem_se_diminuir_Q81": adj.get(81, 3),
+            "energia_com_pessoas_Q21": raw.get(21, 3),
+            "toma_iniciativa_grupo_Q22": raw.get(22, 3),
+            "busca_pessoas_novas_Q26": raw.get(26, 3),
+            "prefere_pensar_sozinho_Q23": raw.get(23, 3),
+            "pede_ajuda_sem_se_diminuir_Q81": raw.get(81, 3),
+            "diz_o_que_pensa_mesmo_incomodo_Q88": raw.get(88, 3),
         },
         "Amabilidade": {
-            "ajuda_instintivamente_Q31":    adj.get(31, 3),
-            "le_emocoes_dos_outros_Q32":    adj.get(32, 3),
-            "fica_mal_ao_decepcionar_Q35":  adj.get(35, 3),
-            "pede_desculpas_Q75":           adj.get(75, 3),
-            "ouve_sem_formular_Q85":        adj.get(85, 3),
-            "consegue_dizer_nao_Q87":       adj.get(87, 3),
+            "ajuda_instintivamente_Q31": raw.get(31, 3),
+            "le_emocoes_dos_outros_Q32": raw.get(32, 3),
+            "fica_mal_ao_decepcionar_Q35": raw.get(35, 3),
+            "pede_desculpas_Q75": raw.get(75, 3),
+            "ouve_sem_formular_Q85": raw.get(85, 3),
+            "consegue_dizer_nao_Q87": raw.get(87, 3),
+            "cede_em_desacordos_Q33": raw.get(33, 3),
+            "evita_feedback_negativo_Q37": raw.get(37, 3),
+            "adia_conversas_dificeis_Q39": raw.get(39, 3),
         },
         "Neuroticismo": {
-            "preocupa_com_futuro_Q44":      adj.get(44, 3),
-            "ansioso_sem_previsibilidade_Q49": adj.get(49, 3),
-            "rumina_erros_Q52":             adj.get(52, 3),
-            "consegue_descansar_sem_culpa_Q79": adj.get(79, 3),
-            "recebe_elogio_sem_minimizar_Q80": adj.get(80, 3),
-            "presente_nas_conversas_Q86":   adj.get(86, 3),
-            "fala_conquistas_sem_diminuir_Q89": adj.get(89, 3),
+            "preocupa_com_futuro_Q44": raw.get(44, 3),
+            "ansioso_sem_previsibilidade_Q49": raw.get(49, 3),
+            "rumina_erros_Q52": raw.get(52, 3),
+            "consegue_descansar_sem_culpa_Q79": raw.get(79, 3),
+            "recebe_elogio_sem_minimizar_Q80": raw.get(80, 3),
+            "presente_nas_conversas_Q86": raw.get(86, 3),
+            "fala_conquistas_sem_diminuir_Q89": raw.get(89, 3),
         },
         "Abundancia": {
-            "satisfeito_sem_reconhecimento_Q76": adj.get(76, 3),
-            "alegria_com_conquistas_alheias_Q83": adj.get(83, 3),
+            "satisfeito_sem_reconhecimento_Q76": raw.get(76, 3),
+            "alegria_com_conquistas_alheias_Q83": raw.get(83, 3),
+            "oportunidades_limitadas_Q65": raw.get(65, 3),
+            "dificuldade_investir_sem_garantia_Q71": raw.get(71, 3),
         },
     }
 
     return {
-        "medias":              medias,
-        "intensidades":        intensidades,
-        "eixo_mais_alto":      eixo_mais_alto,
-        "eixo_mais_baixo":     eixo_mais_baixo,
-        "diferencas":          diferencas,
-        "media_geral":         media_geral,
-        "desvio_padrao":       desvio_padrao,
-        "amplitude":           amplitude,
-        "tipo_resposta":       tipo_resposta,
-        "confiabilidade":      confiabilidade,
-        "flags":               flags,
-        "hipotese_tecnica":    hipotese_tecnica,
-        "respostas_brutas":    dict(sorted(respostas.items())),
+        "medias": medias,
+        "intensidades": intensidades,
+        "eixo_mais_alto": eixo_mais_alto,
+        "eixo_mais_baixo": eixo_mais_baixo,
+        "diferencas": diferencas,
+        "media_geral": media_geral,
+        "desvio_padrao": desvio_padrao,
+        "amplitude": amplitude,
+        "tipo_resposta": tipo_resposta,
+        "confiabilidade": confiabilidade,
+        "flags": flags,
+        "hipotese_tecnica": hipotese_tecnica,
+        "respostas_brutas": dict(sorted(respostas.items())),
         "respostas_ajustadas": dict(sorted(respostas_ajustadas.items())),
-        "ranking_eixos":       ranking_eixos,
+        "ranking_eixos": ranking_eixos,
         "maior_contraste_key": maior_contraste_key,
         "maior_contraste_val": maior_contraste_val,
-        "eixos_baixos":        eixos_baixos,
-        "eixos_moderados":       eixos_moderados,
-        "alerta_amplitude":      alerta_amplitude,
-        "pct_3_4":               round(pct_3_4, 1),
-        "scores_diagnosticos":   scores_diagnosticos,
+        "eixos_baixos": eixos_baixos,
+        "eixos_moderados": eixos_moderados,
+        "alerta_amplitude": alerta_amplitude,
+        "pct_3_4": round(pct_3_4, 1),
+        "scores_diagnosticos": scores_diagnosticos,
     }
 
 # =============================================================
-# GERACAO DO RELATORIO (PROMPT CALIBRADO V5.6)
+# GERACAO DO RELATORIO
 # =============================================================
 
 def gerar_relatorio(perfil):
     client = get_openai_client()
     if client is None:
-        return "Erro: OPENAI_API_KEY nao encontrada em Secrets."
+        return "Erro: OPENAI_API_KEY nao encontrada em Secrets.", [], []
 
-    medias               = perfil["medias"]
-    intensidades         = perfil["intensidades"]
-    eixo_alto            = perfil["eixo_mais_alto"]
-    eixo_baixo           = perfil["eixo_mais_baixo"]
-    ranking_eixos        = perfil["ranking_eixos"]
-    maior_contraste_key  = perfil["maior_contraste_key"]
-    maior_contraste_val  = perfil["maior_contraste_val"]
-    eixos_baixos         = perfil["eixos_baixos"]
-    hipotese             = perfil["hipotese_tecnica"]
-    diag                 = perfil["scores_diagnosticos"]
+    medias = perfil["medias"]
+    intensidades = perfil["intensidades"]
+    ranking_eixos = perfil["ranking_eixos"]
+    maior_contraste_key = perfil["maior_contraste_key"]
+    maior_contraste_val = perfil["maior_contraste_val"]
+    eixos_baixos = perfil["eixos_baixos"]
+    hipotese = perfil["hipotese_tecnica"]
+    diag = perfil["scores_diagnosticos"]
 
-    # Linhas do ranking
     linhas_ranking = "\n".join([
         "  %d. %s: %.2f  [%s]" % (i + 1, k, v, intensidades[k])
         for i, (k, v) in enumerate(ranking_eixos)
     ])
 
-    # Linhas de medias
     linhas_medias = "\n".join([
         "- %s: %.2f  -> %s" % (k, v, intensidades[k])
         for k, v in medias.items()
     ])
 
-    # Scores diagnosticos formatados
     def fmt_diag(eixo):
         items = diag.get(eixo, {})
         return "\n".join(["    %s = %d" % (k, v) for k, v in items.items()])
 
-    # Eixos abaixo de 3.0
     eixos_baixos_str = ", ".join([
         "%s %.2f" % (k, v) for k, v in eixos_baixos.items()
     ]) if eixos_baixos else "nenhum"
 
     linhas_hipotese = "\n".join(["- " + h for h in hipotese])
 
-    # --- Scores ajustados por questao para combinacoes ---
     q_adj = perfil.get("respostas_ajustadas", {})
+    q_raw = perfil.get("respostas_brutas", {})
 
-    # Evitacao de conflito (Amabilidade)
-    q33 = q_adj.get(33, 3)   # prefere ceder em desacordos (invertida: 5->1)
-    q35 = q_adj.get(35, 3)   # desconfortavel ao decepcionar
-    q37 = q_adj.get(37, 3)   # evita feedback negativo (invertida: 5->1)
-    q39 = q_adj.get(39, 3)   # adia dizer coisas dificeis (invertida: 5->1)
+    q33 = q_raw.get(33, 3)
+    q35 = q_raw.get(35, 3)
+    q37 = q_raw.get(37, 3)
+    q39 = q_raw.get(39, 3)
 
-    # Conscienciosidade
-    q11 = q_adj.get(11, 3)   # cumpre compromissos
-    q12 = q_adj.get(12, 3)   # so comeca com disposicao (invertida)
-    q13 = q_adj.get(13, 3)   # sistema de prioridades
-    q14 = q_adj.get(14, 3)   # deixa para decidir na hora (invertida)
-    q16 = q_adj.get(16, 3)   # deixa para ultima hora (invertida)
-    q17 = q_adj.get(17, 3)   # revisa antes de entregar
-    q18 = q_adj.get(18, 3)   # clareza metas longo prazo
-    q20 = q_adj.get(20, 3)   # mantem compromissos
+    q11 = q_adj.get(11, 3)
+    q13 = q_adj.get(13, 3)
+    q16 = q_adj.get(16, 3)
+    q17 = q_adj.get(17, 3)
+    q18 = q_adj.get(18, 3)
+    q20 = q_adj.get(20, 3)
 
-    # Extroversao
-    q21 = q_adj.get(21, 3)   # energia com pessoas
-    q22 = q_adj.get(22, 3)   # toma iniciativa em grupo
-    q24 = q_adj.get(24, 3)   # porta-voz de grupo
-    q26 = q_adj.get(26, 3)   # busca novas pessoas
-    q29 = q_adj.get(29, 3)   # fica ouvindo em grupo (invertida)
-    q30 = q_adj.get(30, 3)   # exprime opiniao quando discordam
-    q81 = q_adj.get(81, 3)   # pede ajuda sem sentir diminuido
+    q21 = q_adj.get(21, 3)
+    q22 = q_adj.get(22, 3)
+    q24 = q_adj.get(24, 3)
+    q26 = q_adj.get(26, 3)
+    q29 = q_adj.get(29, 3)
+    q30 = q_adj.get(30, 3)
 
-    # Abertura
-    q3  = q_adj.get(3, 3)    # busca conhecimento por prazer
-    q4  = q_adj.get(4, 3)    # incomoda conversas abstratas (invertida)
-    q7  = q_adj.get(7, 3)    # muda opiniao por argumento
+    q3 = q_adj.get(3, 3)
+    q4 = q_adj.get(4, 3)
+    q7 = q_adj.get(7, 3)
 
-    # Novas questoes Q75-Q89
-    q75 = q_adj.get(75, 3)   # pede desculpas quando reconhece erro
-    q76 = q_adj.get(76, 3)   # satisfeito sem reconhecimento externo
-    q77 = q_adj.get(77, 3)   # toma iniciativa quando necessario
-    q78 = q_adj.get(78, 3)   # consegue delegar sem microgerenciar
-    q79 = q_adj.get(79, 3)   # consegue descansar sem culpa
-    q80 = q_adj.get(80, 3)   # recebe elogio sem minimizar
-    q82 = q_adj.get(82, 3)   # mantem interesse em projetos longos
-    q83 = q_adj.get(83, 3)   # alegria genuina com conquistas alheias
-    q84 = q_adj.get(84, 3)   # clareza sobre o que quer na vida
-    q85 = q_adj.get(85, 3)   # ouve sem formular resposta
-    q86 = q_adj.get(86, 3)   # presente nas conversas
-    q87 = q_adj.get(87, 3)   # consegue dizer nao
-    q88 = q_adj.get(88, 3)   # diz o que pensa mesmo gerando desconforto
-    q89 = q_adj.get(89, 3)   # fala de conquistas sem diminuir
+    q75 = q_raw.get(75, 3)
+    q76 = q_raw.get(76, 3)
+    q77 = q_raw.get(77, 3)
+    q78 = q_raw.get(78, 3)
+    q79 = q_raw.get(79, 3)
+    q80 = q_raw.get(80, 3)
+    q81 = q_raw.get(81, 3)
+    q82 = q_raw.get(82, 3)
+    q83 = q_raw.get(83, 3)
+    q84 = q_raw.get(84, 3)
+    q85 = q_raw.get(85, 3)
+    q86 = q_raw.get(86, 3)
+    q87 = q_raw.get(87, 3)
+    q88 = q_raw.get(88, 3)
+    q89 = q_raw.get(89, 3)
 
-    # Abundancia
-    q65 = q_adj.get(65, 3)   # oportunidades limitadas (invertida: 1->5)
-    q67 = q_adj.get(67, 3)   # espaco para todos (invertida: 5->1)
-    q70 = q_adj.get(70, 3)   # instinto de ganhar
-    q71 = q_adj.get(71, 3)   # dificuldade de investir sem garantia (invertida: 5->1)
+    q65 = q_adj.get(65, 3)
+    q70 = q_adj.get(70, 3)
+    q71 = q_adj.get(71, 3)
 
-    # Seguranca
-    q53 = q_adj.get(53, 3)   # prefere saber o que esperar
-    q55 = q_adj.get(55, 3)   # mudancas incomodam
-    q56 = q_adj.get(56, 3)   # prefere menor garantido
+    q53 = q_adj.get(53, 3)
+    q55 = q_adj.get(55, 3)
+    q56 = q_adj.get(56, 3)
 
-    # Neuroticismo
-    q44 = q_adj.get(44, 3)   # preocupa com futuro
-    q49 = q_adj.get(49, 3)   # ansioso sem previsibilidade
-    q52 = q_adj.get(52, 3)   # rumina erros
+    q44 = q_adj.get(44, 3)
+    q49 = q_adj.get(49, 3)
+    q52 = q_adj.get(52, 3)
 
     ab  = medias["Abertura"]
     co  = medias["Conscienciosidade"]
@@ -957,232 +810,89 @@ def gerar_relatorio(perfil):
     se  = medias["Seguranca"]
     abu = medias["Abundancia"]
 
-    # --- Construir combinacoes ativas ---
-    combinacoes_ativas = []
+    evita_conflito = (q33 >= 4 or q37 >= 4 or q39 >= 4) and q35 >= 3
 
-    # 1. Abertura
+    combinacoes_ativas = []
     if ab >= 3.5 and ex < 3.5:
         combinacoes_ativas.append(
             "CURIOSIDADE INTERNA (Abertura %.2f + Extroversao %.2f): "
             "Esta pessoa tem vida intelectual rica e intensa, mas processa isso internamente. "
-            "Ela explora ideias sozinha, nao em grupo. Ela nao e 'a primeira a falar' - "
-            "e a que ja pensou mais fundo antes de qualquer um abrir a boca. "
-            "Em reunioes, parece quieta mas ja chegou com a analise pronta. "
-            "Tem opinioes fortes que raramente externaliza sem ser provocada. "
-            "Pode ser subestimada por quem confunde silencio com falta de ideias." % (ab, ex)
+            "Ela explora ideias sozinha, nao em grupo. Em reunioes, parece quieta mas ja chegou com a analise pronta."
+            % (ab, ex)
         )
     elif 3.0 <= ab < 3.5 and q4 <= 2 and (q3 >= 4 or q7 >= 4):
         combinacoes_ativas.append(
-            "CURIOSIDADE PRATICA (Abertura %.2f, busca_conhecimento=%d, muda_opiniao_por_argumento=%d, "
-            "prefere_pratico=%d): "
-            "Esta pessoa e curiosa, mas com foco pratico. Ela busca conhecimento que pode usar, "
-            "muda de opiniao quando o argumento e solido, mas se incomoda com abstracionismo excessivo. "
-            "Ela nao e teorica - e uma pessoa que aprende para aplicar." % (ab, q3, q7, q4)
+            "CURIOSIDADE PRATICA (Abertura %.2f): aprende para aplicar, nao por abstracao pura." % ab
         )
 
-    # 2. Conscienciosidade
-    if co >= 3.5:
-        if q11 >= 4 and q17 >= 4 and q13 <= 3:
-            combinacoes_ativas.append(
-                "CONFIABILIDADE SEM RIGIDEZ (Conscienciosidade %.2f, cumpre_compromissos=%d, "
-                "revisa=%d, sistema_prioridades=%d): "
-                "Esta pessoa e altamente confiavel - quando assume algo, entrega. Mas nao e um planejador rigido. "
-                "Ela nao precisa de um sistema perfeito para comecar, mas nao descansa enquanto nao termina com qualidade. "
-                "O padrao dela e: assume, executa, entrega bem. O risco e assumir mais do que consegue absorver "
-                "porque dificilmente diz nao quando se compromete." % (co, q11, q17, q13)
-            )
-        elif q11 >= 4 and q18 >= 4:
-            combinacoes_ativas.append(
-                "EXECUCAO ORIENTADA A RESULTADO (Conscienciosidade %.2f): "
-                "Esta pessoa combina responsabilidade alta com clareza de onde quer chegar. "
-                "Ela nao apenas entrega - ela entrega no caminho certo. "
-                "O risco e perfeccionismo: pode demorar mais do que o necessario "
-                "por nao aceitar resultado 'bom o suficiente'." % co
-            )
+    if co >= 3.5 and q11 >= 4 and q17 >= 4 and q13 <= 3:
+        combinacoes_ativas.append(
+            "CONFIABILIDADE SEM RIGIDEZ (Conscienciosidade %.2f): entrega com qualidade mesmo sem um sistema perfeito." % co
+        )
     elif co < 3.0 and q11 >= 4 and q17 >= 4 and (q13 <= 2 or q16 <= 2):
         combinacoes_ativas.append(
-            "ENTREGA SOB PRESSAO SEM SISTEMA (Conscienciosidade %.2f, "
-            "cumpre_compromissos=%d, revisa=%d, sistema_prioridades=%d, deixa_ultima_hora=%d): "
-            "Esta e uma das contradicoes mais importantes do perfil. "
-            "Esta pessoa entrega (cumpre_compromissos=%d, revisa=%d) mas sem sistema de organizacao (sistema=%d). "
-            "O padrao tipico: procrastina, acumula, entra em modo de urgencia e entrega sob alta pressao. "
-            "Ela cumpre o que promete, mas o custo pessoal e alto - estresse, noites longas, "
-            "sensacao de estar sempre atrasada. "
-            "Nao e 'organizada e confiavel' - e 'confiavel apesar da desorganizacao'. "
-            "Esta distincao e crucial para entender o desgaste que ela sente." % (
-                co, q11, q17, q13, q16, q11, q17, q13)
+            "ENTREGA SOB PRESSAO SEM SISTEMA (Conscienciosidade %.2f): confiavel apesar da desorganizacao." % co
         )
 
-    # 3. Seguranca
     if se >= 3.5:
         combinacoes_ativas.append(
-            "ORIENTACAO A CERTEZA (Seguranca %.2f, prefere_previsibilidade=%d, "
-            "mudancas_incomodam=%d, prefere_menor_garantido=%d): "
-            "Esta pessoa funciona melhor quando sabe o que esperar. Nao e medo - "
-            "e preferencia por operar com informacao suficiente. "
-            "Ela tende a escolher a opcao menor mas certa em vez da maior mas incerta. "
-            "Em ambientes de alta mudanca ou ambiguidade, ela gasta energia extra "
-            "so para se estabilizar antes de agir. "
-            "Isso pode fazer ela perder janelas de oportunidade que exigem acao rapida sem garantia." % (
-                se, q53, q55, q56)
+            "ORIENTACAO A CERTEZA (Seguranca %.2f): prefere operar com informacao suficiente antes de se comprometer." % se
         )
     elif 3.0 <= se < 3.5:
         combinacoes_ativas.append(
-            "CAUTELA SELETIVA (Seguranca %.2f): "
-            "Esta pessoa tem preferencia moderada por previsibilidade. Consegue agir em incerteza quando necessario, "
-            "mas prefere ter informacao suficiente antes de se comprometer. "
-            "Nao e avessa a risco - e criteriosamente cautelosa." % se
+            "CAUTELA SELETIVA (Seguranca %.2f): consegue agir em incerteza, mas prefere informacao suficiente." % se
         )
 
-    # 4. Evitacao de conflito (padrao independente de Amabilidade)
-    evita_conflito = (q33 >= 4 or q37 >= 4 or q39 >= 4) and q35 >= 3  # Q33/Q37/Q39 sao invertidas: alto ajustado = evita conflito
     if evita_conflito:
         combinacoes_ativas.append(
-            "EVITACAO DE CONFLITO SISTEMATICA "
-            "(cede_desacordos=%d, desconfortavel_decepcionar=%d, "
-            "evita_feedback_negativo=%d, adia_conversas_dificeis=%d): "
-            "ESTE E PROVAVELMENTE O PADRAO COM MAIOR IMPACTO NA CARREIRA E NAS RELACOES DESTA PESSOA. "
-            "Ela cede em desacordos (score=%d), fica muito desconfortavel ao decepcionar alguem (score=%d), "
-            "evita dar feedback negativo (score=%d) e adia conversas dificeis (score=%d). "
-            "Na pratica: ela concorda quando nao concorda, nao diz o que pensa quando sabe que vai gerar tensao, "
-            "e carrega o peso de situacoes nao resolvidas por muito tempo. "
-            "Profissionalmente: pode ser vista como 'facil de trabalhar' mas nao e promovida porque nao se impos. "
-            "Relacionalmente: acumula ressentimento silencioso e pode se afastar abruptamente "
-            "depois de muito tempo cedendo. "
-            "Este padrao DEVE ser descrito com clareza e honestidade no relatorio." % (
-                q33, q35, q37, q39, q33, q35, q37, q39)
+            "EVITACAO DE CONFLITO SISTEMATICA: cede, adia conversas dificeis e evita feedback negativo para nao gerar tensao."
         )
 
-    # 5. Amabilidade
     if am >= 3.5 and ex < 3.5:
         combinacoes_ativas.append(
-            "CUIDADO SELETIVO (Amabilidade %.2f + Extroversao %.2f): "
-            "Esta pessoa e muito presente e generosa nas relacoes proximas, mas nao busca exposicao social ampla. "
-            "Ela nao cuida de todo mundo - cuida profundamente de quem esta perto. "
-            "Em grupos grandes, pode parecer distante ou reservada, "
-            "mas em relacoes um a um e extremamente atenta e confiavel. "
-            "O risco: coloca as necessidades dos outros na frente das proprias com tanta frequencia que "
-            "pode acumular ressentimento silencioso quando nao e correspondida." % (am, ex)
+            "CUIDADO SELETIVO (Amabilidade %.2f + Extroversao %.2f): cuida profundamente de quem esta perto, sem buscar exposicao ampla." % (am, ex)
         )
     elif am >= 3.0 and evita_conflito:
         combinacoes_ativas.append(
-            "GENEROSIDADE COM CUSTO OCULTO (Amabilidade %.2f): "
-            "Esta pessoa e genuinamente empatica e cuida das pessoas ao redor. "
-            "Mas combinada com a evitacao de conflito, isso cria um padrao onde ela da mais do que deveria "
-            "e raramente recupera o que investiu. "
-            "Ela nao pede ajuda facilmente, nao estabelece limites com clareza, "
-            "e pode se sentir esgotada sem conseguir identificar por que." % am
+            "GENEROSIDADE COM CUSTO OCULTO (Amabilidade %.2f): da mais do que deveria e nem sempre estabelece limites com clareza." % am
         )
 
-    # 6. Neuroticismo
     if ne >= 3.0 and (q44 >= 4 or q49 >= 4):
         combinacoes_ativas.append(
-            "ANTECIPACAO ANSIOSA (Neuroticismo %.2f, preocupa_futuro=%d, "
-            "ansioso_sem_previsibilidade=%d, rumina_erros=%d): "
-            "Esta pessoa processa riscos e cenarios negativos antes que acontecam. "
-            "Isso a torna excelente em identificar problemas que outros nao veem - mas cobra um preco: "
-            "ela gasta energia antecipando o que pode dar errado mesmo quando a situacao e segura. "
-            "Em momentos de transicao ou incerteza, a cabeca dela trabalha mais do que o necessario." % (
-                ne, q44, q49, q52)
+            "ANTECIPACAO ANSIOSA (Neuroticismo %.2f): processa cenarios negativos antes que acontecam." % ne
         )
 
-    # 7. Abundancia
     if abu < 3.0:
         combinacoes_ativas.append(
-            "RELACAO RESTRITIVA COM OPORTUNIDADE (Abundancia %.2f): "
-            "Esta pessoa tende a ver os recursos e oportunidades disponiveis para ela como limitados. "
-            "Isso pode fazer ela subvalorizar o proprio trabalho, hesitar em pedir o que merece, "
-            "ou evitar investir em si mesma quando o retorno nao e garantido. "
-            "O impacto financeiro e real: ela pode estar deixando dinheiro na mesa "
-            "por nao se posicionar com confianca." % abu
+            "RELACAO RESTRITIVA COM OPORTUNIDADE (Abundancia %.2f): hesita em pedir o que merece ou investir em si mesma sem garantia." % abu
         )
     elif 3.0 <= abu < 3.5:
-        if q70 >= 4 and q71 <= 2:
-            combinacoes_ativas.append(
-                "ABUNDANCIA MISTA (Abundancia %.2f, instinto_de_ganhar=%d, "
-                "dificuldade_investir_sem_garantia=%d): "
-                "Este e um padrao sofisticado: esta pessoa tem mentalidade de abundancia nas relacoes "
-                "(nao compara, nao inveja, acredita que ha espaco para todos), "
-                "mas e restritiva quando se trata de investir em si mesma. "
-                "Ela ve oportunidade nos outros mas hesita em apostar em si propria sem garantia de retorno. "
-                "Na pratica: pode recomendar oportunidades para outros mas nao se candidatar, "
-                "pode negociar bem para clientes mas nao para si mesma, "
-                "pode investir em outros mas hesitar em pagar por desenvolvimento proprio. "
-                "Este padrao tem impacto direto no crescimento financeiro e profissional." % (abu, q70, q71)
-            )
-        else:
-            combinacoes_ativas.append(
-                "ABUNDANCIA MODERADA (Abundancia %.2f): "
-                "Esta pessoa tem uma relacao neutra com oportunidade e recursos. "
-                "Em momentos de decisao financeira ou de carreira, "
-                "pode oscilar entre confiar no proprio valor e duvidar dele." % abu
-            )
-
-    # 8. Perfil de especialista profundo
-    if ab >= 3.5 and co >= 3.5 and ex < 3.5:
         combinacoes_ativas.append(
-            "PERFIL DE ESPECIALISTA PROFUNDO (Abertura %.2f + Conscienciosidade %.2f + Extroversao %.2f): "
-            "Esta combinacao e classica em pessoas que se tornam referencia silenciosa em suas areas. "
-            "Exploram com profundidade, entregam com qualidade, mas nao buscam holofote. "
-            "Sao as pessoas que os outros consultam quando o assunto e serio. "
-            "O risco: podem ser preteridas em promocoes ou oportunidades de lideranca "
-            "porque nao se vendem bem, mesmo sendo as mais capazes na sala." % (ab, co, ex)
+            "ABUNDANCIA MODERADA (Abundancia %.2f): oscila entre confiar no proprio valor e duvidar dele." % abu
         )
 
-    # 8b. Extroversao bimodal
+    if ab >= 3.5 and co >= 3.5 and ex < 3.5:
+        combinacoes_ativas.append(
+            "PERFIL DE ESPECIALISTA PROFUNDO: explora com profundidade, entrega com qualidade e nao busca holofote."
+        )
+
     _media_formal_ex   = (q22 + q24 + q30) / 3
     _media_informal_ex = (q21 + q26 + q_adj.get(29, 3)) / 3
     if _media_formal_ex >= 3.5 and _media_informal_ex < 3.0:
         combinacoes_ativas.append(
-            "EXTROVERSAO BIMODAL (formal=%.2f, informal=%.2f): "
-            "Esta pessoa tem dois modos de extroversao completamente diferentes. "
-            "Em contextos formais, tecnicos ou onde tem autoridade no assunto "
-            "(toma_iniciativa_grupo=%d, porta_voz=%d, exprime_opiniao=%d), ela e assertiva e presente. "
-            "Em contextos sociais informais (energia_com_pessoas=%d, busca_novas_pessoas=%d), "
-            "ela e reservada e nao busca estimulo. "
-            "Isso significa que ela NAO e introvertida no sentido classico - "
-            "ela e seletiva: se expoe quando tem algo concreto a contribuir, "
-            "nao por prazer social. "
-            "Pode ser vista como 'diferente' dependendo do contexto - "
-            "quieta na festa, mas a que lidera a reuniao tecnica." % (
-                _media_formal_ex, _media_informal_ex,
-                q22, q24, q30, q21, q26)
+            "EXTROVERSAO BIMODAL: assertivo em contextos formais, reservado em contextos sociais informais."
         )
 
-    # 9. Extroversao baixa a muito baixa
     if ex < 3.0:
         combinacoes_ativas.append(
-            "PADRAO DE BAIXO IMPULSO SOCIAL (Extroversao %.2f): "
-            "Este e um dos eixos mais extremos do perfil e precisa ser descrito com seriedade. "
-            "Scores: toma_iniciativa_grupo=%d, porta_voz=%d, "
-            "fica_ouvindo_grupo=%d, exprime_opiniao_quando_discordam=%d. "
-            "Esta pessoa NAO busca estimulo em grupos, NAO toma iniciativa em situacoes sociais, "
-            "NAO se sente confortavel como porta-voz, e PREFERE comunicacao escrita a oral. "
-            "Isso nao e timidez - e uma preferencia genuina e consistente por baixa exposicao social. "
-            "O impacto profissional e imenso: ela pode ter ideias excelentes que nao chegam a ser ouvidas, "
-            "pode ser preterida em oportunidades que exigem visibilidade, "
-            "e pode ser subestimada por gestores que confundem silencio com falta de contribuicao. "
-            "Funcoes que exigem apresentacoes frequentes, vendas ou exposicao constante sao de alto custo. "
-            "Funcoes que permitem contribuicao por escrito, analise profunda e trabalho autonomo "
-            "sao onde ela brilha." % (ex, q22, q24, q29, q30)
+            "PADRAO DE BAIXO IMPULSO SOCIAL: prefere baixa exposicao social e pode ser subestimada por falar menos."
         )
 
     linhas_combinacoes = "\n\n".join(combinacoes_ativas) if combinacoes_ativas else "Nenhuma combinacao critica identificada."
 
-    # --- SECAO 10: ANALISE DAS PERGUNTAS DE PRECISAO (Q75-Q89) ---
-    # Foca exclusivamente nas 15 novas perguntas que medem comportamentos especificos
-    # que o AI nao consegue detectar sozinho a partir das medias dos eixos.
-    # So aparece quando combinacoes convergentes indicam padroes de alta confianca.
     tracos_desafios = []
     tracos_forcas = []
 
-    # ============================================================
-    # PADROES DE AUTOEXIGENCIA CRONICA
-    # Q79 = consegue descansar sem culpa (invertida: alto = consegue)
-    # Q86 = presente nas conversas (invertida: alto = presente)
-    # Q80 = recebe elogio sem minimizar (invertida: alto = recebe bem)
-    # Q89 = fala de conquistas sem diminuir (invertida: alto = fala bem)
-    # ============================================================
     _autoexigencia = sum([
         1 if q79 <= 2 else 0,
         1 if q80 <= 2 else 0,
@@ -1191,28 +901,9 @@ def gerar_relatorio(perfil):
     ])
     if _autoexigencia >= 3:
         tracos_desafios.append(
-            "Voce exibe um padrao de autoexigencia cronica que nao desliga.\n"
-            "Voce nao consegue descansar sem sentir que deveria estar produzindo (Q79=%d). "
-            "Quando alguem te elogia, voce minimiza ou desvia (Q80=%d). "
-            "Quando fala sobre algo que fez bem, voce automaticamente reduz o que conquistou (Q89=%d). "
-            "Nas conversas, sua mente frequentemente esta no que precisa fazer depois, nao no que esta acontecendo agora (Q86=%d). "
-            "Esse padrao cobra um preco alto: voce nunca experimenta plenamente o que conquista, "
-            "e as pessoas ao seu redor aprendem que seus elogios nao chegam - porque voce os bloqueia antes de entrar." % (q79, q80, q89, q86)
-        )
-    elif _autoexigencia == 2 and q79 <= 2 and q80 <= 2:
-        tracos_desafios.append(
-            "Voce exibe tracos de quem tem dificuldade de receber - tanto descanso quanto reconhecimento.\n"
-            "Descansar sem producao gera desconforto (Q79=%d), e elogios sao minimizados ou desviados antes de serem absorvidos (Q80=%d). "
-            "O custo: voce opera em modo de esforco continuo sem recarregar, "
-            "e as pessoas que querem reconhecer seu trabalho aprendem que nao adianta." % (q79, q80)
+            "Voce exibe um padrao de autoexigencia cronica que nao desliga."
         )
 
-    # ============================================================
-    # PADRAO DE PRESENCA RELACIONAL
-    # Q85 = ouve sem formular resposta (invertida: alto = ouve bem)
-    # Q86 = presente nas conversas (invertida: alto = presente)
-    # Q75 = pede desculpas diretamente (invertida: alto = pede bem)
-    # ============================================================
     _presenca_baixa = sum([
         1 if q85 <= 2 else 0,
         1 if q86 <= 2 else 0,
@@ -1224,27 +915,13 @@ def gerar_relatorio(perfil):
     ])
     if _presenca_baixa >= 2:
         tracos_desafios.append(
-            "Voce exibe um padrao de presenca relacional comprometida.\n"
-            "Enquanto alguem fala com voce, parte da sua mente ja esta formulando a resposta antes da pessoa terminar (Q85=%d). "
-            "Em conversas, sua atencao frequentemente vai para o que precisa fazer depois (Q86=%d). "
-            "O efeito: as pessoas sentem que foram ouvidas, mas nao realmente escutadas. "
-            "Isso nao e falta de interesse - e um modo de processamento acelerado que cobra um preco nas relacoes." % (q85, q86)
+            "Voce exibe um padrao de presenca relacional comprometida."
         )
     if _presenca_alta >= 2 and am >= 3.5:
         tracos_forcas.append(
-            "Voce exibe um padrao de presenca relacional genuina.\n"
-            "Quando alguem fala com voce, voce esta la de verdade - nao formulando a resposta enquanto a pessoa ainda fala (Q85=%d). "
-            "Voce consegue pedir desculpas diretamente quando reconhece que errou, sem rodeios ou justificativas (Q75=%d). "
-            "Esse tipo de presenca e raro e as pessoas percebem - elas saem de conversas com voce sentindo que foram realmente ouvidas." % (q85, q75)
+            "Voce exibe um padrao de presenca relacional genuina."
         )
 
-    # ============================================================
-    # PADRAO DE AUTOESTIMA E VALIDACAO
-    # Q76 = satisfeito sem reconhecimento externo (invertida: alto = satisfeito)
-    # Q83 = alegria genuina com conquistas alheias (invertida: alto = alegria)
-    # Q89 = fala de conquistas sem diminuir (invertida: alto = fala bem)
-    # Q80 = recebe elogio sem minimizar (invertida: alto = recebe bem)
-    # ============================================================
     _autoestima_contingente = sum([
         1 if q76 <= 2 else 0,
         1 if q83 <= 2 else 0,
@@ -1253,19 +930,7 @@ def gerar_relatorio(perfil):
     ])
     if _autoestima_contingente >= 3:
         tracos_desafios.append(
-            "Voce exibe um padrao de autoestima contingente.\n"
-            "Seu senso de valor tende a depender de validacao externa: sem reconhecimento, fica dificil sentir que o trabalho valeu (Q76=%d). "
-            "Quando alguem proximo conquista algo, a reacao interna nao e so alegria - ha uma comparacao que aparece antes (Q83=%d). "
-            "Quando voce conquista algo, voce automaticamente diminui o que fez antes de poder celebrar (Q89=%d). "
-            "Esse padrao cria uma armadilha: voce trabalha duro para conquistar, mas bloqueia a satisfacao quando chega. "
-            "O resultado e uma sensacao cronica de que nunca e suficiente." % (q76, q83, q89)
-        )
-    elif q76 <= 2 and q83 <= 2:
-        tracos_desafios.append(
-            "Voce exibe tracos de quem mede o proprio valor em comparacao com os outros.\n"
-            "Trabalho sem reconhecimento externo gera um desconforto que vai alem da preferencia - e uma necessidade (Q76=%d). "
-            "Quando alguem ao redor conquista algo, aparece uma comparacao interna antes da alegria genuina (Q83=%d). "
-            "O custo: sua motivacao fica nas maos de variaveis que voce nao controla." % (q76, q83)
+            "Voce exibe um padrao de autoestima contingente."
         )
     _autoestima_solida = sum([
         1 if q76 >= 4 else 0,
@@ -1274,52 +939,26 @@ def gerar_relatorio(perfil):
     ])
     if _autoestima_solida >= 3 and abu >= 3.0:
         tracos_forcas.append(
-            "Voce exibe um padrao de autoestima solida e independente.\n"
-            "Voce consegue se sentir satisfeito com seu trabalho mesmo quando ninguem comenta ou reconhece (Q76=%d). "
-            "Quando alguem proximo conquista algo importante, sua reacao genuina e de alegria, nao de comparacao (Q83=%d). "
-            "Quando fala sobre algo que fez bem, voce consegue reconhecer o que conquistou sem diminuir (Q89=%d). "
-            "Esse tipo de base interna e raro - e o que permite que voce celebre os outros de verdade e invista sem precisar de garantia de retorno." % (q76, q83, q89)
+            "Voce exibe um padrao de autoestima solida e independente."
         )
 
-    # ============================================================
-    # PADRAO DE ASSERTIVIDADE E LIMITES
-    # Q87 = consegue dizer nao (invertida: alto = consegue)
-    # Q88 = diz o que pensa mesmo gerando incomodo (invertida: alto = diz)
-    # evita_conflito = flag calculada anteriormente
-    # ============================================================
-    _assertividade_baixa = sum([
-        1 if q87 <= 2 else 0,
-        1 if q88 <= 2 else 0,
-        1 if evita_conflito else 0,
-    ])
-    _assertividade_alta = sum([
-        1 if q87 >= 4 else 0,
-        1 if q88 >= 4 else 0,
-        1 if not evita_conflito else 0,
-    ])
-    if _assertividade_baixa >= 2 and q35 >= 3:
+    if q87 <= 2 and q35 >= 3:
         tracos_desafios.append(
-            "Voce exibe um padrao de dificuldade com assertividade.\n"
-            "Dizer nao para pedidos que sobrecarregariam e dificil, mesmo quando voce sabe que deveria (Q87=%d). "
-            "Dizer o que pensa quando sabe que vai gerar desconforto ou discordancia e algo que voce tende a evitar (Q88=%d). "
-            "O custo pratico: voce assume mais do que consegue entregar, carrega o peso do que nao disse, "
-            "e as pessoas ao seu redor nao sabem o que voce realmente pensa - porque voce filtra antes de falar." % (q87, q88)
+            "Voce exibe tracos de quem tem dificuldade de dizer nao."
         )
-    if _assertividade_alta >= 2 and not evita_conflito:
+    if q88 <= 2 and evita_conflito:
+        tracos_desafios.append(
+            "Voce exibe tracos de quem filtra o que pensa antes de falar."
+        )
+    if q88 >= 4 and not evita_conflito:
         tracos_forcas.append(
-            "Voce exibe um padrao de assertividade funcional.\n"
-            "Voce consegue dizer nao para pedidos que sobrecarregariam, mesmo quando a pessoa vai ficar desapontada (Q87=%d). "
-            "Voce consegue dizer o que pensa mesmo quando sabe que vai gerar desconforto (Q88=%d). "
-            "Isso constroi uma reputacao de honestidade que e rara: as pessoas sabem que quando voce diz sim, e sim de verdade." % (q87, q88)
+            "Voce exibe um traco incomum: diz o que pensa mesmo quando sabe que vai gerar desconforto."
+        )
+    if q87 >= 4 and q88 >= 4 and not evita_conflito:
+        tracos_forcas.append(
+            "Voce exibe um padrao de assertividade funcional completa."
         )
 
-    # ============================================================
-    # PADRAO DE INICIATIVA E EXECUCAO
-    # Q77 = toma iniciativa espontanea (invertida: alto = toma)
-    # Q78 = delega sem microgerenciar (invertida: alto = delega)
-    # Q82 = mantem interesse em projetos longos (invertida: alto = mantem)
-    # Q81 = pede ajuda sem se diminuir (invertida: alto = pede)
-    # ============================================================
     _execucao_forte = sum([
         1 if q77 >= 4 else 0,
         1 if q82 >= 4 else 0,
@@ -1331,57 +970,34 @@ def gerar_relatorio(perfil):
     ])
     if _execucao_forte >= 2 and co >= 3.0:
         tracos_forcas.append(
-            "Voce exibe um padrao de iniciativa e execucao sustentada.\n"
-            "Quando ve algo que precisa ser feito e ninguem esta fazendo, voce tende a ser a pessoa que toma a frente - sem precisar ser solicitado (Q77=%d). "
-            "Voce consegue manter o interesse e a energia em projetos mesmo depois que a novidade passa (Q82=%d). "
-            "Isso e mais raro do que parece: a maioria das pessoas comeca bem mas perde traction na fase de execucao repetitiva." % (q77, q82)
+            "Voce exibe um padrao de iniciativa e execucao sustentada."
+        )
+    elif q77 >= 4 and q82 < 4 and co >= 3.0:
+        tracos_forcas.append(
+            "Voce exibe um traco de iniciativa espontanea."
         )
     if _execucao_fraca >= 2 and co < 3.5:
         tracos_desafios.append(
-            "Voce exibe um padrao de dificuldade com iniciativa e continuidade.\n"
-            "Tomar a frente espontaneamente quando algo precisa ser feito nao e seu modo natural de operar (Q77=%d). "
-            "Manter o interesse em projetos depois que a fase inicial passa e um desafio real (Q82=%d). "
-            "O custo: voce pode ser percebido como reativo em vez de proativo, "
-            "e projetos que dependem de voce para continuar tendem a perder momentum." % (q77, q82)
+            "Voce exibe um padrao de dificuldade com iniciativa e continuidade."
         )
     if q78 <= 2 and co >= 3.5:
         tracos_desafios.append(
-            "Voce exibe tracos de quem tem dificuldade de soltar o controle.\n"
-            "Entregar uma tarefa importante para outra pessoa sem verificar como esta sendo feita gera desconforto real (Q78=%d). "
-            "Isso nao e desconfianca - e um padrao de controle que cobra um preco: "
-            "voce acaba fazendo mais do que deveria, e as pessoas ao redor nao desenvolvem autonomia porque voce sempre intervem." % q78
+            "Voce exibe tracos de quem tem dificuldade de soltar o controle."
         )
-    if q81 <= 2 and ex < 3.5:
+    if q81 <= 2:
         tracos_desafios.append(
-            "Voce exibe tracos de quem prefere se virar sozinho a pedir ajuda.\n"
-            "Pedir ajuda quando esta sobrecarregado e percebido internamente como uma diminuicao (Q81=%d). "
-            "O custo e duplo: voce carrega mais do que precisa, e as pessoas ao redor nao sabem quando voce precisa de suporte - "
-            "porque voce nunca sinaliza." % q81
+            "Voce exibe tracos de quem prefere se virar sozinho a pedir ajuda."
         )
 
-    # ============================================================
-    # PADRAO DE CLAREZA E PROPOSITO
-    # Q84 = clareza sobre o que quer na vida (invertida: alto = tem clareza)
-    # Q18 = clareza de metas de longo prazo (nao invertida: alto = tem)
-    # ============================================================
     if q84 <= 2 and q18 <= 2 and ne >= 3.0:
         tracos_desafios.append(
-            "Voce exibe um padrao de falta de clareza sobre o que quer.\n"
-            "Quando alguem pergunta o que voce realmente quer para sua vida, a resposta nao vem com facilidade (Q84=%d). "
-            "Voce nao tem metas de longo prazo claras que guiem suas decisoes do dia a dia (Q18=%d). "
-            "O custo: voce tende a responder a demandas externas em vez de construir em direcao a algo proprio. "
-            "Isso nao e falta de ambicao - e falta de um mapa interno." % (q84, q18)
+            "Voce exibe um padrao de falta de clareza sobre o que quer."
         )
     if q84 >= 4 and q18 >= 4 and co >= 3.0:
         tracos_forcas.append(
-            "Voce exibe um padrao de clareza de proposito incomum.\n"
-            "Quando alguem pergunta o que voce quer para sua vida, voce consegue responder com clareza (Q84=%d). "
-            "Voce tem metas de longo prazo que funcionam como bussola nas decisoes do dia a dia (Q18=%d). "
-            "Isso significa que voce nao perde energia em decisoes que nao importam - "
-            "e quando o caminho fica dificil, voce tem uma referencia interna que a maioria das pessoas nao tem." % (q84, q18)
+            "Voce exibe um padrao de clareza de proposito incomum."
         )
 
-    # MONTAR BLOCOS FINAIS
     linhas_desafios = "\n\n".join(tracos_desafios) if tracos_desafios else ""
     linhas_forcas = "\n\n".join(tracos_forcas) if tracos_forcas else ""
 
@@ -1393,157 +1009,92 @@ def gerar_relatorio(perfil):
 
     bloco_tracos = (
         "TRACOS COMPORTAMENTAIS DE ALTA CONFIANCA:\n"
-        "(Identificados por multiplas variaveis convergentes. "
-        "Use APENAS os tracos listados abaixo - nao adicione nem invente outros. "
-        "Se uma subsecao estiver vazia, omita-a completamente.)\n\n"
         + "\n\n".join(partes_tracos)
     ) if (tracos_forcas or tracos_desafios) else ""
 
-    # --- CALIBRACAO 2: Ancoras concretas para secao interna ---
-    # Pre-calcula frases especificas baseadas nos dados reais para guiar o AI
     ancoras_internas = []
     if maior_contraste_val >= 0.8:
         partes = maior_contraste_key.split("_vs_")
         if len(partes) == 2:
             eixo_a, eixo_b = partes[0], partes[1]
             ancoras_internas.append(
-                "ANCORA OBRIGATORIA para secao 4: O contraste %s (%.2f) vs %s (%.2f) = %+.2f "
-                "significa que esta pessoa tem um nivel de %s que nao combina com o nivel de %s. "
-                "Na pratica concreta: ela pode estar pensando em algo com profundidade de nivel %.1f "
-                "mas expressando com intensidade de nivel %.1f. "
-                "Isso cria uma lacuna entre o que ela processa internamente e o que os outros percebem dela. "
-                "Descreva ESTA lacuna especifica - nao uma descricao abstrata dos dois tracos." % (
-                    eixo_a, medias.get(eixo_a, 3.0),
-                    eixo_b, medias.get(eixo_b, 3.0),
-                    maior_contraste_val,
-                    eixo_a, eixo_b,
-                    medias.get(eixo_a, 3.0),
-                    medias.get(eixo_b, 3.0)
+                "ANCORA OBRIGATORIA para secao 4: o contraste %s vs %s = %+.2f cria uma lacuna entre o que esta pessoa processa internamente e o que os outros percebem." % (
+                    eixo_a, eixo_b, maior_contraste_val
                 )
             )
     if q44 >= 4 or q49 >= 4:
         ancoras_internas.append(
-            "ANCORA para secao 4: Esta pessoa antecipa problemas antes que acontecam "
-            "(preocupa_futuro=%d, ansioso_sem_previsibilidade=%d). "
-            "Descreva o que acontece na cabeca dela ANTES de uma reuniao importante, "
-            "ANTES de uma decisao grande, ou ANTES de uma mudanca. "
-            "Ela nao esta com medo - ela esta processando cenarios. "
-            "O custo e que ela gasta energia em problemas que nunca acontecem." % (q44, q49)
+            "ANCORA para secao 4: esta pessoa antecipa problemas antes que acontecam."
         )
     if evita_conflito:
         ancoras_internas.append(
-            "ANCORA para secao 4: Esta pessoa sabe o que pensa mas frequentemente nao diz "
-            "(evita_conflito ativo: q33=%d, q35=%d, q37=%d, q39=%d). "
-            "Ha um dialogo interno onde ela formula a resposta honesta, decide nao dar, "
-            "e depois carrega o peso do que nao disse. "
-            "Descreva esse momento especifico - nao a evitacao em geral." % (q33, q35, q37, q39)
+            "ANCORA para secao 4: esta pessoa sabe o que pensa mas frequentemente nao diz."
         )
     linhas_ancoras = "\n".join(ancoras_internas) if ancoras_internas else ""
 
-    # --- CALIBRACAO 3: Pre-gerar candidatos de proximos passos ---
     passos_candidatos = []
     if evita_conflito:
         passos_candidatos.append(
-            "PASSO DERIVADO DE EVITACAO DE CONFLITO: "
-            "Identifique UMA situacao especifica esta semana onde voce sabe o que pensa mas nao disse. "
-            "Diga. Nao precisa ser dramatico - pode ser um e-mail, uma mensagem, uma conversa de 5 minutos. "
-            "Resultado esperado: voce vai perceber que a tensao que antecipou era menor do que o peso de nao ter dito."
+            "PASSO DERIVADO DE EVITACAO DE CONFLITO: Identifique UMA situacao especifica esta semana onde voce sabe o que pensa mas nao disse. Diga."
         )
     if ab >= 3.5 and ex < 3.5:
         passos_candidatos.append(
-            "PASSO DERIVADO DE CURIOSIDADE INTERNA: "
-            "Voce ja pensou sobre algo com profundidade que nao compartilhou. "
-            "Esta semana, escreva essa analise - pode ser um e-mail, uma mensagem no grupo, um documento. "
-            "Nao espere ser perguntado. Compartilhe antes. "
-            "Resultado esperado: as pessoas vao reagir com surpresa positiva ao ver o que voce ja sabia."
+            "PASSO DERIVADO DE CURIOSIDADE INTERNA: compartilhe uma analise que voce costuma guardar para si."
         )
     if se >= 3.0 and (q55 >= 4 or q56 >= 4):
         passos_candidatos.append(
-            "PASSO DERIVADO DE CAUTELA: "
-            "Identifique uma decisao ou oportunidade que voce adiou porque nao tinha informacao suficiente. "
-            "Defina qual seria o minimo de informacao aceitavel para decidir - e decida com o que ja tem. "
-            "Resultado esperado: voce vai descobrir que a decisao era mais simples do que parecia."
+            "PASSO DERIVADO DE CAUTELA: defina o minimo de informacao aceitavel para decidir - e decida com o que ja tem."
         )
     if ab >= 3.5 and co >= 3.5:
         passos_candidatos.append(
-            "PASSO DERIVADO DE ESPECIALISTA PROFUNDO: "
-            "Voce tem conhecimento profundo em algo que as pessoas ao seu redor precisam. "
-            "Esta semana, ofeca essa analise ou conhecimento proativamente - sem esperar ser chamado. "
-            "Pode ser uma recomendacao, uma analise, uma perspectiva que voce guardou para si. "
-            "Resultado esperado: maior visibilidade do seu valor sem precisar se autopromover."
+            "PASSO DERIVADO DE ESPECIALISTA PROFUNDO: ofereca proativamente uma analise ou recomendacao que voce ja formulou."
         )
     if ne >= 3.0 and (q44 >= 4 or q49 >= 4):
         passos_candidatos.append(
-            "PASSO DERIVADO DE ANTECIPACAO ANSIOSA: "
-            "Na proxima vez que perceber que esta antecipando um problema que ainda nao aconteceu, "
-            "escreva os 3 cenarios possiveis e a probabilidade real de cada um. "
-            "Resultado esperado: voce vai perceber que o cenario que mais preocupa raramente e o mais provavel."
+            "PASSO DERIVADO DE ANTECIPACAO ANSIOSA: escreva os 3 cenarios possiveis e a probabilidade real de cada um."
         )
     if not passos_candidatos:
-        passos_candidatos.append(
-            "PASSO GERAL: Use as forcas identificadas no perfil para criar visibilidade do seu trabalho esta semana."
-        )
+        passos_candidatos.append("PASSO GERAL: use as forcas identificadas no perfil para criar visibilidade do seu trabalho esta semana.")
     linhas_passos_candidatos = "\n\n".join(passos_candidatos[:4])
 
-    # --- Estilo de lideranca ---
     if ab >= 3.5 and co >= 3.5 and ex < 3.5:
         estilo_lideranca = (
-            "ESTILO DE LIDERANCA PROVAVEL: Lideranca por competencia e confiabilidade, nao por carisma. "
-            "Esta pessoa lidera sendo a referencia tecnica ou estrategica do grupo. "
-            "As pessoas a seguem porque confiam no julgamento dela, nao porque ela se impos. "
-            "E mais eficaz em lideranca de pequenos times ou projetos do que em lideranca de palco. "
-            "Pode ter dificuldade de se promover e de dar visibilidade ao proprio trabalho."
+            "ESTILO DE LIDERANCA PROVAVEL: lideranca por competencia e confiabilidade, nao por carisma."
         )
     elif ex >= 3.5 and am >= 3.5:
         estilo_lideranca = (
-            "ESTILO DE LIDERANCA PROVAVEL: Lideranca relacional e inspiradora. "
-            "Esta pessoa energiza grupos, cria conexao e faz as pessoas se sentirem vistas. "
-            "E mais forte em lideranca de pessoas do que em lideranca de processos."
+            "ESTILO DE LIDERANCA PROVAVEL: lideranca relacional e inspiradora."
         )
     elif co >= 3.5 and se >= 3.5:
         estilo_lideranca = (
-            "ESTILO DE LIDERANCA PROVAVEL: Lideranca por estrutura e previsibilidade. "
-            "Esta pessoa cria ambientes organizados e confiaveis. "
-            "Times sob sua lideranca sabem o que esperar. "
-            "Pode ter dificuldade em liderar em contextos de alta ambiguidade."
+            "ESTILO DE LIDERANCA PROVAVEL: lideranca por estrutura e previsibilidade."
         )
     elif ex < 3.0:
         estilo_lideranca = (
-            "ESTILO DE LIDERANCA PROVAVEL: Lideranca por influencia silenciosa e profundidade. "
-            "Esta pessoa nao lidera pelo palco - lidera pela qualidade do que produz e pela confianca que inspira. "
-            "E consultada, nao imposta. Influencia por escrito, por analise, por consistencia. "
-            "Nao e o tipo que se candidata a liderar - e o tipo que as pessoas escolhem quando precisam "
-            "de alguem em quem confiar de verdade."
+            "ESTILO DE LIDERANCA PROVAVEL: lideranca por influencia silenciosa e profundidade."
         )
     else:
         estilo_lideranca = (
-            "ESTILO DE LIDERANCA: situacional - adapta o estilo ao contexto. "
-            "Mais eficaz em ambientes onde pode usar as forcas especificas identificadas no perfil."
+            "ESTILO DE LIDERANCA: situacional - adapta o estilo ao contexto."
         )
 
-    # --- Scores extremos para regras do prompt ---
     scores_extremos_linhas = ""
     if q22 <= 1:
-        scores_extremos_linhas += "   - toma_iniciativa_grupo=%d (MUITO BAIXO - nao toma iniciativa em grupos)\n" % q22
+        scores_extremos_linhas += "   - toma_iniciativa_grupo=%d (MUITO BAIXO)\n" % q22
     if q24 <= 1:
-        scores_extremos_linhas += "   - porta_voz=%d (MUITO BAIXO - nao e porta-voz)\n" % q24
+        scores_extremos_linhas += "   - porta_voz=%d (MUITO BAIXO)\n" % q24
     if q33 >= 5:
-        scores_extremos_linhas += "   - cede_desacordos=%d (MUITO ALTO - cede sistematicamente)\n" % q33
+        scores_extremos_linhas += "   - cede_desacordos=%d (MUITO ALTO)\n" % q33
     if q37 >= 5:
-        scores_extremos_linhas += "   - evita_feedback_negativo=%d (MUITO ALTO - nunca da feedback negativo)\n" % q37
+        scores_extremos_linhas += "   - evita_feedback_negativo=%d (MUITO ALTO)\n" % q37
     if q39 >= 5:
-        scores_extremos_linhas += "   - adia_conversas_dificeis=%d (MUITO ALTO - sempre adia)\n" % q39
+        scores_extremos_linhas += "   - adia_conversas_dificeis=%d (MUITO ALTO)\n" % q39
     if q13 <= 1:
-        scores_extremos_linhas += "   - sistema_prioridades=%d (MUITO BAIXO - sem sistema de organizacao)\n" % q13
+        scores_extremos_linhas += "   - sistema_prioridades=%d (MUITO BAIXO)\n" % q13
     if q16 <= 1:
-        scores_extremos_linhas += "   - deixa_ultima_hora=%d (MUITO BAIXO - frequentemente deixa para ultima hora)\n" % q16
+        scores_extremos_linhas += "   - deixa_ultima_hora=%d (MUITO BAIXO)\n" % q16
     if q29 <= 1:
-        scores_extremos_linhas += "   - fica_ouvindo_grupo=%d (MUITO BAIXO - fica ouvindo em grupos)\n" % q29
-    # Adicionar scores moderados relevantes quando amplitude e comprimida
-    if q33 == 3 and q35 >= 3 and q37 == 3 and q39 == 3:
-        scores_extremos_linhas += "   - padrao_evitacao_conflito_moderado: q33=%d, q35=%d, q37=%d, q39=%d (moderado mas consistente)\n" % (q33, q35, q37, q39)
-    if q29 == 3 and ex < 3.5:
-        scores_extremos_linhas += "   - preferencia_por_escuta: q29=%d (moderado mas consistente com Extroversao %.2f)\n" % (q29, ex)
+        scores_extremos_linhas += "   - fica_ouvindo_grupo=%d (MUITO BAIXO)\n" % q29
     if not scores_extremos_linhas:
         scores_extremos_linhas = "   Nenhum score extremo identificado.\n"
 
@@ -1553,11 +1104,8 @@ def gerar_relatorio(perfil):
         "Voce vai escrever um relatorio de perfil comportamental para uma pessoa real.\n\n"
 
         "SUA MISSAO:\n"
-        "Usar os dados do perfil abaixo para identificar e descrever os PADROES DE COMPORTAMENTO "
-        "que pessoas com este perfil especifico exibem - no trabalho, nas relacoes, sob pressao, ao tomar decisoes. "
-        "Voce NAO esta apenas reformulando as respostas do questionario. "
-        "Voce esta usando seu conhecimento sobre como esses tracos se manifestam na vida real "
-        "para revelar coisas que a pessoa reconhece como verdadeiras mas talvez nunca tenha articulado.\n\n"
+        "Usar os dados do perfil abaixo para identificar e descrever padroes de comportamento "
+        "que pessoas com este perfil especifico exibem.\n\n"
 
         "DADOS DO PERFIL (escala 1.0 a 5.0, media 3.0 = neutro):\n\n"
         "RANKING DOS EIXOS:\n"
@@ -1568,16 +1116,17 @@ def gerar_relatorio(perfil):
 
         "MAIOR CONTRASTE DO PERFIL: " + maior_contraste_key
         + " = %+.2f" % maior_contraste_val
-        + " (o padrao mais revelador - OBRIGATORIO aparecer no relatorio)\n\n"
+        + "\n\n"
 
-        "SCORES DIAGNOSTICOS (questoes mais reveladoras por eixo):\n"
+        "SCORES DIAGNOSTICOS (questoes mais reveladoras por eixo - scores BRUTOS no sentido literal da pergunta):\n"
         "Conscienciosidade:\n" + fmt_diag("Conscienciosidade") + "\n"
         "Seguranca:\n" + fmt_diag("Seguranca") + "\n"
         "Extroversao:\n" + fmt_diag("Extroversao") + "\n"
         "Amabilidade:\n" + fmt_diag("Amabilidade") + "\n"
         "Neuroticismo:\n" + fmt_diag("Neuroticismo") + "\n"
         "Abundancia:\n" + fmt_diag("Abundancia") + "\n\n"
-        "PERGUNTAS DE PRECISAO (Q75-Q89 - comportamentos especificos de alta revelacao):\n"
+
+        "PERGUNTAS DE PRECISAO (Q75-Q89 - scores BRUTOS; 1=nunca/dificilmente, 5=sempre/facilmente):\n"
         "    pede_desculpas_diretamente_Q75=" + str(q75) + "\n"
         "    satisfeito_sem_reconhecimento_externo_Q76=" + str(q76) + "\n"
         "    toma_iniciativa_espontanea_Q77=" + str(q77) + "\n"
@@ -1592,146 +1141,34 @@ def gerar_relatorio(perfil):
         "    presente_nas_conversas_Q86=" + str(q86) + "\n"
         "    consegue_dizer_nao_Q87=" + str(q87) + "\n"
         "    diz_o_que_pensa_mesmo_gerando_incomodo_Q88=" + str(q88) + "\n"
-        "    fala_de_conquistas_sem_diminuir_Q89=" + str(q89) + "\n"
-        "(Escala 1-5: 1=nunca/dificilmente, 5=sempre/facilmente. Scores extremos indicam padroes fortes.)\n\n"
+        "    fala_de_conquistas_sem_diminuir_Q89=" + str(q89) + "\n\n"
 
         "ANALISE DAS COMBINACOES ATIVAS NESTE PERFIL:\n"
-        "(Use estas combinacoes como base para identificar os padroes comportamentais reais)\n\n"
         + linhas_combinacoes + "\n\n"
 
         + (bloco_tracos + "\n\n" if bloco_tracos else "")
-
         + estilo_lideranca + "\n\n"
 
-        "REGRAS ABSOLUTAS - VIOLACAO INVALIDA O RELATORIO:\n"
-        "1. Escreva sempre em 'voce' - nunca em terceira pessoa\n"
-        "2. NUNCA use os nomes dos eixos no texto (Abertura, Conscienciosidade, Extroversao, etc.)\n"
+        "REGRAS ABSOLUTAS:\n"
+        "1. Escreva sempre em 'voce'\n"
+        "2. NUNCA use os nomes dos eixos no texto\n"
         "3. NUNCA use termos tecnicos como 'introversao', 'neuroticismo', 'Big Five'\n"
-        "4. NUNCA escreva frases que servem para qualquer pessoa - cada frase deve ser especifica deste perfil\n"
-        "5. NUNCA invente tracos que os dados nao sustentam - cada afirmacao deve ter respaldo nos scores\n"
-        "6. Conscienciosidade "
-        + "%.2f" % co
-        + ": cumpre_compromissos=" + str(q11)
-        + ", sistema_prioridades=" + str(q13)
-        + ", deixa_ultima_hora=" + str(q16)
-        + " -> SE Conscienciosidade < 3.0: PROIBIDO dizer 'planeja minuciosamente', "
-        "'gerenciamento de projetos', 'compliance' ou qualquer coisa que implique alta organizacao\n"
-        "7. Extroversao "
-        + "%.2f" % ex
-        + ": toma_iniciativa_grupo=" + str(q22)
-        + ", porta_voz=" + str(q24)
-        + " -> PROIBIDO dizer que toma iniciativa em grupo, e porta-voz, "
-        "brilha em atendimento ao cliente, RH ou qualquer funcao de alta exposicao social\n"
-        "8. PROIBIDO suavizar scores extremos: quando um score e 1 ou 5, "
-        "isso e um padrao FORTE e consistente, nao uma 'tendencia' ou 'preferencia leve'\n"
-        "9. Scores extremos encontrados neste perfil que DEVEM ser tratados como padroes fortes:\n"
-        + scores_extremos_linhas
-        + "10. O relatorio deve fazer a pessoa pensar 'como voce sabia disso?' - "
-        "nao 'faz sentido para muita gente'\n\n"
+        "4. NUNCA invente tracos que os dados nao sustentam\n"
+        "5. O texto deve soar especifico e preciso, nao generico\n\n"
 
         "ESTRUTURA OBRIGATORIA:\n\n"
-
         "1. COMO VOCÊ FUNCIONA DE VERDADE\n"
-        "Descreva o padrao de funcionamento desta pessoa usando o conhecimento sobre como os dois tracos mais altos "
-        "se manifestam em comportamentos observaveis. Como ela entra em situacoes novas? "
-        "Como ela reage quando algo nao sai como esperado? O que ela faz automaticamente que outras pessoas nao fazem? "
-        "Use exemplos de situacoes reais do dia a dia - reuniao, projeto novo, conversa dificil, decisao sob pressao.\n\n"
-
         "2. COMO VOCÊ TOMA DECISÕES\n"
-        "Descreva o processo de decisao real desta pessoa com base nos tracos de responsabilidade, "
-        "orientacao a certeza e curiosidade intelectual. "
-        "Qual e o padrao tipico de pessoas com esses scores ao tomar decisoes importantes? "
-        "Onde elas decidem bem? Onde elas travam? O que elas precisam sentir antes de se comprometer com algo? "
-        "Se Conscienciosidade < 3.0, descreva o padrao de entrega sob pressao sem sistema.\n\n"
-
         "3. COMO VOCÊ SE RELACIONA\n"
-        "Descreva o padrao relacional tipico de pessoas com esses scores de empatia, energia social e sensibilidade emocional. "
-        "Como ela se comporta em grupos vs. em relacoes um a um? "
-        "O que ela faz pelos outros que nao percebe que faz? Onde isso cobra um preco dela? "
-        "Se o padrao de evitacao de conflito estiver ativo, DEVE ser descrito aqui com impacto real.\n\n"
-
         "4. O QUE ACONTECE DENTRO DE VOCÊ\n"
-        "Use o maior contraste do perfil ("
-        + maior_contraste_key + " = %+.2f) para descrever " % maior_contraste_val
-        + "o dialogo interno tipico de pessoas com essa combinacao especifica de tracos. "
-        "O que essa pessoa sente mas raramente externaliza? "
-        "Qual e o padrao de pensamento que acontece na cabeca dela que os outros nao veem? "
-        "IMPORTANTE: seja cirurgico. Nao descreva o contraste de forma abstrata. "
-        "Descreva o que acontece concretamente: em que momentos do dia ela sente isso? "
-        "Em que tipo de situacao esse contraste aparece? O que ela pensa mas nao diz? "
-        "Exemplo de profundidade esperada: se o contraste e Abertura alta vs Extroversao moderada, "
-        "nao diga 'voce tem vida intelectual rica' - diga 'voce chega a uma reuniao ja tendo "
-        "pensado mais profundamente sobre o assunto do que qualquer pessoa na sala, "
-        "mas raramente externaliza isso a menos que seja diretamente solicitado - "
-        "e quando externaliza, frequentemente surpreende quem nao esperava essa profundidade'.\n"
-        + ("ANCORAS ESPECIFICAS PARA ESTA SECAO (use como base, nao ignore):\n" + linhas_ancoras + "\n\n" if linhas_ancoras else "\n")
-
+        + ("ANCORAS ESPECIFICAS PARA ESTA SECAO:\n" + linhas_ancoras + "\n\n" if linhas_ancoras else "")
         + "5. ONDE VOCÊ PODE BRILHAR\n"
-        "Com base no perfil completo e no estilo de lideranca identificado, descreva 3 a 4 contextos especificos "
-        "onde esta pessoa teria desempenho excepcional. "
-        "Nao seja generico. Diga: qual tipo de funcao, qual tipo de ambiente, qual tipo de projeto, "
-        "qual papel em um time. Por que esse perfil especifico brilha nesse contexto e nao em outro? "
-        "Inclua pelo menos um contexto de lideranca ou influencia. "
-        "ATENCAO: Extroversao "
-        + "%.2f" % ex
-        + " - PROIBIDO sugerir funcoes de alta exposicao social como atendimento, vendas, RH ou apresentacoes frequentes.\n\n"
-
         "6. SUAS FORÇAS REAIS\n"
-        "Maximo 5 forcas. Formato obrigatorio: 'Voce [verbo de acao concreto] quando [situacao especifica]'. "
-        "Cada forca deve descrever um comportamento observavel, nao um adjetivo. "
-        "Nao escreva 'voce e curioso' - escreva o que ela faz por causa dessa curiosidade. "
-        "Cada forca deve ser sustentada por score >= 3.5 nos dados.\n\n"
-
         "7. ONDE VOCÊ TRAVA\n"
-        "Maximo 4 pontos. Formato obrigatorio: 'Porque voce tende a [padrao comportamental especifico], "
-        "o que acontece na pratica e [consequencia concreta na vida real]'. "
-        "Seja direto. Mostre o custo real - financeiro, profissional, relacional. "
-        "Nao suavize. Pessoas com esse perfil reconhecem esses padroes quando sao descritos com precisao. "
-        "Se o padrao de evitacao de conflito estiver ativo, DEVE aparecer aqui. "
-        "REGRA CRITICA PARA CONSCIENCIOSIDADE: se cumpre_compromissos >= 4 E sistema_prioridades <= 3, "
-        "o padrao correto NAO e 'se compromete facilmente' - e 'entrega mesmo sem um sistema claro, "
-        "o que gera custo oculto: a entrega acontece mas com esforco desproporcional, "
-        "acumulo de pressao de ultima hora, e sensacao de que poderia ter feito melhor se tivesse se organizado antes'. "
-        "Descreva o custo real da entrega sem sistema, nao o excesso de compromissos. "
-        "REGRA PARA SEGURANCA: mudancas_incomodam_Q55="
-        + str(q_adj.get(55, 3))
-        + ", resiste_mudar_rotina_Q59="
-        + str(q_adj.get(59, 3))
-        + ". Se Q55 >= 4 OU Q59 >= 4, DEVE aparecer como trava: "
-        "'Quando uma oportunidade exige mudar de rotina ou de plano, voce tende a resistir mesmo quando a mudanca vale a pena. "
-        "O custo: pode recusar oportunidades de crescimento por desconforto com a transicao, "
-        "nao por falta de capacidade.'\n\n"
-
         "8. O QUE VALE DESENVOLVER\n"
-        "2 a 3 areas de desenvolvimento de alto impacto para este perfil especifico. "
-        "Nao e sobre corrigir fraquezas - e sobre o que, se desenvolvido, multiplicaria os resultados "
-        "que essa pessoa ja consegue. Seja especifico: o que desenvolver, como isso se conecta ao perfil, "
-        "e qual seria o impacto concreto na carreira, nas relacoes ou nas financas. "
-        "ABUNDANCIA: Abundancia="
-        + "%.2f" % abu
-        + ", oportunidades_limitadas_Q65="
-        + str(q_adj.get(65, 3))
-        + ", dificuldade_investir_sem_garantia_Q71="
-        + str(q_adj.get(71, 3))
-        + ". Se Q65 >= 4 OU Q71 >= 4, DEVE aparecer como area de desenvolvimento: "
-        "'Aprender a investir em si mesmo sem exigir retorno garantido antes de comecar - "
-        "porque o crescimento mais importante frequentemente exige apostar antes de ter certeza.'\n\n"
-
         "11. PRÓXIMOS PASSOS\n"
-        "INSTRUCAO CRITICA: Os passos abaixo foram pre-gerados com base nos padroes especificos deste perfil. "
-        "Use-os como base obrigatoria. Voce pode refinar a linguagem para soar mais natural e humana, "
-        "mas NAO pode substituir por passos genericos que servem para qualquer pessoa. "
-        "REMOVA os prefixos 'PASSO DERIVADO DE...' do texto final - eles sao instrucoes internas, nao devem aparecer para o usuario. "
-        "Cada passo deve comecar diretamente com a acao, sem rotulo. "
         "PASSOS CANDIDATOS DERIVADOS DOS PADROES DESTE PERFIL:\n"
         + linhas_passos_candidatos
-        + "\n\nFormate cada passo com: numero + acao especifica + por que faz sentido para este perfil + resultado esperado.\n\n"
-
-        "TOM E ESTILO:\n"
-        "- Escreva como um mentor que conhece profundamente esse tipo de pessoa\n"
-        "- Seja direto, especifico e humano\n"
-        "- Evite listas de adjetivos - prefira descricoes de comportamentos reais\n"
-        "- O criterio final: a pessoa deve ler e pensar 'isso sou eu de verdade, como voce sabia?'\n"
     )
 
     try:
@@ -1742,11 +1179,9 @@ def gerar_relatorio(perfil):
                     "role": "system",
                     "content": (
                         "Voce e um analista de comportamento humano. "
-                        "Sua funcao e traduzir dados de perfil em leituras precisas, humanas e especificas. "
-                        "Voce nunca generaliza. Voce nunca inventa. "
-                        "Voce so escreve o que os dados sustentam. "
-                        "Scores extremos (1 ou 5) indicam padroes fortes que devem ser descritos com clareza, "
-                        "nao suavizados como 'tendencias'."
+                        "Voce traduz dados de perfil em leituras precisas, humanas e especificas. "
+                        "Voce nao generaliza. Voce nao inventa. "
+                        "Voce so escreve o que os dados sustentam."
                     )
                 },
                 {
@@ -1761,30 +1196,28 @@ def gerar_relatorio(perfil):
         return "Erro ao gerar relatorio:\n\n" + str(e), [], []
 
 # =============================================================
-# DEBUG RENDER
+# DEBUG
 # =============================================================
 
 def render_debug(perfil):
     st.markdown("---")
-    st.markdown("**Versão: V5.31**", unsafe_allow_html=False)
+    st.markdown("**Versão: V5.33**", unsafe_allow_html=False)
     st.header("Debug - Transparência Total do Perfil")
     st.caption(
-        "Este painel mostra todos os dados, calculos e logica usados para gerar o relatorio. "
-        "Para desativar: mude DEBUG_MODE = False no topo do arquivo."
+        "Este painel mostra todos os dados, calculos e logica usados para gerar o relatorio."
     )
 
     blocos_info = {
-        "Abertura":          (1,  8),
-        "Conscienciosidade": (11, 82),
-        "Extroversao":       (21, 30),
+        "Abertura":          (1, 8),
+        "Conscienciosidade": (11, 84),
+        "Extroversao":       (21, 88),
         "Amabilidade":       (31, 87),
         "Neuroticismo":      (42, 89),
-        "Seguranca":         (53, 88),
-        "Abundancia":        (64, 84),
+        "Seguranca":         (53, 63),
+        "Abundancia":        (64, 83),
     }
 
     st.subheader("1. Respostas Brutas")
-    st.caption("Score original sem transformacao. Verifique se o app registrou corretamente cada resposta.")
     brutas = perfil["respostas_brutas"]
     df_brutas = pd.DataFrame([
         {
@@ -1798,7 +1231,6 @@ def render_debug(perfil):
     st.dataframe(df_brutas, use_container_width=True)
 
     st.subheader("2. Respostas Apos Inversao")
-    st.caption("Score apos inversao. Este e o dado que entra nos calculos de media.")
     ajustadas = perfil["respostas_ajustadas"]
     df_aj = pd.DataFrame([
         {
@@ -1813,7 +1245,6 @@ def render_debug(perfil):
     st.dataframe(df_aj, use_container_width=True)
 
     st.subheader("3. Medias por Eixo")
-    st.caption("Media dos scores ajustados. Este e o numero central do perfil.")
     medias = perfil["medias"]
     intensidades = perfil["intensidades"]
     for eixo, (q_ini, q_fim) in blocos_info.items():
@@ -1843,8 +1274,7 @@ def render_debug(perfil):
     with col2:
         st.metric("Eixo Mais Baixo", perfil["eixo_mais_baixo"], str(medias[perfil["eixo_mais_baixo"]]))
 
-    st.subheader("7. Contrastes Entre Eixos (todos os 21 pares)")
-    st.caption("Diferenca entre todos os pares de eixos. Contrastes altos revelam tensoes comportamentais.")
+    st.subheader("7. Contrastes Entre Eixos")
     for par, valor in sorted(perfil["diferencas"].items(), key=lambda x: -abs(x[1])):
         direcao = "alto" if valor > 0 else ("baixo" if valor < 0 else "igual")
         marker = " <- MAIOR CONTRASTE" if par == perfil["maior_contraste_key"] else ""
@@ -1853,16 +1283,15 @@ def render_debug(perfil):
     if perfil.get("alerta_amplitude"):
         st.warning(
             "AVISO: %.1f%% das respostas sao 3 ou 4. "
-            "Amplitude comprimida pode reduzir a precisao do relatorio. "
-            "Considere responder com mais 1 e 5 quando sentir certeza." % perfil["pct_3_4"]
+            "Amplitude comprimida pode reduzir a precisao do relatorio." % perfil["pct_3_4"]
         )
 
     st.subheader("8. Qualidade Estatistica")
     col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Media Geral",    str(perfil["media_geral"]))
-    col2.metric("Desvio Padrao",  str(perfil["desvio_padrao"]))
-    col3.metric("Amplitude",      str(perfil["amplitude"]))
-    col4.metric("Tipo Resposta",  perfil["tipo_resposta"])
+    col1.metric("Media Geral", str(perfil["media_geral"]))
+    col2.metric("Desvio Padrao", str(perfil["desvio_padrao"]))
+    col3.metric("Amplitude", str(perfil["amplitude"]))
+    col4.metric("Tipo Resposta", perfil["tipo_resposta"])
     col5.metric("Confiabilidade", perfil["confiabilidade"])
 
     st.subheader("9. Flags Automaticas")
@@ -1870,7 +1299,6 @@ def render_debug(perfil):
         st.write(">> " + flag)
 
     st.subheader("10. Hipotese Tecnica")
-    st.caption("E o que o AI recebe como base. Se estiver errado aqui, o relatorio estara errado.")
     for h in perfil["hipotese_tecnica"]:
         st.write("-> " + h)
 
@@ -1882,9 +1310,8 @@ def render_debug(perfil):
         "total_perguntas": len(questions),
         "eixos": list(blocos_info.keys()),
         "total_contrastes_calculados": len(perfil["diferencas"]),
-        "versao_prompt": "V5.31 - calibrado por Manus AI",
+        "versao_prompt": "V5.33 - recalibrado",
     })
-
 
 # =============================================================
 # CALIBRACAO GUIADA
@@ -1893,19 +1320,31 @@ def render_debug(perfil):
 def gerar_statements_calibracao(perfil):
     medias = perfil["medias"]
     adj = perfil["respostas_ajustadas"]
+    raw = perfil["respostas_brutas"]
+
     ab  = medias["Abertura"]
     co  = medias["Conscienciosidade"]
     ex  = medias["Extroversao"]
-    am  = medias["Amabilidade"]
-    ne  = medias["Neuroticismo"]
-    se  = medias["Seguranca"]
-    abu = medias["Abundancia"]
-    q11 = adj.get(11, 3); q17 = adj.get(17, 3); q20 = adj.get(20, 3)
-    q22 = adj.get(22, 3); q24 = adj.get(24, 3); q26 = adj.get(26, 3)
-    q33 = adj.get(33, 3); q35 = adj.get(35, 3); q37 = adj.get(37, 3); q39 = adj.get(39, 3)
-    q44 = adj.get(44, 3); q49 = adj.get(49, 3)
-    q55 = adj.get(55, 3); q56 = adj.get(56, 3); q61 = adj.get(61, 3)
-    evita_conflito = (q33 >= 4 or q37 >= 4 or q39 >= 4) and q35 >= 3  # Q33/Q37/Q39 sao invertidas
+
+    q11 = adj.get(11, 3)
+    q17 = adj.get(17, 3)
+    q20 = adj.get(20, 3)
+    q22 = adj.get(22, 3)
+    q24 = adj.get(24, 3)
+    q26 = adj.get(26, 3)
+    q33 = raw.get(33, 3)
+    q35 = raw.get(35, 3)
+    q37 = raw.get(37, 3)
+    q39 = raw.get(39, 3)
+    q44 = adj.get(44, 3)
+    q49 = adj.get(49, 3)
+    q55 = adj.get(55, 3)
+    q56 = adj.get(56, 3)
+    q61 = adj.get(61, 3)
+    q63 = adj.get(63, 3)
+    q59 = adj.get(59, 3)
+
+    evita_conflito = (q33 >= 4 or q37 >= 4 or q39 >= 4) and q35 >= 3
     statements = []
     sid = 1
 
@@ -1914,9 +1353,8 @@ def gerar_statements_calibracao(perfil):
             "id": sid, "eixo": "Abertura",
             "texto": (
                 "Voce tem uma curiosidade intelectual acima da media. "
-                "Quando encontra um problema ou tema novo, tende a ir fundo: "
-                "pesquisa, conecta ideias, e frequentemente sabe mais sobre o assunto "
-                "do que a maioria das pessoas ao seu redor."
+                "Quando encontra um problema ou tema novo, tende a ir fundo: pesquisa, conecta ideias, "
+                "e frequentemente sabe mais sobre o assunto do que a maioria das pessoas ao seu redor."
             ),
             "followup_verdadeiro": (
                 "Isso acontece em qualquer assunto, ou so em areas que voce ja tem interesse? "
@@ -1924,10 +1362,8 @@ def gerar_statements_calibracao(perfil):
             ),
             "followup_falso": (
                 "Voce prefere aplicar o que ja sabe em vez de explorar areas novas? "
-                "Ou voce tem curiosidade, mas ela e mais seletiva do que o descrito? "
                 "(1 = prefiro muito o que ja sei / 5 = tenho curiosidade mas so em temas especificos)"
             ),
-            "root_questions": [1, 3, 5, 7, 8, 10],
             "ajuste_mais_forte": {1: 1, 3: 1, 8: 1},
             "ajuste_mais_fraco": {1: -1, 3: -1, 8: -1},
         })
@@ -1938,21 +1374,16 @@ def gerar_statements_calibracao(perfil):
             "id": sid, "eixo": "Conscienciosidade",
             "texto": (
                 "Quando voce assume um compromisso, cumpre - mesmo quando nao esta com vontade, "
-                "mesmo quando o prazo aperta. "
-                "As pessoas que dependem de voce sabem que podem contar com o que voce prometeu."
+                "mesmo quando o prazo aperta."
             ),
             "followup_verdadeiro": (
-                "Voce cumpre porque tem um sistema de organizacao claro, "
-                "ou porque se sente responsavel mesmo sem sistema? "
+                "Voce cumpre porque tem um sistema claro ou porque se sente responsavel mesmo sem sistema? "
                 "(1 = tenho sistema claro / 5 = cumpro mesmo sem sistema, no esforco)"
             ),
             "followup_falso": (
                 "Voce cumpre compromissos em algumas areas mas nao em outras? "
-                "Ou a descricao foi exagerada? "
-                "(1 = sou bem menos confiavel do que descrito / "
-                "5 = sou confiavel mas so em certas areas)"
+                "(1 = sou bem menos confiavel / 5 = sou confiavel mas so em certas areas)"
             ),
-            "root_questions": [11, 17, 20],
             "ajuste_mais_forte": {11: 1, 17: 1, 20: 1},
             "ajuste_mais_fraco": {11: -1, 17: -1, 20: -1},
         })
@@ -1966,17 +1397,13 @@ def gerar_statements_calibracao(perfil):
                 "escolhendo falar apenas quando tem algo importante a acrescentar."
             ),
             "followup_verdadeiro": (
-                "Isso e uma preferencia ou grupos grandes te deixam genuinamente desconfortavel? "
-                "(1 = e apenas preferencia, me adapto bem / "
-                "5 = grupos grandes me custam energia real)"
+                "Isso e uma preferencia ou grupos grandes te custam energia real? "
+                "(1 = apenas preferencia / 5 = custa energia real)"
             ),
             "followup_falso": (
-                "Voce se ve como alguem que toma iniciativa em grupos com frequencia? "
-                "Ou voce tem lideranca, mas ela e por competencia, nao por volume de fala? "
-                "(1 = tomo iniciativa com frequencia, sou vocal / "
-                "5 = tenho lideranca mas ela e silenciosa)"
+                "Voce toma iniciativa em grupos com frequencia? "
+                "(1 = tomo iniciativa com frequencia / 5 = tenho lideranca mas ela e silenciosa)"
             ),
-            "root_questions": [22, 24, 26, 29, 30],
             "ajuste_mais_forte": {22: -1, 24: -1, 26: -1},
             "ajuste_mais_fraco": {22: 1, 24: 1, 26: 1},
         })
@@ -1987,24 +1414,18 @@ def gerar_statements_calibracao(perfil):
             "id": sid, "eixo": "Amabilidade",
             "texto": (
                 "Quando ha tensao ou desacordo, voce tende a ceder ou guardar o que pensa "
-                "em vez de confrontar diretamente. "
-                "Voce raramente da feedback negativo, adia conversas dificeis, "
-                "e frequentemente sai de situacoes sem ter dito o que realmente pensava."
+                "em vez de confrontar diretamente."
             ),
             "followup_verdadeiro": (
                 "Isso acontece em todas as relacoes ou so com pessoas especificas? "
-                "(1 = so com pessoas de autoridade / "
-                "5 = acontece em praticamente todas as relacoes)"
+                "(1 = so com pessoas de autoridade / 5 = em praticamente todas as relacoes)"
             ),
             "followup_falso": (
-                "Voce consegue confrontar quando necessario, mas prefere nao fazer desnecessariamente? "
-                "Ou a descricao exagerou - voce e direto e nao tem dificuldade com conflito? "
-                "(1 = sou direto, conflito nao me incomoda / "
-                "5 = consigo confrontar mas prefiro evitar)"
+                "Voce consegue confrontar quando necessario? "
+                "(1 = sou direto / 5 = consigo confrontar mas prefiro evitar)"
             ),
-            "root_questions": [33, 35, 37, 39],
-            "ajuste_mais_forte": {33: -1, 37: -1, 39: -1},
-            "ajuste_mais_fraco": {33: 1, 37: 1, 39: 1},
+            "ajuste_mais_forte": {33: 1, 37: 1, 39: 1},
+            "ajuste_mais_fraco": {33: -1, 37: -1, 39: -1},
         })
         sid += 1
 
@@ -2012,82 +1433,48 @@ def gerar_statements_calibracao(perfil):
         statements.append({
             "id": sid, "eixo": "Neuroticismo",
             "texto": (
-                "Voce tende a antecipar problemas antes que eles acontecam. "
-                "Antes de uma reuniao importante, de uma decisao grande ou de uma mudanca, "
-                "sua mente ja esta processando os possiveis cenarios - inclusive os negativos. "
-                "Isso te torna bom em prever riscos, mas tambem gasta energia "
-                "em preocupacoes que muitas vezes nao se concretizam."
+                "Voce tende a antecipar problemas antes que eles acontecam."
             ),
             "followup_verdadeiro": (
-                "Essa antecipacao te paralisa ou te prepara? "
-                "(1 = me paralisa com frequencia / "
-                "5 = me prepara - raramente me paralisa)"
+                "Essa antecipacao te paralisa ou te prepara? (1 = paralisa / 5 = prepara)"
             ),
             "followup_falso": (
-                "Voce e mais calmo do que descrito - lida bem com incerteza sem antecipar muito? "
-                "Ou a antecipacao existe mas e leve, nao um padrao forte? "
-                "(1 = sou muito calmo, raramente antecipo / "
-                "5 = antecipo mas de forma leve - a descricao foi exagerada)"
+                "Voce e mais calmo do que descrito? (1 = muito mais calmo / 5 = a descricao so exagerou)"
             ),
-            "root_questions": [44, 49, 42, 46],
             "ajuste_mais_forte": {44: 1, 49: 1},
             "ajuste_mais_fraco": {44: -1, 49: -1},
         })
         sid += 1
 
-    # Afirmacao 6a: Aversao a risco (cautela antes de decidir)
-    # Perguntas diretas: Q56 (garantia vs incerteza), Q61 (desconforto sem plano), Q63 (confirmar antes de agir)
-    # Perguntas invertidas: Q54, Q57, Q60, Q62 (agir com confianca sem info completa)
-    q56 = adj.get(56, 3); q61 = adj.get(61, 3); q63 = adj.get(63, 3)
     if q56 >= 3 or q61 >= 3 or q63 >= 3:
         statements.append({
             "id": sid, "eixo": "Cautela e Risco",
             "texto": (
-                "Quando precisa tomar uma decisao importante, voce prefere esperar ter "
-                "informacao suficiente antes de se comprometer. "
-                "Prefere uma oportunidade menor mas garantida a uma maior mas incerta. "
-                "Nao e que voce fuja do risco - e que voce precisa entender o risco antes de aceita-lo."
+                "Quando precisa tomar uma decisao importante, voce prefere esperar ter informacao suficiente antes de se comprometer."
             ),
             "followup_verdadeiro": (
-                "Essa cautela ja te fez perder oportunidades que valiam o risco? "
-                "(1 = raramente perco oportunidades por cautela / "
-                "5 = ja perdi oportunidades claras por nao agir a tempo)"
+                "Essa cautela ja te fez perder oportunidades? (1 = raramente / 5 = ja perdi oportunidades claras)"
             ),
             "followup_falso": (
-                "Voce age com mais facilidade mesmo sem todas as informacoes? "
-                "Ou a descricao estava certa mas a intensidade foi exagerada? "
-                "(1 = ajo rapido, incerteza nao me paralisa / "
-                "5 = a descricao estava certa mas foi um pouco exagerada)"
+                "Voce age com mais facilidade mesmo sem todas as informacoes? (1 = ajo rapido / 5 = a descricao so exagerou)"
             ),
-            "root_questions": [56, 61, 63],
             "ajuste_mais_forte": {56: 1, 61: 1, 63: 1},
             "ajuste_mais_fraco": {56: -1, 61: -1, 63: -1},
         })
         sid += 1
 
-    # Afirmacao 6b: Tolerancia a mudancas de planos (imprevisibilidade)
-    # Q55 (mudancas inesperadas incomodam), Q59 (resiste a mudar rotina que funciona)
-    # Q57 invertida (se sente bem em situacoes imprevisíveis), Q62 invertida (seguro em transicoes)
-    q55 = adj.get(55, 3); q59 = adj.get(59, 3)
     if q55 >= 3:
         statements.append({
-            "id": sid, "eixo": "Reatividade a Mudanças",
+            "id": sid, "eixo": "Reatividade a Mudancas",
             "texto": (
-                "Quando seus planos mudam de forma inesperada, você tende a se incomodar "
-                "mais do que a maioria das pessoas — mesmo quando a mudança é pequena."
+                "Quando seus planos mudam de forma inesperada, voce tende a se incomodar mais do que a maioria."
             ),
             "followup_verdadeiro": (
-                "Isso acontece em qualquer mudança ou só em mudanças que afetam áreas importantes para você? "
-                "(1 = só me incomoda quando afeta áreas muito importantes / "
-                "5 = qualquer mudança inesperada me tira do eixo)"
+                "Isso acontece em qualquer mudanca ou so em areas importantes? (1 = so em areas importantes / 5 = quase sempre)"
             ),
             "followup_falso": (
-                "Você lida bem com mudanças de planos — elas não te afetam mais do que a média? "
-                "Ou a descrição estava certa mas exagerada na intensidade? "
-                "(1 = lido bem com mudanças, me adapto facilmente / "
-                "5 = a descrição estava certa mas foi um pouco exagerada)"
+                "Voce lida bem com mudancas? (1 = me adapto facilmente / 5 = a descricao so exagerou)"
             ),
-            "root_questions": [55],
             "ajuste_mais_forte": {55: 1},
             "ajuste_mais_fraco": {55: -1},
         })
@@ -2095,24 +1482,16 @@ def gerar_statements_calibracao(perfil):
 
     if q59 >= 3:
         statements.append({
-            "id": sid, "eixo": "Preferência por Rotina",
+            "id": sid, "eixo": "Preferencia por Rotina",
             "texto": (
-                "Quando você encontra uma rotina que funciona, tende a mantê-la — "
-                "mesmo quando há opções melhores disponíveis. "
-                "Não é resistência à mudança por medo: é uma preferência genuína pelo que já foi testado e funciona."
+                "Quando voce encontra uma rotina que funciona, tende a mante-la - mesmo quando ha opcoes melhores."
             ),
             "followup_verdadeiro": (
-                "Essa preferência por rotina se aplica a todas as áreas da sua vida ou só a algumas? "
-                "(1 = só em certas áreas específicas / "
-                "5 = em praticamente todas as áreas — prefiro o que já funciona)"
+                "Essa preferencia se aplica a todas as areas? (1 = so algumas / 5 = quase todas)"
             ),
             "followup_falso": (
-                "Você muda de rotina com facilidade quando vê uma opção melhor? "
-                "Ou a descrição estava certa mas a intensidade foi exagerada? "
-                "(1 = mudo facilmente, não tenho apego a rotinas / "
-                "5 = a descrição estava certa mas foi um pouco exagerada)"
+                "Voce muda de rotina com facilidade quando ve algo melhor? (1 = mudo facilmente / 5 = a descricao so exagerou)"
             ),
-            "root_questions": [59],
             "ajuste_mais_forte": {59: 1},
             "ajuste_mais_fraco": {59: -1},
         })
@@ -2122,25 +1501,14 @@ def gerar_statements_calibracao(perfil):
         statements.append({
             "id": sid, "eixo": "Lideranca",
             "texto": (
-                "Voce tem tracos de lideranca - mas do tipo silencioso. "
-                "Nao e o tipo que se impos ou buscou o cargo. "
-                "E o tipo que as pessoas consultam quando o assunto e serio, "
-                "que entrega quando os outros nao entregam, "
-                "e que influencia por competencia e confiabilidade, nao por carisma ou volume."
+                "Voce tem tracos de lideranca - mas do tipo silencioso, por competencia e confiabilidade."
             ),
             "followup_verdadeiro": (
-                "Voce ja esteve em posicao de lideranca formal? "
-                "Ou voce lidera informalmente - sem o titulo, mas as pessoas te seguem? "
-                "(1 = nunca liderei, nao me vejo como lider / "
-                "5 = lidero informalmente - as pessoas me seguem mesmo sem eu ter o cargo)"
+                "Voce ja liderou informalmente sem o titulo? (1 = nunca / 5 = frequentemente)"
             ),
             "followup_falso": (
-                "Voce diria que nao tem tracos de lideranca - prefere seguir do que liderar? "
-                "Ou que tem lideranca mas ela e mais direta e visivel do que o descrito? "
-                "(1 = nao tenho tracos de lideranca, prefiro seguir / "
-                "5 = tenho lideranca mas ela e mais direta e visivel)"
+                "Voce se ve mais como seguidor do que lider? (1 = claramente sim / 5 = nao, so descreveu errado)"
             ),
-            "root_questions": [11, 17, 20, 22, 24, 30],
             "ajuste_mais_forte": {22: 1, 24: 1, 30: 1},
             "ajuste_mais_fraco": {22: -1, 24: -1, 30: -1},
         })
@@ -2157,21 +1525,21 @@ def aplicar_ajustes_calibracao(respostas_originais, ajustes):
             novas[q_num] = novo_val
     return novas
 
-
 # =============================================================
 # INTERFACE PRINCIPAL
 # =============================================================
 
-# Logo + título (embutido como base64 para evitar dependência de arquivo estático)
 col_logo, col_title = st.columns([1, 5])
 with col_logo:
-    st.image("logo_mindinsight.png", width=220)
+    try:
+        st.image("logo_mindinsight.png", width=220)
+    except Exception:
+        st.write("")
 with col_title:
     st.markdown("<h1 style='margin-bottom:0'>Mind Insight™</h1>", unsafe_allow_html=True)
     if MODO_TESTE:
         st.markdown(
-            '<div class="manus-badge">V5.31 | Criado com Claude (Anthropic) | '
-            'Aperfeiçoado por Manus AI | MODO TESTE ATIVO</div>',
+            '<div class="manus-badge">V5.33 | Criado com Claude (Anthropic) | Aperfeiçoado por Manus AI | MODO TESTE ATIVO</div>',
             unsafe_allow_html=True
         )
     else:
@@ -2180,14 +1548,8 @@ with col_title:
             unsafe_allow_html=True
         )
 
-TOTAL = len(questions)
-QUESTION_KEYS = sorted(questions.keys())  # lista ordenada das perguntas existentes (sem gaps)
-# ------------------------------------------------------------------
-# TELA 0 - Coleta de dados do usuario (producao) ou selecao de modo (teste)
-# ------------------------------------------------------------------
 if not st.session_state.modo_selecionado:
     if MODO_TESTE:
-        # --- MODO TESTE: opcoes de reutilizacao ---
         st.markdown("---")
         st.subheader("[MODO TESTE] Como você quer começar?")
         st.caption(
@@ -2202,13 +1564,11 @@ if not st.session_state.modo_selecionado:
             _json_existe = os.path.exists(ULTIMO_TESTE_JSON)
             if _json_existe:
                 st.caption(
-                    "Serão usadas as respostas da sua **última sessão calibrada** (salvas automaticamente). "
-                    "Gera o relatório em segundos sem precisar responder novamente."
+                    "Serão usadas as respostas da sua última sessão calibrada."
                 )
             else:
                 st.caption(
-                    "Serão usadas as respostas de referência (nenhuma calibração salva ainda). "
-                    "Gera o relatório em segundos sem precisar responder novamente."
+                    "Serão usadas as respostas de referência."
                 )
             if st.button("Usar último teste", key="btn_ultimo"):
                 st.session_state.responses = carregar_ultimo_teste()
@@ -2219,8 +1579,7 @@ if not st.session_state.modo_selecionado:
         with col_b:
             st.markdown("**Responder o questionário novamente**")
             st.caption(
-                "Responde todas as 74 perguntas do zero. "
-                "Use quando quiser registrar um novo conjunto de respostas."
+                "Responde todas as " + str(TOTAL) + " perguntas do zero."
             )
             if st.button("Responder questionário", key="btn_novo"):
                 st.session_state.responses = {}
@@ -2229,7 +1588,6 @@ if not st.session_state.modo_selecionado:
                 st.rerun()
 
     else:
-        # --- MODO PRODUCAO: coleta de dados do usuario ---
         if not st.session_state.user_info_completo:
             st.markdown("---")
             st.subheader("Antes de começar")
@@ -2270,18 +1628,13 @@ if not st.session_state.modo_selecionado:
                         st.session_state.modo_selecionado = True
                         st.rerun()
         else:
-            # user_info ja preenchido, ir para questionario
             st.session_state.responses = {}
             st.session_state.current_question = 1
             st.session_state.modo_selecionado = True
             st.rerun()
 
-# ------------------------------------------------------------------
-# TELA 1 - Questionario
-# ------------------------------------------------------------------
 elif st.session_state.current_question <= TOTAL:
-    # current_question e um indice 1-based na lista QUESTION_KEYS (nao o numero da pergunta)
-    idx = st.session_state.current_question - 1  # indice 0-based
+    idx = st.session_state.current_question - 1
     q_num = QUESTION_KEYS[idx]
     progresso = (st.session_state.current_question - 1) / TOTAL
     st.progress(progresso)
@@ -2302,9 +1655,6 @@ elif st.session_state.current_question <= TOTAL:
         else:
             st.warning("Por favor, selecione uma resposta antes de continuar.")
 
-# ------------------------------------------------------------------
-# TELA 1.5 - Calibracao Guiada
-# ------------------------------------------------------------------
 elif not st.session_state.calibracao_completa:
     if st.session_state.perfil_cache is None:
         st.session_state.perfil_cache = gerar_perfil(st.session_state.responses)
@@ -2316,8 +1666,7 @@ elif not st.session_state.calibracao_completa:
     st.title("Verificação Rápida do Perfil")
     st.markdown(
         "Antes de gerar seu relatório completo, preciso confirmar se as afirmações abaixo "
-        "descrevem você com precisão. **Isso leva menos de 2 minutos** e garante que o "
-        "relatório final seja fiel a quem você realmente é."
+        "descrevem você com precisão. Isso ajuda a tornar o relatório final mais fiel a quem você realmente é."
     )
     st.markdown("---")
 
@@ -2387,7 +1736,6 @@ elif not st.session_state.calibracao_completa:
                     st.session_state.responses, ajustes_acumulados
                 )
                 st.session_state.perfil_cache = gerar_perfil(novas_respostas)
-            # Salva as respostas calibradas para reutilizacao futura
             respostas_para_salvar = aplicar_ajustes_calibracao(
                 st.session_state.responses, ajustes_acumulados
             ) if ajustes_acumulados else dict(st.session_state.responses)
@@ -2397,13 +1745,10 @@ elif not st.session_state.calibracao_completa:
     else:
         st.warning("Por favor, responda todas as afirmacoes acima para continuar.")
 
-# ------------------------------------------------------------------
-# TELA 2 - Relatorio
-# ------------------------------------------------------------------
 else:
     st.title("Seu Relatório de Perfil")
     if MODO_TESTE:
-        st.caption("Versão: V5.31 | MODO TESTE ATIVO")
+        st.caption("Versão: V5.33 | MODO TESTE ATIVO")
 
     if st.session_state.perfil_cache is not None:
         perfil = st.session_state.perfil_cache
@@ -2420,7 +1765,6 @@ else:
     with st.spinner("Gerando sua análise..."):
         relatorio_ai, tracos_forcas_exib, tracos_desafios_exib = gerar_relatorio(perfil)
 
-    # --- Montar relatorio final com secao 10 injetada diretamente pelo codigo ---
     secao10_partes = []
     if tracos_forcas_exib:
         linhas_f = []
@@ -2441,7 +1785,6 @@ else:
 
     if secao10_partes:
         secao10_bloco = "\n\n## 10. TRAÇOS COMPORTAMENTAIS IDENTIFICADOS\n\n" + "\n\n".join(secao10_partes)
-        # Inserir secao 10 antes da secao 11 (Proximos Passos) se existir, senao no final
         if "11." in relatorio_ai or "PRÓXIMOS PASSOS" in relatorio_ai.upper():
             import re
             relatorio = re.sub(
@@ -2451,7 +1794,7 @@ else:
                 count=1,
                 flags=re.IGNORECASE
             )
-            if relatorio == relatorio_ai:  # regex nao encontrou, adicionar no final
+            if relatorio == relatorio_ai:
                 relatorio = relatorio_ai + secao10_bloco
         else:
             relatorio = relatorio_ai + secao10_bloco
@@ -2463,9 +1806,6 @@ else:
     if MODO_TESTE:
         render_debug(perfil)
 
-    # ------------------------------------------------------------------
-    # Registro no Google Sheets e envio de email (modo producao)
-    # ------------------------------------------------------------------
     if not st.session_state.dados_registrados:
         user_info = st.session_state.get("user_info", {})
         medias_perfil = perfil.get("medias", {})
@@ -2498,15 +1838,14 @@ else:
         ok_sheets, msg_sheets = registrar_no_sheets(dados_registro)
         if MODO_TESTE:
             if ok_sheets:
-                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.31 ATIVA")
+                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V5.33 ATIVA")
             else:
-                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.31 ATIVA")
-        # Email apenas em modo producao
+                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V5.33 ATIVA")
         if not MODO_TESTE:
             nome_usuario = user_info.get("nome", "")
             email_usuario = user_info.get("email", "")
             if email_usuario:
-                ok_email, msg_email = enviar_email(email_usuario, nome_usuario, relatorio)
+                ok_email, _ = enviar_email(email_usuario, nome_usuario, relatorio)
                 if ok_email:
                     st.success(
                         "Uma cópia do seu relatório foi enviada para **" + email_usuario + "**. "
@@ -2516,9 +1855,6 @@ else:
 
     st.markdown("---")
 
-    # ------------------------------------------------------------------
-    # Botao de download das respostas calibradas (apenas modo teste)
-    # ------------------------------------------------------------------
     if MODO_TESTE:
         respostas_para_download = st.session_state.responses
         if st.session_state.perfil_cache is not None and st.session_state.calibracao_ajustes:
@@ -2534,14 +1870,7 @@ else:
             data=_json_bytes,
             file_name="ultimo_teste.json",
             mime="application/json",
-            help=(
-                "Baixe este arquivo e adicione ao seu repositorio GitHub junto com o app.py. "
-                "Assim as respostas calibradas serao preservadas em futuros deploys."
-            )
-        )
-        st.caption(
-            "Dica: coloque o arquivo baixado na mesma pasta do app.py no seu repositorio "
-            "para que as respostas calibradas sejam usadas automaticamente nos proximos deploys."
+            help="Baixe este arquivo e adicione ao seu repositorio GitHub junto com o app.py."
         )
 
     st.markdown("---")
