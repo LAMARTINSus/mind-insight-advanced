@@ -40,7 +40,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V7"
+APP_VERSION = "V7.1"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -1074,6 +1074,142 @@ def gerar_perfil(respostas, followup_answers=None):
 # =============================================================
 
 
+
+PATTERN_DOMAINS_V71 = {
+    "execucao": {"execucao_consistente", "prudencia_funcional", "economia_de_extremos"},
+    "presenca": {"merito_subcomunicado", "exposicao_seletiva", "autoexpressao_reduzida"},
+    "interno": {"clareza_interna_maior_que_presenca", "competencia_nao_internalizada"},
+    "relacional": {"evita_atrito_contextual", "presenca_relacional_rara"},
+}
+
+TENSION_DOMAINS_V71 = {
+    "valor_real_vs_presenca_percebida": "presenca",
+    "seguranca_vs_expansao": "execucao",
+    "complexidade_interna_vs_expressao_externa": "interno",
+    "adaptacao_social_vs_clareza_de_posicao": "relacional",
+    "solidez_externa_vs_merito_interno": "interno",
+    "funcionalidade_social_vs_busca_de_palco": "presenca",
+}
+
+
+def _pick_items_v71(items, used_tags, limit=2):
+    selected = []
+    for item in items:
+        tag = item.get("tag")
+        if tag and tag in used_tags:
+            continue
+        selected.append(item)
+        if tag:
+            used_tags.add(tag)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def build_section_map_v71(perfil):
+    medias = perfil["medias"]
+    derived = perfil["derived"]
+    followups = perfil.get("followup_answers", {})
+    padroes = perfil.get("padroes_v62", [])
+    tensoes = perfil.get("tensoes_v62", [])
+    comportamentos = perfil.get("comportamentos_v62", [])
+
+    annotated_patterns = []
+    for p in padroes:
+        nome = p["nome"]
+        matched = False
+        for dominio, nomes in PATTERN_DOMAINS_V71.items():
+            if nome in nomes:
+                annotated_patterns.append({**p, "dominio": dominio, "tag": dominio})
+                matched = True
+                break
+        if not matched:
+            annotated_patterns.append({**p, "dominio": "geral", "tag": "geral"})
+
+    annotated_tensions = []
+    for t in tensoes:
+        nome = t["nome"]
+        dominio = TENSION_DOMAINS_V71.get(nome, "geral")
+        annotated_tensions.append({**t, "dominio": dominio, "tag": f"ten_{dominio}"})
+
+    used = set()
+    return {
+        "central": {
+            "patterns": annotated_patterns[:3],
+            "tensions": annotated_tensions[:1],
+        },
+        "execucao_decisao": {
+            "patterns": _pick_items_v71([p for p in annotated_patterns if p["dominio"] == "execucao"], used, limit=2),
+            "tensions": _pick_items_v71([t for t in annotated_tensions if t["dominio"] == "execucao"], used, limit=1),
+            "facts": {
+                "Conscienciosidade": medias["Conscienciosidade"],
+                "Seguranca": medias["Seguranca"],
+                "autonomia_execucao": derived["autonomia_execucao"],
+                "tolerancia_risco": derived["tolerancia_risco"],
+            },
+        },
+        "presenca_expressao": {
+            "patterns": _pick_items_v71([p for p in annotated_patterns if p["dominio"] == "presenca"], used, limit=2),
+            "tensions": _pick_items_v71([t for t in annotated_tensions if t["dominio"] == "presenca"], used, limit=1),
+            "facts": {
+                "Extroversao": medias["Extroversao"],
+                "visibilidade_pessoal": derived["visibilidade_pessoal"],
+                "assertividade": derived["assertividade"],
+                "posicionamento_social": followups.get("posicionamento_social", ""),
+            },
+        },
+        "mundo_interno": {
+            "patterns": _pick_items_v71([p for p in annotated_patterns if p["dominio"] == "interno"], used, limit=2),
+            "tensions": _pick_items_v71([t for t in annotated_tensions if t["dominio"] == "interno"], used, limit=1),
+            "facts": {
+                "Abertura": medias["Abertura"],
+                "Neuroticismo": medias["Neuroticismo"],
+                "auto_reconhecimento": derived["auto_reconhecimento"],
+                "autoexigencia": derived["autoexigencia"],
+                "reconhecimento": followups.get("reconhecimento", ""),
+            },
+        },
+        "relacoes_conflito": {
+            "patterns": _pick_items_v71([p for p in annotated_patterns if p["dominio"] == "relacional"], used, limit=2),
+            "tensions": _pick_items_v71([t for t in annotated_tensions if t["dominio"] == "relacional"], used, limit=1),
+            "facts": {
+                "Amabilidade": medias["Amabilidade"],
+                "presenca_relacional": derived["presenca_relacional"],
+                "evita_conflito": derived["evita_conflito"],
+                "assertividade": derived["assertividade"],
+            },
+        },
+        "valor_oportunidade": {
+            "facts": [
+                {"tipo": "media", "nome": "Abundancia", "valor": medias["Abundancia"]},
+                {"tipo": "derived", "nome": "auto_reconhecimento", "valor": derived["auto_reconhecimento"]},
+                {"tipo": "derived", "nome": "tolerancia_risco", "valor": derived["tolerancia_risco"]},
+                {"tipo": "followup", "nome": "reconhecimento", "valor": followups.get("reconhecimento", "")},
+                {"tipo": "followup", "nome": "risco_expansao", "valor": followups.get("risco_expansao", "")},
+            ]
+        },
+        "comportamentos": comportamentos,
+    }
+
+
+def format_section_inputs_v71(section):
+    lines = []
+    for p in section.get("patterns", []):
+        info = PATTERN_LIBRARY.get(p["nome"], {})
+        lines.append(f"- padrão ({p['peso']}): {info.get('insight','')} | {info.get('descricao','')}")
+    for t in section.get("tensions", []):
+        info = TENSION_LIBRARY.get(t["nome"], {})
+        lines.append(f"- tensão ({t['peso']}): {info.get('texto','')}")
+    facts = section.get("facts", {})
+    if isinstance(facts, dict):
+        for k, v in facts.items():
+            lines.append(f"- dado: {k} = {v}")
+    elif isinstance(facts, list):
+        for item in facts:
+            lines.append(f"- {item['tipo']}: {item['nome']} = {item['valor']}")
+    return "\n".join(lines) if lines else "- sem insumos específicos"
+
+
 def gerar_resumo_base(perfil):
     padroes_v62 = perfil.get("padroes_v62", [])
     tensoes_v62 = perfil.get("tensoes_v62", [])
@@ -1114,6 +1250,7 @@ def gerar_resumo_base(perfil):
 
     return "\n".join(partes)
 
+
 def gerar_relatorio(perfil):
     client = get_openai_client()
     if client is None:
@@ -1130,6 +1267,7 @@ def gerar_relatorio(perfil):
     comportamentos_v62 = perfil.get("comportamentos_v62", [])
     followup_answers = perfil.get("followup_answers", {})
     resumo_base = gerar_resumo_base(perfil)
+    section_map = build_section_map_v71(perfil)
 
     linhas_ranking = "\n".join([
         f"  {i + 1}. {k}: {v:.2f} [{intensidades[k]}]"
@@ -1150,10 +1288,6 @@ def gerar_relatorio(perfil):
     ]) if comportamentos_v62 else "- nenhum comportamento dominante identificado"
     linhas_followups = "\n".join([f"- {k}: {v}" for k, v in followup_answers.items()]) if followup_answers else "- nenhum follow-up aplicado"
 
-    padrao_central = padroes_v62[0]["nome"] if padroes_v62 else None
-    tensao_central = tensoes_v62[0]["nome"] if tensoes_v62 else None
-    comportamento_central = comportamentos_v62[0]["descricao"] if comportamentos_v62 else ""
-
     bloco_forcas = []
     bloco_desafios = []
     for p in padroes_v62:
@@ -1171,8 +1305,7 @@ def gerar_relatorio(perfil):
 
     compressao_alta = perfil.get("pct_3_4", 0) >= 75
     modulador_tom = (
-        "O perfil tem compressão alta de respostas. Isso NÃO deve levar a generalidade; "
-        "deve levar a precisão com nuance, reconhecendo moderação, controle ou economia de posicionamento."
+        "O perfil tem compressão alta de respostas. Preserve nuance e precisão, mas não use isso como desculpa para repetir o mesmo eixo central em todas as seções."
         if compressao_alta else
         "O perfil tem contraste suficiente para afirmações mais nítidas e concretas."
     )
@@ -1181,22 +1314,28 @@ def gerar_relatorio(perfil):
 Você é um analista de comportamento humano altamente preciso.
 Seu trabalho é produzir um relatório fiel, específico, multidimensional e psicologicamente impactante.
 
+OBJETIVO DA VERSÃO {APP_VERSION}:
+Ampliar a cobertura do retrato sem perder profundidade. O relatório deve aprofundar várias facetas da vida, não apenas um cluster dominante.
+
 REGRAS CRÍTICAS:
 1. NÃO reduza a pessoa a um único padrão.
-2. Comece pelo padrão mais forte, mas expanda para um retrato completo.
+2. NÃO repita a mesma tese com palavras diferentes.
 3. NÃO parafraseie perguntas do teste.
 4. NÃO use linguagem de eixo como "alta abertura" ou "baixa extroversão" no texto final.
 5. Cada seção precisa revelar algo DIFERENTE.
-6. Sempre descreva comportamento observável, custo invisível e contexto real.
-7. O texto deve soar como descoberta, não como descrição genérica.
-8. Gere identificação imediata e desconforto construtivo, sem dramatização barata.
-8. Use follow-ups como desempate real de interpretação.
-9. Se houver compressão de respostas, trate isso como modulador do tom, não como desculpa para superficialidade.
+6. Cada seção deve ser ancorada em uma família psicológica diferente: execução/decisão, presença/expressão, mundo interno, relações/conflito, valor/oportunidade.
+7. O eixo central pode abrir o relatório, mas não pode dominar as demais seções.
+8. A seção de relações deve usar dados relacionais; a de estabilidade interna deve usar dados internos; a de valor/oportunidade deve usar risco, abundância, merecimento e timing.
+9. Sempre descreva comportamento observável, custo invisível e contexto real.
+10. Gere identificação imediata e desconforto construtivo, sem dramatização barata.
+11. Use follow-ups como desempate real de interpretação.
+12. Se houver compressão de respostas, trate isso como modulador do tom, não como desculpa para superficialidade.
+13. A seção de direção prática precisa trazer 3 movimentos em áreas DIFERENTES, não 3 variações do mesmo conselho.
 
 MODULADOR DE TOM:
 {modulador_tom}
 
-DADOS DO PERFIL:
+DADOS GERAIS DO PERFIL:
 RANKING DOS EIXOS:
 {linhas_ranking}
 
@@ -1229,35 +1368,37 @@ COMPORTAMENTOS DOMINANTES:
 FOLLOW-UPS:
 {linhas_followups}
 
-PADRAO CENTRAL:
-{PATTERN_LIBRARY[padrao_central]['insight'] if padrao_central else 'nenhum'}
-
-TENSAO CENTRAL:
-{TENSION_LIBRARY[tensao_central]['texto'] if tensao_central else 'nenhuma'}
-
-COMPORTAMENTO CENTRAL:
-{comportamento_central}
-
 RESUMO BASE:
 {resumo_base}
 
+INSUMOS POR SEÇÃO:
+1. EIXO CENTRAL DO SEU FUNCIONAMENTO
+{format_section_inputs_v71(section_map['central'])}
+
+2. EXECUÇÃO E TOMADA DE DECISÃO
+{format_section_inputs_v71(section_map['execucao_decisao'])}
+
+3. PRESENÇA SOCIAL E EXPRESSÃO EXTERNA
+{format_section_inputs_v71(section_map['presenca_expressao'])}
+
+4. MUNDO INTERNO E AUTOIMAGEM
+{format_section_inputs_v71(section_map['mundo_interno'])}
+
+5. RELAÇÕES, LIMITES E CONFLITO
+{format_section_inputs_v71(section_map['relacoes_conflito'])}
+
+6. VALOR, OPORTUNIDADE E MERECIMENTO
+{format_section_inputs_v71(section_map['valor_oportunidade'])}
+
 ESTRUTURA OBRIGATORIA:
 1. EIXO CENTRAL DO SEU FUNCIONAMENTO
-   - comece pelo padrão mais forte, mas sem reduzir toda a pessoa a ele
-2. COMO VOCÊ FUNCIONA NO DIA A DIA
-   - execução, ritmo, decisões, timing
-3. COMO VOCÊ APARECE PARA OS OUTROS
-   - presença, comunicação, exposição, leitura social
-4. O QUE ACONTECE DENTRO DE VOCÊ
-   - diálogo interno, mérito, pressão, tensão principal
-5. ONDE ESTÁ O PRINCIPAL BLOQUEIO
-   - custo invisível mais importante
-6. ONDE ESTÁ O MAIOR POTENCIAL NÃO EXPLORADO
-   - o que já existe mas ainda não está sendo convertido em resultado
+2. EXECUÇÃO E TOMADA DE DECISÃO
+3. PRESENÇA SOCIAL E EXPRESSÃO EXTERNA
+4. MUNDO INTERNO E AUTOIMAGEM
+5. RELAÇÕES, LIMITES E CONFLITO
+6. VALOR, OPORTUNIDADE E MERECIMENTO
 7. DIREÇÃO PRÁTICA
-   - 3 próximos passos concretos, específicos e proporcionais ao perfil
 8. FRASE FINAL DE IMPACTO
-   - encerre com uma frase curta e memorável, sem exagero
 
 FORMATO:
 - escreva em português
@@ -1277,7 +1418,7 @@ FORMATO:
                     "content": (
                         "Você é um analista de comportamento humano especializado em transformar padrões de resposta em leitura reveladora. "
                         "Você não parafraseia perguntas. Você identifica mecanismos, custos, potencial escondido e contextos de alta performance. "
-                        "Você não reduz a pessoa a um único traço; você integra profundidade e amplitude com fidelidade."
+                        "Você integra profundidade com amplitude. Se um cluster dominante já foi explorado, você usa as próximas seções para aprofundar outras facetas reais da pessoa."
                     )
                 },
                 {
@@ -1285,7 +1426,7 @@ FORMATO:
                     "content": prompt
                 }
             ],
-            temperature=0.32,
+            temperature=0.28,
         )
         return response.choices[0].message.content, bloco_forcas, bloco_desafios
     except AuthenticationError:
