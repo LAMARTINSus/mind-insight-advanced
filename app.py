@@ -3,12 +3,12 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V6.2
+# Version: V7
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
-# Reestruturado para inferência comportamental profunda
+# Reestruturado para inferência comportamental profunda com impacto psicológico
 #
-# V6.2 - Integração de profundidade + amplitude
+# V7 - Integração de profundidade + amplitude + impacto psicológico
 #      - Mantém toda a estrutura do app intacta
 #      - OpenAI corrigido via st.secrets / variável de ambiente
 #      - Padrões com peso e prioridade narrativa
@@ -39,6 +39,9 @@ import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
+
+APP_VERSION = "V7"
+MODEL_NAME = "gpt-5-4-auto-thinking"
 
 try:
     import gspread
@@ -1176,7 +1179,7 @@ def gerar_relatorio(perfil):
 
     prompt = f"""
 Você é um analista de comportamento humano altamente preciso.
-Seu trabalho é produzir um relatório fiel, específico e multidimensional.
+Seu trabalho é produzir um relatório fiel, específico, multidimensional e psicologicamente impactante.
 
 REGRAS CRÍTICAS:
 1. NÃO reduza a pessoa a um único padrão.
@@ -1186,6 +1189,7 @@ REGRAS CRÍTICAS:
 5. Cada seção precisa revelar algo DIFERENTE.
 6. Sempre descreva comportamento observável, custo invisível e contexto real.
 7. O texto deve soar como descoberta, não como descrição genérica.
+8. Gere identificação imediata e desconforto construtivo, sem dramatização barata.
 8. Use follow-ups como desempate real de interpretação.
 9. Se houver compressão de respostas, trate isso como modulador do tom, não como desculpa para superficialidade.
 
@@ -1252,6 +1256,8 @@ ESTRUTURA OBRIGATORIA:
    - o que já existe mas ainda não está sendo convertido em resultado
 7. DIREÇÃO PRÁTICA
    - 3 próximos passos concretos, específicos e proporcionais ao perfil
+8. FRASE FINAL DE IMPACTO
+   - encerre com uma frase curta e memorável, sem exagero
 
 FORMATO:
 - escreva em português
@@ -1264,7 +1270,7 @@ FORMATO:
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=MODEL_NAME,
             messages=[
                 {
                     "role": "system",
@@ -1299,7 +1305,7 @@ FORMATO:
 
 def render_debug(perfil):
     st.markdown("---")
-    st.markdown("**Versão: V6.2**", unsafe_allow_html=False)
+    st.markdown(f"**Versão: {APP_VERSION}**", unsafe_allow_html=False)
     st.header("Debug - Transparência Total do Perfil")
     st.caption("Este painel mostra todos os dados, cálculos e inferências usados para gerar o relatório.")
 
@@ -1351,7 +1357,11 @@ def render_debug(perfil):
 
     st.subheader("8. Tensões Identificadas")
     for t in perfil["tensoes"]:
-        st.write("→ " + TENSION_LIBRARY[t])
+        nome = t.get("nome") if isinstance(t, dict) else t
+        info = TENSION_LIBRARY.get(nome, {})
+        texto = info.get("texto", str(nome))
+        peso = info.get("peso", "-")
+        st.write(f"→ {texto} [peso {peso}]")
 
     st.subheader("9. Follow-ups")
     if perfil.get("followup_answers"):
@@ -1723,7 +1733,7 @@ elif not st.session_state.followup_completo:
 else:
     st.title("Seu Relatório de Perfil")
     if MODO_TESTE:
-        st.caption("Versão: V6.2 | MODO TESTE ATIVO")
+        st.caption(f"Versão: {APP_VERSION} | MODO TESTE ATIVO")
 
     if st.session_state.perfil_cache is not None:
         perfil = st.session_state.perfil_cache
@@ -1806,9 +1816,9 @@ else:
         ok_sheets, msg_sheets = registrar_no_sheets(dados_registro)
         if MODO_TESTE:
             if ok_sheets:
-                st.info("[DEBUG] Registro no Google Sheets: OK — VERSAO V6.2 ATIVA")
+                st.info(f"[DEBUG] Registro no Google Sheets: OK — VERSAO {APP_VERSION} ATIVA")
             else:
-                st.error("[DEBUG] Erro no Google Sheets: " + str(msg_sheets) + " — VERSAO V6.2 ATIVA")
+                st.error(f"[DEBUG] Erro no Google Sheets: {str(msg_sheets)} — VERSAO {APP_VERSION} ATIVA")
 
         if not MODO_TESTE:
             nome_usuario = user_info.get("nome", "")
