@@ -41,7 +41,7 @@ from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
 APP_VERSION = "V7"
-MODEL_NAME = "gpt-5-4-auto-thinking"
+MODEL_NAME = "gpt-5.4"
 
 try:
     import gspread
@@ -1500,7 +1500,7 @@ with col_title:
     st.markdown("<h1 style='margin-bottom:0'>Mind Insight™</h1>", unsafe_allow_html=True)
     if MODO_TESTE:
         st.markdown(
-            '<div class="manus-badge">V6.0 | Inferência comportamental profunda | MODO TESTE ATIVO</div>',
+            f'<div class="manus-badge">{APP_VERSION} | Inferência comportamental profunda | MODO TESTE ATIVO</div>',
             unsafe_allow_html=True
         )
     else:
