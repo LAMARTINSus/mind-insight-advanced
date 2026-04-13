@@ -150,10 +150,10 @@ dist = distribuir(padroes)
 prompt = gerar_prompt(perfil, dist, tensoes)
 
 if st.button("Gerar Relatório"):
-    response = client.responses.create(
-        model="gpt-4.1-mini",
-        input=prompt
-    )
+        response = client.responses.create(
+    model="gpt-5-4-auto-thinking",
+    input=prompt
+)
 
     resultado = response.output[0].content[0].text
 
