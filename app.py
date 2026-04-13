@@ -6,9 +6,10 @@
 # Version: V7
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
-# Reestruturado para inferência comportamental profunda com impacto psicológico
+# Reestruturado para inferência comportamental profunda com impacto psicológico e amplitude por facetas
 #
 # V7 - Integração de profundidade + amplitude + impacto psicológico
+# V7.2 - Distribuição de profundidade por facetas com anti-repetição temática
 #      - Mantém toda a estrutura do app intacta
 #      - OpenAI corrigido via st.secrets / variável de ambiente
 #      - Padrões com peso e prioridade narrativa
@@ -40,7 +41,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V7.1"
+APP_VERSION = "V7.2"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -1600,8 +1601,7 @@ def gerar_statements_calibracao(perfil):
             "id": sid,
             "eixo": "Reconhecimento",
             "texto": (
-                "Existe uma diferença entre fazer bem e ocupar esse mérito. "
-                "Você pode receber elogio ou reconhecimento com alguma economia, como se não incorporasse totalmente o que já fez."
+                "Quando você faz algo bem, tende a minimizar isso internamente ou seguir em frente sem dar muito peso ao que realizou."
             ),
             "followup_verdadeiro": (
                 "Isso acontece pouco ou bastante? "
