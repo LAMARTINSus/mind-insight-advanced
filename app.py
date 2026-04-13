@@ -987,7 +987,8 @@ def gerar_perfil(respostas, followup_answers=None):
         if bloco:
             hipotese_tecnica.append(bloco["insight"])
     for t in tensoes:
-        texto = TENSION_LIBRARY.get(t)
+        info = TENSION_LIBRARY.get(t, {})
+        texto = info.get("texto", "")
         if texto:
             hipotese_tecnica.append("tensao: " + texto)
 
