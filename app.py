@@ -632,104 +632,232 @@ def compute_derived_variables(medias, raw, adjusted, followup_answers=None):
     }
 
 PATTERN_LIBRARY = {
-    "entrega_sem_visibilidade": {
-        "insight": "Você entrega mais valor do que comunica.",
-        "descricao": "Seu padrão central é de execução forte com baixa projeção proporcional. O trabalho aparece menos do que a qualidade real do que você faz.",
-        "custo": "Pode crescer menos do que merece porque o ambiente responde ao valor percebido, não só ao valor produzido."
+    "merito_subcomunicado": {
+        "insight": "Você entrega valor consistente, mas comunica menos do que poderia.",
+        "descricao": "Seu padrão central é de entrega forte com baixa projeção proporcional. O que você faz costuma ser mais sólido do que a presença externa que isso gera.",
+        "custo": "Seu valor pode ficar subpercebido em ambientes que premiam sinal e visibilidade, não apenas substância."
     },
-    "competente_nao_internalizado": {
-        "insight": "Você faz bem, mas não se apropria disso internamente.",
-        "descricao": "Existe competência real, mas seu senso interno de mérito não cresce na mesma velocidade que sua entrega.",
-        "custo": "Você pode depender demais de validação externa ou minimizar o que já construiu."
+    "clareza_interna_maior_que_presenca": {
+        "insight": "Você tem mais clareza interna do que presença externa visível.",
+        "descricao": "Seu mundo interno pode ser mais sofisticado, articulado e amplo do que aquilo que o ambiente percebe no primeiro contato.",
+        "custo": "As pessoas podem demorar a perceber a profundidade real do que você pensa e enxerga."
     },
-    "prioriza_estabilidade": {
-        "insight": "Você protege o que funciona antes de explorar o que poderia ser maior.",
-        "descricao": "Seu sistema prefere continuidade funcional a movimento precipitado. Isso não é passividade; é prudência operacional.",
-        "custo": "Pode permanecer mais tempo do que deveria em caminhos bons, mas não ótimos."
+    "prudencia_funcional": {
+        "insight": "Você prefere segurança e consistência antes de expandir.",
+        "descricao": "Seu sistema tende a preservar o que já funciona antes de testar algo que ainda não mostrou base suficiente.",
+        "custo": "Isso reduz erro desnecessário, mas pode diminuir timing de crescimento quando a oportunidade exige movimento antes de certeza total."
     },
-    "evita_atrito": {
-        "insight": "Você tende a preservar o ambiente antes de se posicionar totalmente.",
-        "descricao": "Você lê o custo relacional do confronto e frequentemente ajusta sua expressão para reduzir fricção.",
-        "custo": "Conflitos necessários podem ser adiados, e sua opinião real pode ficar subrepresentada."
+    "execucao_consistente": {
+        "insight": "Você mantém padrão de execução mesmo sem motivação alta.",
+        "descricao": "Quando assume algo, tende a sustentar entrega, revisão e continuidade mesmo sem clima ideal.",
+        "custo": "Pode carregar mais do que deveria por confiar demais na própria capacidade de sustentar."
     },
-    "perfil_adaptativo": {
-        "insight": "Você tende a responder com ajuste de contexto mais do que com extremos firmes.",
-        "descricao": "Seu padrão mostra flexibilidade e controle, mas também possível economia de posicionamento.",
-        "custo": "Isso pode produzir leituras menos nítidas de identidade e preferência."
+    "economia_de_extremos": {
+        "insight": "Você evita posições extremas e tende à moderação nas decisões.",
+        "descricao": "Seu padrão de resposta sugere controle, ajuste de contexto e baixa escolha de extremos.",
+        "custo": "Isso pode trazer equilíbrio real, mas também reduzir nitidez de preferência, identidade e posicionamento."
+    },
+    "exposicao_seletiva": {
+        "insight": "Você se expõe mais ou menos dependendo do ambiente e das pessoas.",
+        "descricao": "Sua presença social não parece rigidamente alta ou baixa; ela muda conforme confiança, contexto e utilidade percebida da exposição.",
+        "custo": "Quem vê apenas um contexto pode formar uma leitura incompleta sobre sua presença real."
     },
     "presenca_relacional_rara": {
         "insight": "Você consegue estar inteiro com o outro sem competir com a própria mente.",
         "descricao": "Sua escuta, presença e reparação relacional caminham juntas.",
         "custo": "Em excesso, pode dar mais espaço emocional ao outro do que a si mesmo."
     },
-    "execucao_autonoma": {
-        "insight": "Você não depende de empolgação para funcionar.",
-        "descricao": "Quando assume algo, tende a manter padrão mesmo sem clima ideal.",
-        "custo": "Pode carregar mais do que deveria por confiar que vai sustentar."
-    },
-    "autoexpressao_reduzida": {
-        "insight": "Sua qualidade não vira linguagem com a mesma força.",
-        "descricao": "Você pode ter boa substância interna, mas baixa ocupação verbal do próprio mérito.",
-        "custo": "Seu valor fica real para quem convive de perto, mas menos claro para quem decide oportunidades."
-    },
+}
+
+PATTERN_META = {
+    "merito_subcomunicado": {"peso": 9, "tipo": "central", "impacto": "alto"},
+    "clareza_interna_maior_que_presenca": {"peso": 8, "tipo": "central", "impacto": "alto"},
+    "prudencia_funcional": {"peso": 8, "tipo": "decisao", "impacto": "alto"},
+    "execucao_consistente": {"peso": 7, "tipo": "forca", "impacto": "alto"},
+    "economia_de_extremos": {"peso": 7, "tipo": "modulador", "impacto": "medio"},
+    "exposicao_seletiva": {"peso": 8, "tipo": "modulador", "impacto": "alto"},
+    "presenca_relacional_rara": {"peso": 6, "tipo": "forca", "impacto": "medio"},
 }
 
 TENSION_LIBRARY = {
-    "faz_muito_nao_aparece": "Você constrói valor consistente, mas não transforma isso em presença proporcional.",
-    "cuida_dos_outros_nao_se_posiciona": "Você protege o ambiente com habilidade, mas isso pode reduzir sua clareza em momentos importantes.",
-    "estabilidade_vs_expansao": "Seu impulso por segurança pode competir com oportunidades que exigem movimento antes de certeza total.",
-    "estavel_mas_autocritico": "Por fora você parece sólido, mas por dentro pode tratar suas próprias conquistas com economia injusta.",
-    "socialmente_funcional_sem_busca_de_palco": "Você pode se sair bem socialmente sem realmente buscar exposição como fonte de energia."
+    "valor_real_vs_presenca_percebida": "Você constrói valor consistente, mas não transforma isso em presença proporcional.",
+    "seguranca_vs_expansao": "Seu impulso por segurança pode competir com oportunidades que exigem movimento antes de certeza total.",
+    "complexidade_interna_vs_expressao_externa": "Seu nível de elaboração interna pode ser maior do que aquilo que você externaliza com a mesma força.",
+    "adaptacao_social_vs_clareza_de_posicao": "Você pode ajustar bem a própria expressão ao ambiente, mas isso às vezes reduz a nitidez do seu posicionamento.",
+    "execucao_solida_vs_apropriacao_do_merito": "Você pode sustentar padrão e entrega sem transformar isso em ocupação verbal justa do próprio mérito."
 }
 
-def extract_patterns(medias, derived, raw, pct_3_4):
+COMPORTAMENTO_LIBRARY = {
+    "merito_subcomunicado": {
+        "descricao": "Entrega valor consistente, mas comunica menos do que poderia.",
+        "custo": "o ambiente pode perceber menos do que sua substância justificaria",
+        "onde": "em contextos onde reconhecimento depende de sinalização clara do próprio valor"
+    },
+    "clareza_interna_maior_que_presenca": {
+        "descricao": "Tem mais clareza interna do que presença externa visível.",
+        "custo": "sua profundidade pode ficar invisível no primeiro olhar",
+        "onde": "em reuniões, ambientes novos e contextos onde é preciso aparecer antes de ser compreendido"
+    },
+    "prudencia_funcional": {
+        "descricao": "Prefere segurança e consistência antes de expandir.",
+        "custo": "o timing de crescimento pode ficar abaixo do ideal",
+        "onde": "em decisões de carreira, investimento pessoal e mudanças de rota"
+    },
+    "execucao_consistente": {
+        "descricao": "Mantém padrão de execução mesmo sem motivação alta.",
+        "custo": "pode sustentar mais do que deveria sem perceber o peso acumulado",
+        "onde": "em compromissos longos, responsabilidades assumidas e projetos que exigem continuidade"
+    },
+    "economia_de_extremos": {
+        "descricao": "Evita posições extremas e tende à moderação nas decisões.",
+        "custo": "preferências reais podem ficar menos nítidas para você e para os outros",
+        "onde": "quando precisa se definir com clareza, escolher direção ou assumir posição forte"
+    },
+    "exposicao_seletiva": {
+        "descricao": "Se expõe mais ou menos dependendo do ambiente e das pessoas.",
+        "custo": "sua presença pode parecer inconsistente para quem não conhece seu critério interno",
+        "onde": "em grupos, contextos formais e ambientes onde confiança muda o nível da sua expressão"
+    },
+    "presenca_relacional_rara": {
+        "descricao": "Consegue estar inteiro com o outro sem competir com a própria mente.",
+        "custo": "pode oferecer mais presença do que recebe de volta",
+        "onde": "em conversas profundas, reconciliação e vínculos que exigem escuta real"
+    },
+}
+
+def extrair_padroes(perfil_v61, followups):
     padroes = []
 
-    if medias["Conscienciosidade"] >= 3.5 and derived["visibilidade_pessoal"] <= 3.1:
-        padroes.append("entrega_sem_visibilidade")
+    if perfil_v61["conscienciosidade"] >= 3.5 and perfil_v61["extroversao"] <= 3.2:
+        padroes.append({"nome": "merito_subcomunicado", **PATTERN_META["merito_subcomunicado"]})
 
-    if medias["Conscienciosidade"] >= 3.4 and derived["autonomia_execucao"] >= 3.6:
-        padroes.append("execucao_autonoma")
+    if perfil_v61["abertura"] - perfil_v61["extroversao"] >= 0.7:
+        padroes.append({"nome": "clareza_interna_maior_que_presenca", **PATTERN_META["clareza_interna_maior_que_presenca"]})
 
-    if medias["Neuroticismo"] <= 2.9 and derived["auto_reconhecimento"] <= 2.9:
-        padroes.append("competente_nao_internalizado")
+    if perfil_v61["seguranca"] >= 3.4 and perfil_v61["risco"] <= 3.0:
+        padroes.append({"nome": "prudencia_funcional", **PATTERN_META["prudencia_funcional"]})
 
-    if medias["Seguranca"] >= medias["Abundancia"] and derived["tolerancia_risco"] <= 3.2:
-        padroes.append("prioriza_estabilidade")
+    if perfil_v61["conscienciosidade"] >= 3.5:
+        padroes.append({"nome": "execucao_consistente", **PATTERN_META["execucao_consistente"]})
 
-    if medias["Amabilidade"] >= 3.2 and derived["assertividade"] <= 3.0 and derived["evita_conflito"] >= 3.4:
-        padroes.append("evita_atrito")
+    if perfil_v61["pct_3_4"] >= 75:
+        padroes.append({"nome": "economia_de_extremos", **PATTERN_META["economia_de_extremos"]})
 
-    if pct_3_4 >= 75:
-        padroes.append("perfil_adaptativo")
+    if followups.get("posicionamento_social") == "Depende muito da pessoa e do contexto":
+        padroes.append({"nome": "exposicao_seletiva", **PATTERN_META["exposicao_seletiva"]})
 
-    if derived["presenca_relacional"] >= 3.8 and raw.get(85, 3) >= 4 and raw.get(86, 3) >= 4:
-        padroes.append("presenca_relacional_rara")
+    if perfil_v61["presenca_relacional"] >= 3.8 and followups.get("reconhecimento") == "Recebo bem e sigo em frente":
+        padroes.append({"nome": "presenca_relacional_rara", **PATTERN_META["presenca_relacional_rara"]})
 
-    if derived["visibilidade_pessoal"] <= 2.9 and raw.get(89, 3) <= 3:
-        padroes.append("autoexpressao_reduzida")
+    # remover duplicados preservando maior peso
+    uniq = {}
+    for p in padroes:
+        n = p['nome']
+        if n not in uniq or p['peso'] > uniq[n]['peso']:
+            uniq[n] = p
+    return sorted(uniq.values(), key=lambda x: (x["peso"], x["impacto"] == 'alto'), reverse=True)
 
-    return list(dict.fromkeys(padroes))
 
-def detect_tensions(medias, derived):
+def extrair_tensoes(perfil_v61, followups):
     tensoes = []
 
-    if medias["Conscienciosidade"] >= 3.5 and derived["visibilidade_pessoal"] <= 3.1:
-        tensoes.append("faz_muito_nao_aparece")
+    if perfil_v61["conscienciosidade"] >= 3.5 and perfil_v61["extroversao"] <= 3.2:
+        tensoes.append("valor_real_vs_presenca_percebida")
 
-    if medias["Amabilidade"] >= 3.2 and derived["assertividade"] <= 3.0:
-        tensoes.append("cuida_dos_outros_nao_se_posiciona")
+    if perfil_v61["seguranca"] >= 3.4 and perfil_v61["risco"] <= 3.0:
+        tensoes.append("seguranca_vs_expansao")
 
-    if medias["Seguranca"] >= 3.2 and derived["tolerancia_risco"] <= 3.1:
-        tensoes.append("estabilidade_vs_expansao")
+    if perfil_v61["abertura"] > perfil_v61["extroversao"]:
+        tensoes.append("complexidade_interna_vs_expressao_externa")
 
-    if medias["Neuroticismo"] <= 2.9 and derived["auto_reconhecimento"] <= 2.9:
-        tensoes.append("estavel_mas_autocritico")
+    if followups.get("posicionamento_social") == "Depende muito da pessoa e do contexto":
+        tensoes.append("adaptacao_social_vs_clareza_de_posicao")
 
-    if 2.8 <= medias["Extroversao"] <= 3.2 and derived["impulso_social"] <= 3.1:
-        tensoes.append("socialmente_funcional_sem_busca_de_palco")
+    if perfil_v61["auto_reconhecimento"] <= 2.9 and perfil_v61["conscienciosidade"] >= 3.5:
+        tensoes.append("execucao_solida_vs_apropriacao_do_merito")
 
     return list(dict.fromkeys(tensoes))
+
+
+def extrair_comportamentos(padroes):
+    comportamentos = []
+    for p in padroes:
+        nome = p["nome"]
+        if nome in COMPORTAMENTO_LIBRARY:
+            base = COMPORTAMENTO_LIBRARY[nome]
+            comportamentos.append({
+                "nome": nome,
+                "descricao": base["descricao"],
+                "custo": base["custo"],
+                "onde": base["onde"],
+                "peso": p["peso"],
+            })
+    return sorted(comportamentos, key=lambda x: x["peso"], reverse=True)
+
+
+def gerar_prompt_v61(perfil, padroes, tensoes, comportamentos):
+    padroes_txt = "\n".join([
+        f"- {p['nome']} | peso={p['peso']} | tipo={p['tipo']} | impacto={p['impacto']} | insight={PATTERN_LIBRARY[p['nome']]['insight']}"
+        for p in padroes
+    ]) if padroes else "- nenhum"
+
+    tensoes_txt = "\n".join([f"- {t}: {TENSION_LIBRARY.get(t, t)}" for t in tensoes]) if tensoes else "- nenhuma"
+
+    comportamentos_txt = "\n".join([
+        f"- {c['descricao']} | custo: {c['custo']} | aparece: {c['onde']} | peso={c['peso']}"
+        for c in comportamentos
+    ]) if comportamentos else "- nenhum"
+
+    return f"""
+Você é um analista de comportamento humano altamente preciso.
+
+Seu objetivo é gerar um relatório profundo, específico e não genérico.
+
+REGRAS CRÍTICAS:
+- NÃO use termos como "alta abertura", "baixa extroversão" ou rótulos de eixo como núcleo da análise.
+- NÃO parafraseie perguntas do questionário.
+- NÃO escreva frases genéricas que servem para qualquer pessoa.
+- Foque em comportamento observável, custo visível e invisível, e contexto real.
+- Use os follow-ups como desempate interpretativo quando houver ambiguidade.
+- Se houver compressão alta de respostas, reconheça isso como modulação do perfil.
+
+DADOS:
+
+PADRÕES PRINCIPAIS:
+{padroes_txt}
+
+TENSÕES:
+{tensoes_txt}
+
+COMPORTAMENTOS:
+{comportamentos_txt}
+
+TAREFA:
+1. Comece pelo padrão mais forte.
+2. Descreva o comportamento dominante da pessoa.
+3. Explique a principal tensão interna.
+4. Mostre o custo invisível desse padrão.
+5. Diga onde isso aparece na vida real.
+6. Só depois fale de forças e desenvolvimento.
+7. Finalize com uma direção clara, prática e específica.
+
+ESTRUTURA OBRIGATÓRIA:
+1. PADRÃO CENTRAL DOMINANTE
+2. TENSÃO PRINCIPAL
+3. CUSTO INVISÍVEL
+4. ONDE ISSO APARECE NA VIDA REAL
+5. FORÇAS REAIS
+6. O QUE VALE DESENVOLVER
+7. PRÓXIMOS PASSOS
+
+TOM:
+- Direto
+- Humano
+- Preciso
+- Sem exagero
+
+Gere o relatório agora.
+"""
 
 def gerar_perfil(respostas, followup_answers=None):
     respostas_ajustadas = {q: aplicar_inversao(q, s) for q, s in respostas.items()}
@@ -796,8 +924,27 @@ def gerar_perfil(respostas, followup_answers=None):
     eixos_moderados = {k: v for k, v in medias.items() if 3.0 <= v < 3.5}
 
     derived = compute_derived_variables(medias, respostas, respostas_ajustadas, followup_answers)
-    padroes = extract_patterns(medias, derived, respostas, pct_3_4)
-    tensoes = detect_tensions(medias, derived)
+    perfil_v61 = {
+        "abertura": medias["Abertura"],
+        "conscienciosidade": medias["Conscienciosidade"],
+        "extroversao": medias["Extroversao"],
+        "amabilidade": medias["Amabilidade"],
+        "neuroticismo": medias["Neuroticismo"],
+        "seguranca": medias["Seguranca"],
+        "abundancia": medias["Abundancia"],
+        "risco": derived["tolerancia_risco"],
+        "pct_3_4": round(pct_3_4, 1),
+        "auto_reconhecimento": derived["auto_reconhecimento"],
+        "assertividade": derived["assertividade"],
+        "visibilidade_pessoal": derived["visibilidade_pessoal"],
+        "presenca_relacional": derived["presenca_relacional"],
+        "evita_conflito": derived["evita_conflito"],
+        "autonomia_execucao": derived["autonomia_execucao"],
+    }
+    padroes_detalhados = extrair_padroes(perfil_v61, followup_answers or {})
+    padroes = [p["nome"] for p in padroes_detalhados]
+    tensoes = extrair_tensoes(perfil_v61, followup_answers or {})
+    comportamentos = extrair_comportamentos(padroes_detalhados)
 
     flags = []
     if medias["Seguranca"] > medias["Abundancia"]:
@@ -818,10 +965,10 @@ def gerar_perfil(respostas, followup_answers=None):
         flags.append("energia social mais contida")
 
     hipotese_tecnica = []
-    for p in padroes:
-        bloco = PATTERN_LIBRARY.get(p)
+    for p in padroes_detalhados:
+        bloco = PATTERN_LIBRARY.get(p["nome"])
         if bloco:
-            hipotese_tecnica.append(bloco["insight"])
+            hipotese_tecnica.append(f"{bloco['insight']} [peso={p['peso']}, tipo={p['tipo']}, impacto={p['impacto']}]")
     for t in tensoes:
         texto = TENSION_LIBRARY.get(t)
         if texto:
@@ -895,6 +1042,9 @@ def gerar_perfil(respostas, followup_answers=None):
         "padroes": padroes,
         "tensoes": tensoes,
         "followup_answers": followup_answers or {},
+        "perfil_v61": perfil_v61,
+        "padroes_detalhados": padroes_detalhados,
+        "comportamentos": comportamentos,
     }
 
 
@@ -903,16 +1053,17 @@ def gerar_perfil(respostas, followup_answers=None):
 # =============================================================
 
 def gerar_resumo_base(perfil):
-    padroes = perfil["padroes"]
+    padroes_detalhados = perfil.get("padroes_detalhados", [])
     tensoes = perfil["tensoes"]
+    comportamentos = perfil.get("comportamentos", [])
     derived = perfil["derived"]
 
     partes = []
-    for p in padroes:
-        bloco = PATTERN_LIBRARY.get(p)
+    for p in padroes_detalhados:
+        bloco = PATTERN_LIBRARY.get(p["nome"])
         if bloco:
             partes.append(
-                f"{bloco['insight']} {bloco['descricao']} Impacto real: {bloco['custo']}"
+                f"{bloco['insight']} {bloco['descricao']} Impacto real: {bloco['custo']} [peso={p['peso']}]"
             )
 
     if tensoes:
@@ -920,6 +1071,11 @@ def gerar_resumo_base(perfil):
         for t in tensoes:
             if t in TENSION_LIBRARY:
                 partes.append("- " + TENSION_LIBRARY[t])
+
+    if comportamentos:
+        partes.append("Comportamentos dominantes:")
+        for c in comportamentos:
+            partes.append(f"- {c['descricao']} | custo: {c['custo']} | onde aparece: {c['onde']}")
 
     partes.append(
         "Variáveis derivadas: "
@@ -944,8 +1100,9 @@ def gerar_relatorio(perfil):
     maior_contraste_key = perfil["maior_contraste_key"]
     maior_contraste_val = perfil["maior_contraste_val"]
     derived = perfil["derived"]
-    padroes = perfil["padroes"]
+    padroes_detalhados = perfil.get("padroes_detalhados", [])
     tensoes = perfil["tensoes"]
+    comportamentos = perfil.get("comportamentos", [])
     followup_answers = perfil.get("followup_answers", {})
     resumo_base = gerar_resumo_base(perfil)
 
@@ -954,34 +1111,31 @@ def gerar_relatorio(perfil):
         for i, (k, v) in enumerate(ranking_eixos)
     ])
     linhas_medias = "\n".join([f"- {k}: {v:.2f} -> {intensidades[k]}" for k, v in medias.items()])
-    linhas_padroes = "\n".join([f"- {PATTERN_LIBRARY[p]['insight']}" for p in padroes]) if padroes else "- nenhum padrao forte identificado"
+    linhas_padroes = "\n".join([
+        f"- {p['nome']} | peso={p['peso']} | tipo={p['tipo']} | impacto={p['impacto']} | {PATTERN_LIBRARY[p['nome']]['insight']}"
+        for p in padroes_detalhados
+    ]) if padroes_detalhados else "- nenhum padrao forte identificado"
     linhas_tensoes = "\n".join([f"- {TENSION_LIBRARY[t]}" for t in tensoes]) if tensoes else "- nenhuma tensao forte identificada"
+    linhas_comportamentos = "\n".join([
+        f"- {c['descricao']} | custo: {c['custo']} | aparece em: {c['onde']} | peso={c['peso']}"
+        for c in comportamentos
+    ]) if comportamentos else "- nenhum comportamento dominante identificado"
     linhas_followups = "\n".join([f"- {k}: {v}" for k, v in followup_answers.items()]) if followup_answers else "- nenhum follow-up aplicado"
 
     bloco_forcas = []
     bloco_desafios = []
-    for p in padroes:
-        info = PATTERN_LIBRARY.get(p, {})
-        if p in ["presenca_relacional_rara", "execucao_autonoma"]:
-            bloco_forcas.append(f"**{info.get('insight','')}**  \n{info.get('descricao','')}")
-        elif p in ["entrega_sem_visibilidade", "competente_nao_internalizado", "prioriza_estabilidade", "evita_atrito", "perfil_adaptativo", "autoexpressao_reduzida"]:
-            bloco_desafios.append(f"**{info.get('insight','')}**  \n{info.get('descricao','')}")
+    for p in padroes_detalhados:
+        info = PATTERN_LIBRARY.get(p["nome"], {})
+        nome = p["nome"]
+        linha = f"**{info.get('insight','')}**  \n{info.get('descricao','')}"
+        if nome in ["execucao_consistente", "presenca_relacional_rara"]:
+            bloco_forcas.append(linha)
+        else:
+            bloco_desafios.append(linha)
 
-    prompt = f"""
-Você é um analista de comportamento humano altamente preciso.
-Sua função NÃO é parafrasear o questionário.
-Sua função é traduzir dados em padrões comportamentais observáveis, custos reais, tensões internas e contextos de alta performance.
+    prompt = gerar_prompt_v61(perfil.get("perfil_v61", {}), padroes_detalhados, tensoes, comportamentos) + f"""
 
-REGRAS ABSOLUTAS:
-1. Não repita perguntas do teste.
-2. Não use frases genéricas que servem para muitas pessoas.
-3. Cada seção precisa mostrar comportamento observável, custo real e contexto.
-4. Se um insight não estiver sustentado pelos dados, não use.
-5. Seja específico, cirúrgico e humano.
-6. Você deve ir além do eixo e trabalhar a partir dos PADRÕES e TENSÕES.
-7. O leitor deve sentir descoberta real, não reconhecimento superficial.
-
-DADOS DO PERFIL:
+DADOS DE APOIO ADICIONAIS:
 RANKING DOS EIXOS:
 {linhas_ranking}
 
@@ -1008,29 +1162,14 @@ PADROES IDENTIFICADOS:
 TENSOES IDENTIFICADAS:
 {linhas_tensoes}
 
+COMPORTAMENTOS IDENTIFICADOS:
+{linhas_comportamentos}
+
 FOLLOW-UPS:
 {linhas_followups}
 
 RESUMO BASE:
 {resumo_base}
-
-ESTRUTURA OBRIGATORIA:
-1. COMO VOCÊ FUNCIONA DE VERDADE
-2. COMO VOCÊ TOMA DECISÕES
-3. COMO VOCÊ SE RELACIONA
-4. O QUE ACONTECE DENTRO DE VOCÊ
-5. ONDE VOCÊ PODE BRILHAR
-6. SUAS FORÇAS REAIS
-7. ONDE VOCÊ TRAVA
-8. O QUE VALE DESENVOLVER
-11. PRÓXIMOS PASSOS
-
-FORMATO:
-- escreva em português
-- fale em "você"
-- sem termos técnicos desnecessários
-- mostre impacto profissional, relacional e interno
-- seja revelador, não genérico
 """
 
     try:
@@ -1042,7 +1181,8 @@ FORMATO:
                     "content": (
                         "Você é um analista de comportamento humano especializado em transformar padrões de resposta em leitura reveladora. "
                         "Você não parafraseia perguntas. Você identifica mecanismos, custos e contextos. "
-                        "Você escreve apenas o que os dados sustentam."
+                        "Você escreve apenas o que os dados sustentam. "
+                        "Você sempre começa pelo padrão dominante e pela tensão central, nunca por eixos ou rótulos amplos."
                     )
                 },
                 {
@@ -1050,13 +1190,17 @@ FORMATO:
                     "content": prompt
                 }
             ],
-            temperature=0.35,
+            temperature=0.3,
         )
         return response.choices[0].message.content, bloco_forcas, bloco_desafios
     except Exception as e:
         return "Erro ao gerar relatorio:\n\n" + str(e), bloco_forcas, bloco_desafios
 
 
+# =============================================================
+# DEBUG
+# =============================================================
+# DEBUG
 # =============================================================
 # DEBUG
 # =============================================================
@@ -1110,20 +1254,24 @@ def render_debug(perfil):
     st.json(perfil["derived"])
 
     st.subheader("7. Padrões Identificados")
-    for p in perfil["padroes"]:
-        st.write("→ " + PATTERN_LIBRARY[p]["insight"])
+    for p in perfil.get("padroes_detalhados", []):
+        st.write(f"→ {PATTERN_LIBRARY[p['nome']]['insight']} [peso={p['peso']}, tipo={p['tipo']}, impacto={p['impacto']}]")
 
-    st.subheader("8. Tensões Identificadas")
+    st.subheader("8. Comportamentos Dominantes")
+    for c in perfil.get("comportamentos", []):
+        st.write(f"→ {c['descricao']} (peso={c['peso']})")
+
+    st.subheader("9. Tensões Identificadas")
     for t in perfil["tensoes"]:
         st.write("→ " + TENSION_LIBRARY[t])
 
-    st.subheader("9. Follow-ups")
+    st.subheader("10. Follow-ups")
     if perfil.get("followup_answers"):
         st.json(perfil["followup_answers"])
     else:
         st.write("Nenhum follow-up aplicado.")
 
-    st.subheader("10. Qualidade Estatística")
+    st.subheader("11. Qualidade Estatística")
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Media Geral", str(perfil["media_geral"]))
     c2.metric("Desvio Padrao", str(perfil["desvio_padrao"]))
