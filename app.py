@@ -1,89 +1,67 @@
+import streamlit as st
 from openai import OpenAI
 
-client = OpenAI(api_key="SUA_API_KEY_AQUI")
+# =========================
+# 🔐 OPENAI (CORRIGIDO)
+# =========================
 
-# -----------------------------
-# 1. PERFIL MOCK (SUBSTITUIR PELO SEU FLUXO REAL)
-# -----------------------------
-perfil = {
-    "eixos": {
-        "abertura": 4.0,
-        "conscienciosidade": 3.7,
-        "extroversao": 3.0,
-        "seguranca": 3.5
-    },
-    "derivados": {
-        "auto_reconhecimento": 2.5,
-        "visibilidade_pessoal": 2.7,
-        "tolerancia_risco": 2.7,
-        "pct_3_4": 82.0
-    },
-    "followups": {
-        "posicionamento_social": "Depende muito da pessoa e do contexto"
-    }
-}
+def get_openai_client():
+    api_key = st.secrets.get("OPENAI_API_KEY", "")
+    if not api_key:
+        return None
+    return OpenAI(api_key=api_key)
 
-# -----------------------------
-# 2. PADRÕES
-# -----------------------------
-def extrair_padroes(perfil):
-    p = perfil["eixos"]
-    d = perfil["derivados"]
-    f = perfil["followups"]
+# =========================
+# 🧠 V6.1 MOTOR
+# =========================
 
+def extrair_padroes(perfil, followups):
     padroes = []
 
-    if p["conscienciosidade"] >= 3.5 and p["extroversao"] <= 3.2:
+    if perfil["conscienciosidade"] >= 3.5 and perfil["extroversao"] <= 3.2:
         padroes.append({"nome": "merito_subcomunicado", "peso": 9})
 
-    if p["abertura"] - p["extroversao"] >= 0.7:
+    if perfil["abertura"] - perfil["extroversao"] >= 0.7:
         padroes.append({"nome": "clareza_interna_maior_que_presenca", "peso": 8})
 
-    if p["seguranca"] >= 3.4 and d["tolerancia_risco"] <= 3.0:
+    if perfil["seguranca"] >= 3.4 and perfil["risco"] <= 3.0:
         padroes.append({"nome": "prudencia_funcional", "peso": 8})
 
-    if p["conscienciosidade"] >= 3.5:
+    if perfil["conscienciosidade"] >= 3.5:
         padroes.append({"nome": "execucao_consistente", "peso": 7})
 
-    if d["pct_3_4"] >= 75:
+    if perfil["pct_3_4"] >= 75:
         padroes.append({"nome": "economia_de_extremos", "peso": 7})
 
-    if f.get("posicionamento_social") == "Depende muito da pessoa e do contexto":
+    if followups.get("posicionamento_social") == "Depende muito da pessoa e do contexto":
         padroes.append({"nome": "exposicao_seletiva", "peso": 8})
 
     return sorted(padroes, key=lambda x: x["peso"], reverse=True)
 
-# -----------------------------
-# 3. TENSÕES
-# -----------------------------
-def extrair_tensoes(perfil):
-    p = perfil["eixos"]
-    d = perfil["derivados"]
 
+def extrair_tensoes(perfil):
     tensoes = []
 
-    if p["conscienciosidade"] >= 3.5 and p["extroversao"] <= 3.2:
+    if perfil["conscienciosidade"] >= 3.5 and perfil["extroversao"] <= 3.2:
         tensoes.append("valor_real_vs_presenca_percebida")
 
-    if p["seguranca"] >= 3.4 and d["tolerancia_risco"] <= 3.0:
+    if perfil["seguranca"] >= 3.4 and perfil["risco"] <= 3.0:
         tensoes.append("seguranca_vs_expansao")
 
-    if p["abertura"] > p["extroversao"]:
+    if perfil["abertura"] > perfil["extroversao"]:
         tensoes.append("complexidade_interna_vs_expressao_externa")
 
     return tensoes
 
-# -----------------------------
-# 4. COMPORTAMENTOS
-# -----------------------------
+
 def extrair_comportamentos(padroes):
     mapa = {
         "merito_subcomunicado": "Entrega valor consistente, mas comunica menos do que poderia.",
         "clareza_interna_maior_que_presenca": "Tem mais clareza interna do que presença externa visível.",
-        "prudencia_funcional": "Prefere segurança antes de expandir.",
-        "execucao_consistente": "Mantém execução mesmo sem alta motivação.",
-        "economia_de_extremos": "Evita posições extremas ao se definir.",
-        "exposicao_seletiva": "Se posiciona de forma diferente dependendo do contexto."
+        "prudencia_funcional": "Prefere segurança e consistência antes de expandir.",
+        "execucao_consistente": "Mantém padrão de execução mesmo sem motivação alta.",
+        "economia_de_extremos": "Evita posições extremas e tende à moderação nas decisões.",
+        "exposicao_seletiva": "Se expõe mais ou menos dependendo do ambiente e das pessoas."
     }
 
     comportamentos = []
@@ -97,20 +75,23 @@ def extrair_comportamentos(padroes):
 
     return sorted(comportamentos, key=lambda x: x["peso"], reverse=True)
 
-# -----------------------------
-# 5. PROMPT
-# -----------------------------
+
 def gerar_prompt(perfil, padroes, tensoes, comportamentos):
     return f"""
-Você é um analista de comportamento humano extremamente preciso.
+Você é um analista de comportamento humano altamente preciso.
 
-REGRAS:
-- Não use termos técnicos de personalidade
-- Não generalize
-- Não repita perguntas
-- Seja específico
+Seu objetivo é gerar um relatório profundo, específico e não genérico.
 
-PADRÕES:
+REGRAS CRÍTICAS:
+- NÃO use termos como "alta abertura", "baixa extroversão"
+- NÃO parafraseie perguntas
+- NÃO escreva frases genéricas
+- Foque em comportamento observável
+- Seja direto e específico
+
+DADOS:
+
+PADRÕES PRINCIPAIS:
 {padroes}
 
 TENSÕES:
@@ -120,28 +101,62 @@ COMPORTAMENTOS:
 {comportamentos}
 
 TAREFA:
-1. Comece pelo padrão mais forte
-2. Explique o comportamento dominante
-3. Mostre a principal tensão
-4. Explique o custo invisível
-5. Diga onde isso aparece na vida real
-6. Dê direção prática
 
-Escreva de forma direta, humana e específica.
+1. Comece pelo padrão mais forte
+2. Descreva o comportamento dominante
+3. Explique a principal tensão
+4. Mostre o custo invisível
+5. Diga onde isso aparece na vida real
+6. Finalize com direção prática
+
+Gere o relatório agora.
 """
 
-# -----------------------------
-# 6. EXECUÇÃO
-# -----------------------------
-padroes = extrair_padroes(perfil)
-tensoes = extrair_tensoes(perfil)
-comportamentos = extrair_comportamentos(padroes)
 
-prompt = gerar_prompt(perfil, padroes, tensoes, comportamentos)
+# =========================
+# 🎯 EXEMPLO DE PERFIL (TESTE)
+# =========================
 
-response = client.responses.create(
-    model="gpt-4.1-mini",
-    input=prompt
-)
+# ⚠️ Substitua isso pelo seu cálculo real
+perfil = {
+    "abertura": 4.0,
+    "extroversao": 3.0,
+    "conscienciosidade": 3.7,
+    "seguranca": 3.5,
+    "risco": 2.8,
+    "pct_3_4": 92
+}
 
-print(response.output[0].content[0].text)
+followups = {
+    "posicionamento_social": "Depende muito da pessoa e do contexto"
+}
+
+# =========================
+# 🚀 EXECUÇÃO
+# =========================
+
+st.title("Mind Insight V6.1")
+
+client = get_openai_client()
+
+if client is None:
+    st.error("Configure OPENAI_API_KEY nos Secrets.")
+    st.stop()
+
+if st.button("Gerar Relatório"):
+
+    padroes = extrair_padroes(perfil, followups)
+    tensoes = extrair_tensoes(perfil)
+    comportamentos = extrair_comportamentos(padroes)
+
+    prompt = gerar_prompt(perfil, padroes, tensoes, comportamentos)
+
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        input=prompt
+    )
+
+    resultado = response.output[0].content[0].text
+
+    st.subheader("Resultado:")
+    st.write(resultado)
