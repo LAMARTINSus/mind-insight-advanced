@@ -3,7 +3,8 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V7
+# Version: V7.8
+# Data: 2026-04-16
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
 # Reestruturado para inferência comportamental profunda com impacto psicológico e amplitude por facetas
@@ -34,6 +35,12 @@
 #      - Distribui causa principal e ângulo narrativo por seção
 #      - Prioriza fonte exclusiva de dados em cada parte do relatório
 #      - Reforça checklist final de não repetição antes de gerar
+# V7.8 - Separação causal real + linguagem humana + anti-colapso narrativo
+#      - Data: 2026-04-16
+#      - Bloqueia reuso de causa principal entre seções
+#      - Força lente exclusiva e fonte principal concreta por seção
+#      - Adiciona protocolo interno de pré-escrita e testes anti-colapso
+#      - Reforça linguagem natural, humana e sem tom de ferramenta
 #
 # V6.0 - Nova engine de inferência comportamental
 #      - Mantém Google Sheets, email, modo teste e debug
@@ -57,7 +64,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V7.5"
+APP_VERSION = "V7.8"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -1643,44 +1650,58 @@ def gerar_relatorio(perfil):
 
     prompt = f"""
 Você é um analista de comportamento humano altamente preciso.
-Seu trabalho é produzir um relatório fiel, específico, multidimensional e psicologicamente impactante.
+Seu trabalho é produzir um relatório fiel, profundo, multidimensional e psicologicamente impactante.
 
 OBJETIVO DA VERSÃO {APP_VERSION}:
-Gerar um relatório comportamental profundo, multidimensional e NÃO repetitivo, usando múltiplas fontes de análise sem colapsar tudo em um único padrão narrativo.
+Gerar um relatório comportamental sem repetição estrutural, sem repetição semântica, com múltiplas lentes reais e com linguagem natural, humana e fluida. O relatório deve parecer uma leitura feita por diferentes ângulos legítimos da mesma pessoa — e não a mesma ideia reescrita várias vezes.
+
+REGRA CENTRAL:
+Cada seção deve ter obrigatoriamente uma pergunta principal própria, uma lente explicativa própria, uma fonte principal de dados própria e uma causa principal própria.
+Se duas seções compartilharem a mesma causa principal, o relatório está errado.
 
 REGRAS CRÍTICAS:
-1. REGRA DE CAUSA PRINCIPAL ÚNICA: um mesmo padrão psicológico só pode ser usado como causa principal em UMA única seção.
-2. Se um padrão aparecer nas outras seções, ele pode surgir apenas como consequência, contexto ou efeito secundário, nunca como explicação central novamente.
-3. REGRA DE NÃO REPETIÇÃO SEMÂNTICA: é proibido repetir a mesma ideia com palavras diferentes.
-4. Exemplo prático de repetição proibida: "você entrega mais do que projeta", "seu valor aparece menos do que deveria" e "sua presença não acompanha sua capacidade" contam como a MESMA ideia.
-5. REGRA DE PERGUNTA ÚNICA POR SEÇÃO: cada seção deve responder uma pergunta diferente e não pode invadir a pergunta central da outra.
+1. PROIBIÇÃO DE REUSO DE CAUSA: uma causa usada como principal em uma seção NÃO pode ser usada novamente como causa principal em outra.
+2. Se essa causa reaparecer, só pode surgir como contexto secundário, consequência indireta ou pano de fundo — nunca como eixo explicativo novamente.
+3. PROIBIÇÃO DE REPETIÇÃO SEMÂNTICA: é proibido repetir a mesma ideia com palavras diferentes.
+4. Exemplo de repetição proibida: "você entrega mais do que projeta", "seu valor aparece menos do que deveria" e "sua presença não acompanha sua capacidade" contam como a mesma ideia.
+5. PERGUNTA ÚNICA POR SEÇÃO: cada seção responde a uma pergunta diferente.
 6. EIXO CENTRAL responde: qual é o padrão dominante do seu funcionamento?
-7. EXECUÇÃO responde: como você decide e age?
-8. PRESENÇA responde: como você aparece para os outros?
-9. MUNDO INTERNO responde: como você funciona por dentro?
-10. RELAÇÕES responde: como você lida com pessoas, limites e conflito?
-11. VALOR responde: como você converte valor em oportunidade?
-12. REGRA DE FONTE EXCLUSIVA POR SEÇÃO: cada seção deve ser construída prioritariamente com sua própria fonte de dados.
-13. EIXO CENTRAL usa padrões + tensões globais.
-14. EXECUÇÃO usa prioritariamente a ENGINE EXTRA - EXECUÇÃO/DECISÃO.
-15. PRESENÇA usa prioritariamente a ENGINE EXTRA - PRESENÇA SOCIAL.
-16. MUNDO INTERNO usa prioritariamente a ENGINE EXTRA - MUNDO INTERNO.
-17. RELAÇÕES usa prioritariamente a ENGINE EXTRA - RELAÇÕES/LIMITES.
-18. VALOR usa prioritariamente a ENGINE EXTRA - VALOR/OPORTUNIDADE.
-19. É proibido usar padrões globais como base principal em todas as seções.
-20. É proibido misturar fontes sem critério narrativo claro.
-21. REGRA DE ÂNGULO NARRATIVO: cada seção deve enfatizar um ângulo diferente.
-22. Exemplos válidos de ângulo: execução = processo de decisão; presença = variação de comportamento social; mundo interno = processamento mental; relações = negociação de espaço; valor = conversão de valor em movimento.
-23. REGRA DE DIVERSIDADE REAL: cada seção deve trazer comportamento observável, custo invisível e contexto real.
-24. Esses três elementos não podem ser descritos do mesmo jeito em seções diferentes.
-25. NÃO reduza a pessoa a um único padrão dominante.
-26. NÃO parafraseie perguntas do teste.
-27. NÃO use linguagem de eixo como "alta abertura" ou "baixa extroversão" no texto final.
-28. Gere identificação imediata e desconforto construtivo, sem dramatização barata.
-29. Use follow-ups como desempate real de interpretação.
-30. Se houver compressão de respostas, trate isso como modulador do tom, não como desculpa para superficialidade.
-31. A seção de direção prática precisa trazer 3 movimentos em áreas DIFERENTES, não 3 variações do mesmo conselho.
-32. Antes de concluir o texto, faça uma checagem silenciosa: se duas seções estiverem respondendo a mesma pergunta ou repetindo a mesma causa principal, reescreva.
+7. EXECUÇÃO responde: como você decide, processa variáveis e entra em ação?
+8. PRESENÇA responde: como você se comporta socialmente em diferentes contextos?
+9. MUNDO INTERNO responde: como você se organiza por dentro?
+10. RELAÇÕES responde: como você lida com limite, convivência e conflito?
+11. VALOR responde: como você transforma capacidade em avanço real?
+12. LENTE EXCLUSIVA POR SEÇÃO: cada seção deve usar uma lente diferente.
+13. EIXO CENTRAL = padrão organizador global.
+14. EXECUÇÃO = processo de decisão.
+15. PRESENÇA = comportamento social contextual.
+16. MUNDO INTERNO = processamento interno e autoimagem.
+17. RELAÇÕES = negociação de espaço e limite.
+18. VALOR = conversão de capacidade em oportunidade.
+19. FONTE PRINCIPAL CONCRETA POR SEÇÃO: use como base dominante apenas o bloco principal já entregue para cada parte.
+20. EIXO CENTRAL deve ser construído principalmente com PADROES PRIORIZADOS + TENSOES PRIORIZADAS.
+21. EXECUÇÃO deve ser construída principalmente com ENGINE EXTRA - EXECUÇÃO/DECISÃO + insumos da seção 2.
+22. PRESENÇA deve ser construída principalmente com ENGINE EXTRA - PRESENÇA SOCIAL + insumos da seção 3.
+23. MUNDO INTERNO deve ser construído principalmente com ENGINE EXTRA - MUNDO INTERNO + insumos da seção 4.
+24. RELAÇÕES deve ser construída principalmente com ENGINE EXTRA - RELAÇÕES/LIMITES + insumos da seção 5.
+25. VALOR deve ser construída principalmente com ENGINE EXTRA - VALOR/OPORTUNIDADE + insumos da seção 6.
+26. É proibido usar a melhor interpretação global do perfil como base dominante fora do eixo central.
+27. É proibido apenas recolorir a mesma tese com vocabulário diferente em seções diferentes.
+28. DIVERSIDADE REAL: cada seção deve conter comportamento observável, custo invisível e contexto real — e esses elementos não podem ser repetidos do mesmo jeito entre seções.
+29. NÃO reduza a pessoa a um único padrão.
+30. NÃO parafraseie perguntas do teste.
+31. Use follow-ups como desempate real de interpretação.
+32. Se houver compressão de respostas, trate isso como modulador do tom, não como desculpa para superficialidade.
+33. A seção de direção prática precisa trazer 3 movimentos em áreas realmente diferentes.
+
+PROTOCOLO INTERNO OBRIGATÓRIO ANTES DE ESCREVER CADA SEÇÃO:
+Antes de redigir cada parte, defina mentalmente em uma linha:
+- pergunta da seção
+- causa principal da seção
+- lente da seção
+- fonte principal da seção
+- ideia proibida que NÃO pode ser reutilizada da seção anterior
+Se houver coincidência de causa principal, de lente ou de ideia central entre duas seções, reescreva antes de seguir.
 
 MODULADOR DE COMPRESSÃO:
 {modulador_tom}
@@ -1757,42 +1778,39 @@ INSUMOS POR SEÇÃO:
 
 ESTRUTURA OBRIGATORIA:
 1. EIXO CENTRAL DO SEU FUNCIONAMENTO
-(usar padrões + tensões)
 2. EXECUÇÃO E TOMADA DE DECISÃO
-(usar engine execução)
 3. PRESENÇA SOCIAL E EXPRESSÃO EXTERNA
-(usar engine presença)
 4. MUNDO INTERNO E AUTOIMAGEM
-(usar engine interno)
 5. RELAÇÕES, LIMITES E CONFLITO
-(usar engine relacional)
 6. VALOR, OPORTUNIDADE E MERECIMENTO
-(usar engine valor)
 7. DIREÇÃO PRÁTICA
-(3 ações em áreas DIFERENTES — não repetir foco)
 8. FRASE FINAL DE IMPACTO
 
-REGRAS DE ESTILO:
-- escrever em português
-- usar "você"
-- linguagem clara, direta e humana
-- sem jargão técnico
-- sem mencionar "engines"
-- sem linguagem de modelo psicológico
+INSTRUÇÕES ESPECÍFICAS POR SEÇÃO:
+- EIXO CENTRAL: esta é a única seção autorizada a abrir a tese principal do retrato.
+- EXECUÇÃO: foque em decisão, critério de entrada em ação, autonomia, reversibilidade, clareza e timing. Não repetir presença, reconhecimento ou valor como eixo.
+- PRESENÇA: foque em comportamento social, variação por contexto, leitura de ambiente, seletividade de exposição e nitidez relacional. Não transformar em "você não aparece".
+- MUNDO INTERNO: foque em autoimagem, mérito, exigência interna, elaboração psicológica e crédito interno. Não usar presença ou timing como núcleo.
+- RELAÇÕES: foque em limites, convivência, conflito, negociação de espaço, custo emocional do atrito e timing de posicionamento. Não repetir presença nem valor.
+- VALOR: foque em oportunidade, merecimento, pedido, avanço, precificação, proposta e conversão prática. Não repetir o eixo central com linguagem de crescimento.
+- DIREÇÃO PRÁTICA: cada ação deve conter território claro, comportamento específico, contexto real e risco evitado.
+- FRASE FINAL: deve ser forte, precisa e memorável, sem colapsar o relatório em uma única explicação.
 
-REGRAS DE DISTRIBUIÇÃO DE FOCO:
-- seção 2: enfatizar processo de decisão, critério de entrada em ação, autonomia e timing
-- seção 3: enfatizar como você aparece para os outros e como sua presença varia conforme contexto social
-- seção 4: enfatizar funcionamento interno, elaboração psicológica, mérito, crédito interno e autoexigência
-- seção 5: enfatizar negociação de espaço, limite implícito, custo emocional do conflito e modo de proteger vínculo
-- seção 6: enfatizar conversão de valor em movimento, merecimento, abundância e transformação de capacidade em ganho real
+REGRA DE HUMANIZAÇÃO:
+O texto final NÃO pode soar técnico, analítico demais ou com cara de ferramenta.
+O texto final DEVE soar como uma leitura direta, humana, fluida e precisa de uma pessoa real.
+Evite frases diagnósticas frias e abstrações excessivas.
+Prefira descrever comportamento, custo e contexto de maneira natural.
+Não use no texto final palavras como "engine", "modelo", "sistema" ou "eixo".
 
-CHECK FINAL SILENCIOSO ANTES DE GERAR:
-- estou repetindo a mesma ideia em mais de uma seção?
-- cada seção tem foco diferente?
-- estou usando a fonte correta de dados como base principal?
-- estou trazendo algo novo em cada parte?
-Se houver repetição semântica ou duplicação de causa principal, reescreva antes de finalizar.
+TESTES FINAIS OBRIGATÓRIOS:
+1. Se uma única frase conseguir resumir 3 ou mais seções, o relatório está errado.
+2. Se duas seções tiverem a mesma causa principal, o relatório está errado.
+3. Se duas seções tiverem a mesma lente, o relatório está errado.
+4. Se duas seções parecerem apenas variações da mesma ideia, o relatório está errado.
+5. Se a seção estiver usando como base dominante uma fonte que não seja a dela, o relatório está errado.
+6. Se o texto parecer técnico, frio ou com cara de ferramenta, o relatório está errado.
+Se qualquer teste falhar, reescreva antes de finalizar.
 """
 
     try:
@@ -1802,10 +1820,10 @@ Se houver repetição semântica ou duplicação de causa principal, reescreva a
                 {
                     "role": "system",
                     "content": (
-                        "Você é um analista de comportamento humano especializado em transformar padrões de resposta em leitura reveladora. "
-                        "Você não parafraseia perguntas. Você identifica mecanismos, custos, potencial escondido e contextos de alta performance. "
-                        "Você integra profundidade com amplitude sem repetir semanticamente a mesma tese em várias seções. "
-                        "Cada seção precisa responder uma pergunta diferente, usar sua fonte principal correta e evitar reaproveitar a mesma causa central fora do lugar."
+                        "Você é um analista de comportamento humano especializado em transformar padrões de resposta em leitura reveladora e humana. "
+                        "Você não parafraseia perguntas. Você identifica mecanismos, custos, contexto real e potencial escondido sem soar técnico. "
+                        "Você não pode reutilizar a mesma causa principal em várias seções, nem recolorir a mesma tese com palavras diferentes. "
+                        "Cada seção precisa responder a uma pergunta diferente, usar sua fonte principal correta, ter lente própria e soar como leitura de pessoa, não como saída de ferramenta."
                     )
                 },
                 {
@@ -2415,4 +2433,3 @@ else:
     with col2:
         if st.button("Voltar ao início"):
             reset_all(0)
-            st.rerun()
