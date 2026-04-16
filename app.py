@@ -18,6 +18,11 @@
 #      - Follow-ups usados como desempate real de interpretação
 #      - Compressão de respostas modula o tom do relatório
 #      - Relatório multidimensional: profundidade sem reducionismo
+# V7.3A - Engines extras separadas para aprofundar presença social e mundo interno
+#      - Corrige bugs de retorno em Google Sheets e email
+#      - Adiciona engine_presenca_social
+#      - Adiciona engine_mundo_interno
+#      - Integra engines no perfil, relatório e debug
 #
 # V6.0 - Nova engine de inferência comportamental
 #      - Mantém Google Sheets, email, modo teste e debug
@@ -41,7 +46,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V7.2"
+APP_VERSION = "V7.3A"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -462,7 +467,6 @@ def registrar_no_sheets(dados):
         ws.append_row(linha)
         return True, "ok"
     except Exception as e:
-        return "Erro ao gerar relatorio:\n\n" + str(e), bloco_forcas, bloco_desafios
         import traceback
         tb = traceback.format_exc().replace("\n", " | ")
         return False, str(e) + " | DETALHE: " + tb
@@ -506,7 +510,6 @@ def enviar_email(destinatario, nome, relatorio_texto):
             server.sendmail(gmail_user, destinatario, msg.as_string())
         return True, "ok"
     except Exception as e:
-        return "Erro ao gerar relatorio:\n\n" + str(e), bloco_forcas, bloco_desafios
         return False, str(e)
 
 
@@ -646,6 +649,107 @@ def compute_derived_variables(medias, raw, adjusted, followup_answers=None):
         "visibilidade_pessoal": visibilidade_pessoal,
         "evita_conflito": evita_conflito,
         "autonomia_execucao": autonomia_execucao,
+    }
+
+
+# =============================================================
+# ENGINES EXTRAS V7.3A
+# =============================================================
+
+def engine_presenca_social(medias, derived, raw, followup_answers=None):
+    followup_answers = followup_answers or {}
+
+    leitura = []
+    riscos = []
+    forcas = []
+    ajustes = []
+
+    vis = derived["visibilidade_pessoal"]
+    ass = derived["assertividade"]
+    ext = medias["Extroversao"]
+    pos = followup_answers.get("posicionamento_social", "")
+
+    if vis <= 2.9:
+        leitura.append("valor_aparece_menos_do_que_deveria")
+        riscos.append("Sua qualidade pode demorar mais para ser percebida em ambientes onde visibilidade pesa tanto quanto competência.")
+
+    if ext <= 3.1:
+        leitura.append("presenca_nao_expansiva")
+    elif ext >= 3.6:
+        leitura.append("presenca_espontaneamente_ativa")
+
+    if ass <= 3.0:
+        leitura.append("assertividade_contida")
+        riscos.append("Em ambientes competitivos, sua posição pode parecer menos nítida do que realmente é.")
+    elif ass >= 3.7:
+        forcas.append("posicionamento_claro")
+
+    if pos == "Depende muito da pessoa e do contexto":
+        leitura.append("expressao_contextual")
+        ajustes.append("Sua presença muda bastante conforme o ambiente, o vínculo e o nível de segurança relacional.")
+    elif pos == "Falo de forma direta e tranquila":
+        forcas.append("fala_direta_sem_teatralidade")
+    elif pos == "Adio ou evito para não criar tensão":
+        riscos.append("Você pode proteger demais a fluidez do ambiente e perder timing de posicionamento.")
+
+    if vis <= 3.0 and medias["Conscienciosidade"] >= 3.5:
+        leitura.append("entrega_maior_que_presenca")
+        riscos.append("Você tende a depender demais de que os outros percebam sozinhos o seu valor.")
+
+    return {
+        "leitura": leitura,
+        "riscos": riscos,
+        "forcas": forcas,
+        "ajustes": ajustes,
+    }
+
+
+def engine_mundo_interno(medias, derived, raw, followup_answers=None):
+    followup_answers = followup_answers or {}
+
+    leitura = []
+    riscos = []
+    forcas = []
+    ajustes = []
+
+    auto_rec = derived["auto_reconhecimento"]
+    autoex = derived["autoexigencia"]
+    aber = medias["Abertura"]
+    neuro = medias["Neuroticismo"]
+    rec = followup_answers.get("reconhecimento", "")
+
+    if aber >= 3.7:
+        leitura.append("vida_mental_rica")
+        forcas.append("complexidade_interna")
+        ajustes.append("Seu mundo interno tende a ter mais camadas, conexões e elaboração do que aparece de imediato.")
+
+    if auto_rec <= 2.9:
+        leitura.append("merito_nao_internalizado")
+        riscos.append("Você pode continuar produzindo sem transformar resultado em crédito interno real.")
+
+    if autoex >= 4.0:
+        leitura.append("autoexigencia_alta")
+        riscos.append("O que você entrega pode virar obrigação cumprida, não evidência acumulada de valor.")
+
+    if neuro <= 2.9:
+        forcas.append("estabilidade_funcional")
+        ajustes.append("Seu custo interno nem sempre aparece como drama. Ele pode surgir de forma limpa, funcional e silenciosa.")
+
+    if rec == "Recebo bem e sigo em frente":
+        leitura.append("reconhecimento_nao_fixado")
+        riscos.append("Você pode receber reconhecimento sem metabolizar de fato o que aquilo confirma sobre você.")
+    elif rec == "Agradeço, mas minimizo por hábito":
+        leitura.append("minimizacao_do_merito")
+        riscos.append("Há chance de você reduzir internamente conquistas legítimas quase por reflexo.")
+    elif rec == "Fico desconfortável e tento mudar de assunto":
+        leitura.append("desconforto_com_o_proprio_valor")
+        riscos.append("O reconhecimento pode tocar mais em desconforto do que em consolidação de identidade.")
+
+    return {
+        "leitura": leitura,
+        "riscos": riscos,
+        "forcas": forcas,
+        "ajustes": ajustes,
     }
 
 
@@ -961,6 +1065,10 @@ def gerar_perfil(respostas, followup_answers=None):
     eixos_moderados = {k: v for k, v in medias.items() if 3.0 <= v < 3.5}
 
     derived = compute_derived_variables(medias, respostas, respostas_ajustadas, followup_answers)
+
+    engine_presenca = engine_presenca_social(medias, derived, respostas, followup_answers)
+    engine_interno = engine_mundo_interno(medias, derived, respostas, followup_answers)
+
     padroes_v62 = extract_patterns_v62(medias, derived, respostas, pct_3_4, followup_answers)
     tensoes_v62 = extract_tensions_v62(medias, derived, followup_answers)
     comportamentos_v62 = extract_behaviors_v62(padroes_v62, tensoes_v62, followup_answers)
@@ -1066,6 +1174,8 @@ def gerar_perfil(respostas, followup_answers=None):
         "padroes_v62": padroes_v62,
         "tensoes_v62": tensoes_v62,
         "comportamentos_v62": comportamentos_v62,
+        "engine_presenca": engine_presenca,
+        "engine_mundo_interno": engine_interno,
         "followup_answers": followup_answers or {},
     }
 
@@ -1269,6 +1379,8 @@ def gerar_relatorio(perfil):
     followup_answers = perfil.get("followup_answers", {})
     resumo_base = gerar_resumo_base(perfil)
     section_map = build_section_map_v71(perfil)
+    engine_presenca = perfil.get("engine_presenca", {})
+    engine_mundo_interno = perfil.get("engine_mundo_interno", {})
 
     linhas_ranking = "\n".join([
         f"  {i + 1}. {k}: {v:.2f} [{intensidades[k]}]"
@@ -1311,6 +1423,20 @@ def gerar_relatorio(perfil):
         "O perfil tem contraste suficiente para afirmações mais nítidas e concretas."
     )
 
+    bloco_engine_presenca = "\n".join(
+        [f"- leitura: {x}" for x in engine_presenca.get("leitura", [])] +
+        [f"- força: {x}" for x in engine_presenca.get("forcas", [])] +
+        [f"- risco: {x}" for x in engine_presenca.get("riscos", [])] +
+        [f"- ajuste: {x}" for x in engine_presenca.get("ajustes", [])]
+    ) if engine_presenca else "- sem dados extras"
+
+    bloco_engine_interno = "\n".join(
+        [f"- leitura: {x}" for x in engine_mundo_interno.get("leitura", [])] +
+        [f"- força: {x}" for x in engine_mundo_interno.get("forcas", [])] +
+        [f"- risco: {x}" for x in engine_mundo_interno.get("riscos", [])] +
+        [f"- ajuste: {x}" for x in engine_mundo_interno.get("ajustes", [])]
+    ) if engine_mundo_interno else "- sem dados extras"
+
     prompt = f"""
 Você é um analista de comportamento humano altamente preciso.
 Seu trabalho é produzir um relatório fiel, específico, multidimensional e psicologicamente impactante.
@@ -1332,6 +1458,8 @@ REGRAS CRÍTICAS:
 11. Use follow-ups como desempate real de interpretação.
 12. Se houver compressão de respostas, trate isso como modulador do tom, não como desculpa para superficialidade.
 13. A seção de direção prática precisa trazer 3 movimentos em áreas DIFERENTES, não 3 variações do mesmo conselho.
+14. Na seção de presença social, use também a ENGINE EXTRA - PRESENÇA SOCIAL como fonte de nuance.
+15. Na seção de mundo interno, use também a ENGINE EXTRA - MUNDO INTERNO como fonte de nuance.
 
 MODULADOR DE TOM:
 {modulador_tom}
@@ -1372,6 +1500,12 @@ FOLLOW-UPS:
 RESUMO BASE:
 {resumo_base}
 
+ENGINE EXTRA - PRESENÇA SOCIAL:
+{bloco_engine_presenca}
+
+ENGINE EXTRA - MUNDO INTERNO:
+{bloco_engine_interno}
+
 INSUMOS POR SEÇÃO:
 1. EIXO CENTRAL DO SEU FUNCIONAMENTO
 {format_section_inputs_v71(section_map['central'])}
@@ -1408,6 +1542,8 @@ FORMATO:
 - evite jargão técnico
 - cada seção deve ter foco próprio
 - não repetir a mesma ideia com palavras diferentes
+- na seção 3, use explicitamente os sinais da engine de presença para evitar repetir apenas "entrega maior que projeção"
+- na seção 4, use explicitamente os sinais da engine de mundo interno para aprofundar mérito, autoexigência, crédito interno e elaboração psicológica
 """
 
     try:
@@ -1510,6 +1646,12 @@ def render_debug(perfil):
         st.json(perfil["followup_answers"])
     else:
         st.write("Nenhum follow-up aplicado.")
+
+    st.subheader("9.1 Engine Extra - Presença Social")
+    st.json(perfil.get("engine_presenca", {}))
+
+    st.subheader("9.2 Engine Extra - Mundo Interno")
+    st.json(perfil.get("engine_mundo_interno", {}))
 
     st.subheader("10. Qualidade Estatística")
     c1, c2, c3, c4, c5 = st.columns(5)
