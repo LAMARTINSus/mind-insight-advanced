@@ -3,7 +3,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V7.9
+# Version: V8.0
 # Data: 2026-04-16
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
@@ -48,6 +48,13 @@
 #      - Torna mandatória a fonte dominante correta em cada seção
 #      - Impede que o bloco final recompacte o relatório em frases redundantes
 #      - Reforça testes finais bloqueantes e mantém linguagem humana
+# V8.0 - Linguagem direta + maior cobertura temática + calibração mais limpa
+#      - Data: 2026-04-16
+#      - Proíbe construção por negação comparativa e contraste artificial no texto final
+#      - Mantém separação causal, mas impede vazamento da etapa interna para o relatório
+#      - Exige novidade real por seção e maior cobertura de áreas pouco salientadas do perfil
+#      - Reforça potenciais positivos, autonomia silenciosa, abertura cognitiva e escuta fina
+#      - Simplifica a afirmação de reconhecimento na calibração guiada
 #
 # V6.0 - Nova engine de inferência comportamental
 #      - Mantém Google Sheets, email, modo teste e debug
@@ -71,7 +78,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V7.9"
+APP_VERSION = "V8.0"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -1660,23 +1667,18 @@ Você é um analista de comportamento humano altamente preciso.
 Seu trabalho é produzir um relatório fiel, profundo, multidimensional e psicologicamente impactante.
 
 OBJETIVO DA VERSÃO {APP_VERSION}:
-Gerar um relatório comportamental sem repetição estrutural, sem repetição semântica e sem reaproveitamento da mesma família causal entre seções. O relatório deve soar humano, fluido e preciso, como se a mesma pessoa tivesse sido lida por múltiplos sistemas reais — e não pela mesma tese reescrita várias vezes.
+Gerar um relatório comportamental com linguagem direta, profundidade real, cobertura mais ampla do perfil e separação causal consistente entre seções. O texto final deve soar humano, claro e preciso, sem repetir a mesma lógica com vocabulário diferente e sem usar contrastes artificiais para parecer sofisticado.
 
 REGRA CENTRAL:
 Cada seção deve ter obrigatoriamente uma pergunta principal própria, uma lente explicativa própria, uma fonte principal de dados própria e uma causa principal própria.
 Não basta mudar o nome da causa. Se duas seções derivarem da mesma tese-mãe, da mesma família causal, do mesmo gargalo estrutural ou da mesma explicação-base com roupas diferentes, o relatório está errado.
 
 REGRA DE EXCLUSIVIDADE CAUSAL FORÇADA:
-Antes de escrever o relatório, defina explicitamente 6 causas principais diferentes, uma para cada seção:
-- causa A para o eixo central
-- causa B para execução
-- causa C para presença
-- causa D para mundo interno
-- causa E para relações
-- causa F para valor
+Antes de escrever o relatório, defina silenciosamente 6 causas principais diferentes, uma para cada seção.
+Essas causas são internas e não podem aparecer no texto final como lista, introdução metodológica ou explicação de bastidor.
 Nenhuma delas pode ser variação semântica, aplicação lateral, consequência expandida ou tradução contextual de outra.
-Exemplos de causas diferentes: necessidade de base antes de agir; leitura contextual do ambiente; dificuldade de consolidar mérito interno; preferência por estabilidade relacional; filtro alto de merecimento; processamento interno profundo.
-Exemplos de causas proibidas em mais de uma seção: baixa visibilidade; pouca projeção; valor não percebido; presença menor que capacidade; você faz mais do que mostra.
+Exemplos de causas diferentes: necessidade de base antes de agir; leitura contextual do ambiente; dificuldade de consolidar mérito interno; preservação do vínculo antes do atrito; filtro alto de merecimento; processamento interno profundo.
+Exemplos de famílias causais proibidas em mais de uma seção: baixa visibilidade; pouca projeção; valor não percebido; presença menor que capacidade; você faz mais do que mostra.
 
 PERGUNTA ÚNICA POR SEÇÃO:
 - EIXO CENTRAL responde: qual é o padrão dominante do seu funcionamento?
@@ -1712,12 +1714,14 @@ REGRAS CRÍTICAS:
 2. PROIBIÇÃO DE REPETIÇÃO SEMÂNTICA: é proibido repetir a mesma ideia com palavras diferentes.
 3. Considere como repetição semântica também qualquer conjunto de frases que compartilhe a mesma tese-mãe.
 4. Exemplo de família de tese proibida de se espalhar: "você entrega mais do que projeta", "seu valor aparece menos do que deveria", "sua presença não acompanha sua capacidade" e "você faz mais do que mostra" contam como a mesma família explicativa.
-5. DIVERSIDADE REAL: cada seção deve conter comportamento observável, custo invisível e contexto real, e esses três elementos não podem ser reciclados do mesmo jeito em várias partes.
-6. NÃO reduza a pessoa a um único padrão.
-7. NÃO parafraseie perguntas do teste.
-8. Use follow-ups como desempate real de interpretação.
-9. Se houver compressão de respostas, trate isso como modulador do tom, não como desculpa para superficialidade.
-10. A seção de direção prática precisa trazer 3 movimentos em áreas realmente diferentes.
+5. DIVERSIDADE REAL: cada seção deve conter pelo menos um mecanismo central, um custo específico e um potencial específico que não tenham sido usados como eixo em outra seção.
+6. NOVIDADE REAL POR PARÁGRAFO: cada parágrafo deve acrescentar uma camada nova de compreensão. Não reescreva a mesma lógica com palavras mais bonitas.
+7. COBERTURA AMPLIADA: aproveite, quando houver evidência nos dados, áreas que costumam ficar subexploradas, como abertura cognitiva, modo de aprender, repertório mental, autonomia silenciosa, qualidade de escuta, constância sem teatralidade, assertividade contextual e diferença entre sociabilidade e protagonismo social.
+8. NÃO reduza a pessoa a um único padrão.
+9. NÃO parafraseie perguntas do teste.
+10. Use follow-ups como desempate real de interpretação.
+11. Se houver compressão de respostas, trate isso como modulador do tom, não como desculpa para superficialidade.
+12. A seção de direção prática precisa trazer 3 movimentos em áreas realmente diferentes.
 
 PROTOCOLO INTERNO OBRIGATÓRIO ANTES DE ESCREVER CADA SEÇÃO:
 Antes de escrever cada seção, faça silenciosamente uma ficha interna com estes campos:
@@ -1725,7 +1729,7 @@ Antes de escrever cada seção, faça silenciosamente uma ficha interna com este
 - causa principal da seção
 - família causal proibida
 - fonte dominante da seção
-- risco de contaminação com outra seção
+- área nova do perfil que pode ser salientada ali
 - frase-resumo proibida
 Se a família causal proibida reaparecer como eixo, custo central, fechamento central ou frase-resumo de outra seção, reescreva antes de seguir.
 
@@ -1814,11 +1818,11 @@ ESTRUTURA OBRIGATORIA:
 9. PRÓXIMOS PASSOS
 
 INSTRUÇÕES ESPECÍFICAS POR SEÇÃO:
-- EIXO CENTRAL: esta é a única seção autorizada a abrir a tese principal do retrato.
-- EXECUÇÃO: foque em decisão, critério de entrada em ação, autonomia, reversibilidade, clareza e timing. Não repetir presença, reconhecimento ou valor como eixo.
-- PRESENÇA: foque em modulação social, leitura de contexto, seletividade de emissão e comportamento situacional. A seção de presença não pode ser organizada por déficit de percepção, subestimação, invisibilidade ou diferença entre valor real e leitura externa.
-- MUNDO INTERNO: foque em autoimagem, mérito, exigência interna, elaboração psicológica e crédito interno. Pode falar de mérito interno, mas não pode usar isso como ponte para antecipar a seção de valor.
-- RELAÇÕES: foque em limites, convivência, conflito, negociação de espaço, custo emocional do atrito e preservação de vínculo. Não transformar relações em extensão da presença social.
+- EIXO CENTRAL: esta é a única seção autorizada a abrir a tese principal do retrato. Além do padrão organizador, saliente também um potencial positivo estrutural que não apareça só como defesa ou limitação.
+- EXECUÇÃO: foque em decisão, critério de entrada em ação, autonomia, reversibilidade, clareza e timing. Sempre que houver base nos dados, saliente autonomia silenciosa, constância e forma de aprender com o processo. Não repetir presença, reconhecimento ou valor como eixo.
+- PRESENÇA: foque em modulação social, leitura de contexto, seletividade de emissão, qualidade de escuta e comportamento situacional. A seção de presença não pode ser organizada por déficit de percepção, subestimação, invisibilidade ou diferença entre valor real e leitura externa.
+- MUNDO INTERNO: foque em autoimagem, mérito, exigência interna, elaboração psicológica, complexidade mental e crédito interno. Pode falar de riqueza interna e repertório mental quando houver evidência, mas não pode usar isso como ponte para antecipar a seção de valor.
+- RELAÇÕES: foque em limites, convivência, conflito, negociação de espaço, custo emocional do atrito e preservação de vínculo. Diferencie convivência relacional de presença social. Se houver base, saliente escuta, leitura fina do outro e ajuste relacional sem teatralidade.
 - VALOR: foque em pedido, cobrança, negociação, ocupação de espaço, proposta, precificação e avanço prático. A seção de valor não pode ser construída como tradução econômica, de reconhecimento ou de visibilidade da tese central.
 - DIREÇÃO PRÁTICA: as três ações não podem corrigir a mesma causa por três portas diferentes. Cada ação deve atacar um mecanismo diferente e ser rastreável a seções diferentes do relatório.
 - FRASE FINAL: deve ser forte, precisa e memorável, mas não pode resumir a tese do eixo central nem repetir o principal gargalo da seção de valor. Ela deve sintetizar direção, não condensar causalidade.
@@ -1829,6 +1833,9 @@ O texto final não pode soar técnico, analítico demais ou com cara de ferramen
 O texto final deve soar como uma leitura direta, humana, fluida e precisa de uma pessoa real.
 Evite frases diagnósticas frias e abstrações excessivas.
 Prefira descrever comportamento, custo e contexto de maneira natural.
+Não introduza uma característica dizendo primeiro o que a pessoa não é.
+Evite construções como "não é X, nem Y; é Z", "não porque..., mas porque..." e outros contrastes negativos usados apenas para criar efeito de profundidade.
+Se o traço principal puder ser dito diretamente, diga diretamente.
 Não use no texto final palavras como "engine", "modelo", "sistema" ou "eixo".
 
 TESTES FINAIS BLOQUEANTES:
@@ -1840,7 +1847,10 @@ TESTES FINAIS BLOQUEANTES:
 6. Se uma seção estiver usando como motor causal principal uma fonte que não seja a dela, o relatório está errado.
 7. Se um bloco final de resumo, traços, fortalezas ou desafios recompuser em frases curtas o que o corpo do relatório já disse, o relatório está errado.
 8. Se a frase final resumir a tese do eixo central, o relatório está errado.
-9. Se o texto parecer técnico, frio ou com cara de ferramenta, o relatório está errado.
+9. Se aparecer no texto final qualquer lista de causas internas, preparação metodológica ou bastidor do raciocínio, o relatório está errado.
+10. Se o texto depender de contrastes negativos artificiais para descrever a pessoa, o relatório está errado.
+11. Se áreas claramente presentes nos dados continuarem sem ser salientadas porque a mesma tese ocupou espaço demais, o relatório está errado.
+12. Se o texto parecer técnico, frio ou com cara de ferramenta, o relatório está errado.
 Se qualquer teste falhar, reescreva antes de finalizar.
 """
 
@@ -1852,10 +1862,11 @@ Se qualquer teste falhar, reescreva antes de finalizar.
                 {
                     "role": "system",
                     "content": (
-                        "Você é um analista de comportamento humano especializado em transformar padrões de resposta em leitura reveladora, humana e estruturalmente precisa. "
+                        "Você é um analista de comportamento humano especializado em transformar padrões de resposta em leitura reveladora, humana, direta e estruturalmente precisa. "
                         "Você não parafraseia perguntas. Você identifica mecanismos, custos, contexto real e potencial escondido sem soar técnico. "
                         "Você deve aplicar exclusividade causal forçada: cada seção precisa nascer de uma causa principal realmente diferente, e não de variações elegantes da mesma tese-mãe. "
-                        "Cada seção precisa responder a uma pergunta diferente, usar sua fonte principal correta, ter lente própria, evitar contaminação com presença/valor/fechamento e soar como leitura de pessoa, não como saída de ferramenta."
+                        "Você não deve externalizar o seu planejamento interno, nem usar contrastes negativos artificiais para parecer profundo. "
+                        "Cada seção precisa responder a uma pergunta diferente, usar sua fonte principal correta, salientar uma área real do perfil que ainda não tenha sido explorada e soar como leitura de pessoa, não como saída de ferramenta."
                     )
                 },
                 {
@@ -2052,7 +2063,7 @@ def gerar_statements_calibracao(perfil):
             "id": sid,
             "eixo": "Reconhecimento",
             "texto": (
-                "Quando você faz algo bem, tende a minimizar isso internamente ou seguir em frente sem dar muito peso ao que realizou."
+                "Quando você faz algo bem, nem sempre dá a si mesmo o devido mérito."
             ),
             "followup_verdadeiro": (
                 "Isso acontece pouco ou bastante? "
