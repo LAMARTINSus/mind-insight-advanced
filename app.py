@@ -23,6 +23,12 @@
 #      - Adiciona engine_presenca_social
 #      - Adiciona engine_mundo_interno
 #      - Integra engines no perfil, relatório e debug
+# V7.4 - Engines extras completas por faceta
+#      - Mantém toda a V7.3A intacta
+#      - Adiciona engine_execucao_decisao
+#      - Adiciona engine_relacoes_limites
+#      - Adiciona engine_valor_oportunidade
+#      - Integra as 3 novas engines no perfil, relatório e debug
 #
 # V6.0 - Nova engine de inferência comportamental
 #      - Mantém Google Sheets, email, modo teste e debug
@@ -46,7 +52,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V7.3A"
+APP_VERSION = "V7.4"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -753,6 +759,169 @@ def engine_mundo_interno(medias, derived, raw, followup_answers=None):
     }
 
 
+def engine_execucao_decisao(medias, derived, raw, followup_answers=None):
+    followup_answers = followup_answers or {}
+
+    leitura = []
+    riscos = []
+    forcas = []
+    ajustes = []
+
+    consc = medias["Conscienciosidade"]
+    seg = medias["Seguranca"]
+    risco = derived["tolerancia_risco"]
+    auto_exec = derived["autonomia_execucao"]
+    risco_exp = followup_answers.get("risco_expansao", "")
+
+    if consc >= 3.5:
+        leitura.append("execucao_estavel")
+        forcas.append("consistencia_sem_muito_clima")
+
+    if auto_exec >= 3.8:
+        leitura.append("autonomia_para_executar")
+        forcas.append("funciona_melhor_com_liberdade_do_que_com_supervisao")
+
+    if seg >= 3.4 and risco <= 3.0:
+        leitura.append("entrada_com_base_suficiente")
+        riscos.append("Você pode esperar maturidade demais do cenário antes do movimento estratégico.")
+
+    if risco_exp == "Esperar informação suficiente antes de agir":
+        leitura.append("timing_dependente_de_clareza")
+        riscos.append("Pode perder vantagem de posição por exigir clareza acima do que o contexto entrega.")
+    elif risco_exp == "Permanecer no que já funciona":
+        leitura.append("continuidade_antes_de_expansao")
+        riscos.append("Pode proteger demais o que já funciona e crescer abaixo do que seria possível.")
+    elif risco_exp == "Agir se o upside parecer claro":
+        forcas.append("acao_condicionada_a_logica_de_ganho")
+
+    if consc >= 3.5 and risco <= 2.9:
+        ajustes.append("Seu risco não é falta de execução. É entrar tarde em oportunidades que premiam movimento antes da certeza total.")
+
+    return {
+        "leitura": leitura,
+        "riscos": riscos,
+        "forcas": forcas,
+        "ajustes": ajustes,
+    }
+
+
+def engine_relacoes_limites(medias, derived, raw, followup_answers=None):
+    followup_answers = followup_answers or {}
+
+    leitura = []
+    riscos = []
+    forcas = []
+    ajustes = []
+
+    amab = medias["Amabilidade"]
+    evita = derived["evita_conflito"]
+    ass = derived["assertividade"]
+    pres = derived["presenca_relacional"]
+    pos = followup_answers.get("posicionamento_social", "")
+    nat = followup_answers.get("natureza_conflito", "")
+
+    if amab >= 3.3:
+        leitura.append("adaptacao_relacional")
+        forcas.append("convivencia_sem_teatralidade")
+
+    if pres >= 3.5:
+        forcas.append("presenca_relacional_estavel")
+
+    if evita >= 3.2 and ass <= 3.1:
+        leitura.append("limites_implícitos")
+        riscos.append("Os outros podem interpretar sua contenção como concordância ou disponibilidade.")
+
+    if pos == "Depende muito da pessoa e do contexto":
+        leitura.append("limite_contextual")
+        ajustes.append("Sua forma de se posicionar muda bastante conforme o vínculo e a leitura de abertura do outro.")
+
+    if nat == "Desconforto real com tensão ou desaprovação":
+        leitura.append("custo_emocional_do_conflito")
+        riscos.append("Você pode adiar conversas necessárias não por falta de clareza, mas pelo desgaste emocional antecipado.")
+    elif nat == "Estratégia - acho desnecessário em muitos casos":
+        leitura.append("seletividade_no_conflito")
+        forcas.append("nao_compra_toda_fricao")
+    elif nat == "Medo de prejudicar a relação":
+        leitura.append("protege_vinculo_antes_da_nitidez")
+        riscos.append("Pode sacrificar clareza demais para preservar o vínculo.")
+    elif nat == "Não sei - só percebo que evito":
+        leitura.append("evitacao_sem_nome_claro")
+        riscos.append("Você pode ceder espaço relacional antes mesmo de perceber que está cedendo.")
+
+    if amab >= 3.3 and evita >= 3.2:
+        ajustes.append("Sua nuance é força em relações maduras, mas pode virar terreno cedido em relações oportunistas.")
+
+    return {
+        "leitura": leitura,
+        "riscos": riscos,
+        "forcas": forcas,
+        "ajustes": ajustes,
+    }
+
+
+def engine_valor_oportunidade(medias, derived, raw, followup_answers=None):
+    followup_answers = followup_answers or {}
+
+    leitura = []
+    riscos = []
+    forcas = []
+    ajustes = []
+
+    abund = medias["Abundancia"]
+    auto_rec = derived["auto_reconhecimento"]
+    risco = derived["tolerancia_risco"]
+    autoex = derived["autoexigencia"]
+    rec = followup_answers.get("reconhecimento", "")
+    risco_exp = followup_answers.get("risco_expansao", "")
+
+    if abund <= 3.3:
+        leitura.append("expansao_filtrada")
+        riscos.append("Seu crescimento pode ficar abaixo do que sua capacidade já sustenta.")
+
+    if auto_rec <= 2.9:
+        leitura.append("credito_interno_insuficiente")
+        riscos.append("Você pode construir valor real sem convertê-lo em autorização interna para avançar.")
+
+    if risco <= 3.0:
+        leitura.append("oportunidade_passa_por_filtro_de_segurança")
+        riscos.append("Você pode exigir garantias demais antes de pedir, propor, cobrar ou ocupar espaço.")
+
+    if autoex >= 4.0:
+        leitura.append("patrimonio_interno_subcontabilizado")
+        riscos.append("Sua régua sobe rápido demais e faz conquistas reais parecerem apenas obrigação básica.")
+
+    if rec == "Agradeço, mas minimizo por hábito":
+        leitura.append("merecimento_rebaixado_por_habito")
+        riscos.append("Você pode reduzir internamente sinais legítimos de valor e manter o merecimento abaixo da evidência.")
+    elif rec == "Fico desconfortável e tento mudar de assunto":
+        leitura.append("desconforto_com_expansao_do_proprio_valor")
+        riscos.append("Reconhecimento pode tocar mais em exposição do que em patrimônio interno.")
+    elif rec == "Recebo bem e sigo em frente":
+        leitura.append("reconhecimento_sem_fixacao")
+        ajustes.append("Você recebe o reconhecimento, mas nem sempre o transforma em base acumulada de confiança.")
+
+    if risco_exp == "Esperar informação suficiente antes de agir":
+        leitura.append("oportunidade_precisa_parecer_justificada_antes")
+        riscos.append("Você pode tratar expansão como algo que precisa estar completamente sustentado antes de ser ocupado.")
+    elif risco_exp == "Permanecer no que já funciona":
+        leitura.append("protecao_do_estavel")
+        riscos.append("Parte da abundância potencial pode ficar presa atrás de prudência excessiva.")
+    elif risco_exp == "Agir se o upside parecer claro":
+        forcas.append("movimento_quando_o_ganho_faz_sentido")
+
+    if abund >= 3.4 and auto_rec >= 3.1:
+        forcas.append("potencial_de_expansao_mais_saudavel")
+
+    ajustes.append("Seu gargalo pode não estar em gerar valor, e sim em converter valor em avanço, percepção e ganho proporcional.")
+
+    return {
+        "leitura": leitura,
+        "riscos": riscos,
+        "forcas": forcas,
+        "ajustes": ajustes,
+    }
+
+
 PATTERN_LIBRARY = {
     "merito_subcomunicado": {
         "peso": 9,
@@ -1068,6 +1237,9 @@ def gerar_perfil(respostas, followup_answers=None):
 
     engine_presenca = engine_presenca_social(medias, derived, respostas, followup_answers)
     engine_interno = engine_mundo_interno(medias, derived, respostas, followup_answers)
+    engine_execucao = engine_execucao_decisao(medias, derived, respostas, followup_answers)
+    engine_relacoes = engine_relacoes_limites(medias, derived, respostas, followup_answers)
+    engine_valor = engine_valor_oportunidade(medias, derived, respostas, followup_answers)
 
     padroes_v62 = extract_patterns_v62(medias, derived, respostas, pct_3_4, followup_answers)
     tensoes_v62 = extract_tensions_v62(medias, derived, followup_answers)
@@ -1176,6 +1348,9 @@ def gerar_perfil(respostas, followup_answers=None):
         "comportamentos_v62": comportamentos_v62,
         "engine_presenca": engine_presenca,
         "engine_mundo_interno": engine_interno,
+        "engine_execucao_decisao": engine_execucao,
+        "engine_relacoes_limites": engine_relacoes,
+        "engine_valor_oportunidade": engine_valor,
         "followup_answers": followup_answers or {},
     }
 
@@ -1381,6 +1556,9 @@ def gerar_relatorio(perfil):
     section_map = build_section_map_v71(perfil)
     engine_presenca = perfil.get("engine_presenca", {})
     engine_mundo_interno = perfil.get("engine_mundo_interno", {})
+    engine_execucao = perfil.get("engine_execucao_decisao", {})
+    engine_relacoes = perfil.get("engine_relacoes_limites", {})
+    engine_valor = perfil.get("engine_valor_oportunidade", {})
 
     linhas_ranking = "\n".join([
         f"  {i + 1}. {k}: {v:.2f} [{intensidades[k]}]"
@@ -1437,6 +1615,27 @@ def gerar_relatorio(perfil):
         [f"- ajuste: {x}" for x in engine_mundo_interno.get("ajustes", [])]
     ) if engine_mundo_interno else "- sem dados extras"
 
+    bloco_engine_execucao = "\n".join(
+        [f"- leitura: {x}" for x in engine_execucao.get("leitura", [])] +
+        [f"- força: {x}" for x in engine_execucao.get("forcas", [])] +
+        [f"- risco: {x}" for x in engine_execucao.get("riscos", [])] +
+        [f"- ajuste: {x}" for x in engine_execucao.get("ajustes", [])]
+    ) if engine_execucao else "- sem dados extras"
+
+    bloco_engine_relacoes = "\n".join(
+        [f"- leitura: {x}" for x in engine_relacoes.get("leitura", [])] +
+        [f"- força: {x}" for x in engine_relacoes.get("forcas", [])] +
+        [f"- risco: {x}" for x in engine_relacoes.get("riscos", [])] +
+        [f"- ajuste: {x}" for x in engine_relacoes.get("ajustes", [])]
+    ) if engine_relacoes else "- sem dados extras"
+
+    bloco_engine_valor = "\n".join(
+        [f"- leitura: {x}" for x in engine_valor.get("leitura", [])] +
+        [f"- força: {x}" for x in engine_valor.get("forcas", [])] +
+        [f"- risco: {x}" for x in engine_valor.get("riscos", [])] +
+        [f"- ajuste: {x}" for x in engine_valor.get("ajustes", [])]
+    ) if engine_valor else "- sem dados extras"
+
     prompt = f"""
 Você é um analista de comportamento humano altamente preciso.
 Seu trabalho é produzir um relatório fiel, específico, multidimensional e psicologicamente impactante.
@@ -1460,6 +1659,9 @@ REGRAS CRÍTICAS:
 13. A seção de direção prática precisa trazer 3 movimentos em áreas DIFERENTES, não 3 variações do mesmo conselho.
 14. Na seção de presença social, use também a ENGINE EXTRA - PRESENÇA SOCIAL como fonte de nuance.
 15. Na seção de mundo interno, use também a ENGINE EXTRA - MUNDO INTERNO como fonte de nuance.
+16. Na seção de execução e tomada de decisão, usar também a ENGINE EXTRA - EXECUÇÃO/DECISÃO como fonte principal de nuance.
+17. Na seção de relações, limites e conflito, usar também a ENGINE EXTRA - RELAÇÕES/LIMITES como fonte principal de nuance.
+18. Na seção de valor, oportunidade e merecimento, usar também a ENGINE EXTRA - VALOR/OPORTUNIDADE como fonte principal de nuance.
 
 MODULADOR DE TOM:
 {modulador_tom}
@@ -1506,6 +1708,15 @@ ENGINE EXTRA - PRESENÇA SOCIAL:
 ENGINE EXTRA - MUNDO INTERNO:
 {bloco_engine_interno}
 
+ENGINE EXTRA - EXECUÇÃO/DECISÃO:
+{bloco_engine_execucao}
+
+ENGINE EXTRA - RELAÇÕES/LIMITES:
+{bloco_engine_relacoes}
+
+ENGINE EXTRA - VALOR/OPORTUNIDADE:
+{bloco_engine_valor}
+
 INSUMOS POR SEÇÃO:
 1. EIXO CENTRAL DO SEU FUNCIONAMENTO
 {format_section_inputs_v71(section_map['central'])}
@@ -1542,8 +1753,11 @@ FORMATO:
 - evite jargão técnico
 - cada seção deve ter foco próprio
 - não repetir a mesma ideia com palavras diferentes
+- na seção 2, usar explicitamente os sinais da engine de execução para diferenciar consistência, autonomia, timing e critério de entrada em ação
 - na seção 3, use explicitamente os sinais da engine de presença para evitar repetir apenas "entrega maior que projeção"
 - na seção 4, use explicitamente os sinais da engine de mundo interno para aprofundar mérito, autoexigência, crédito interno e elaboração psicológica
+- na seção 5, usar explicitamente os sinais da engine de relações para diferenciar nuance madura de limite implícito, evitação ou custo emocional do conflito
+- na seção 6, usar explicitamente os sinais da engine de valor/oportunidade para aprofundar abundância, crédito interno, autorização para crescer e conversão de valor em ganho real
 """
 
     try:
@@ -1652,6 +1866,15 @@ def render_debug(perfil):
 
     st.subheader("9.2 Engine Extra - Mundo Interno")
     st.json(perfil.get("engine_mundo_interno", {}))
+
+    st.subheader("9.3 Engine Extra - Execução/Decisão")
+    st.json(perfil.get("engine_execucao_decisao", {}))
+
+    st.subheader("9.4 Engine Extra - Relações/Limites")
+    st.json(perfil.get("engine_relacoes_limites", {}))
+
+    st.subheader("9.5 Engine Extra - Valor/Oportunidade")
+    st.json(perfil.get("engine_valor_oportunidade", {}))
 
     st.subheader("10. Qualidade Estatística")
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -2156,4 +2379,3 @@ else:
     with col2:
         if st.button("Voltar ao início"):
             reset_all(0)
-            st.rerun()
