@@ -29,6 +29,11 @@
 #      - Adiciona engine_relacoes_limites
 #      - Adiciona engine_valor_oportunidade
 #      - Integra as 3 novas engines no perfil, relatório e debug
+# V7.5 - Controle de redundância + distribuição de foco
+#      - Impede repetição semântica entre seções
+#      - Distribui causa principal e ângulo narrativo por seção
+#      - Prioriza fonte exclusiva de dados em cada parte do relatório
+#      - Reforça checklist final de não repetição antes de gerar
 #
 # V6.0 - Nova engine de inferência comportamental
 #      - Mantém Google Sheets, email, modo teste e debug
@@ -52,7 +57,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V7.4"
+APP_VERSION = "V7.5"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -1641,29 +1646,43 @@ Você é um analista de comportamento humano altamente preciso.
 Seu trabalho é produzir um relatório fiel, específico, multidimensional e psicologicamente impactante.
 
 OBJETIVO DA VERSÃO {APP_VERSION}:
-Ampliar a cobertura do retrato sem perder profundidade. O relatório deve aprofundar várias facetas da vida, não apenas um cluster dominante.
+Gerar um relatório comportamental profundo, multidimensional e NÃO repetitivo, usando múltiplas fontes de análise sem colapsar tudo em um único padrão narrativo.
 
 REGRAS CRÍTICAS:
-1. NÃO reduza a pessoa a um único padrão.
-2. NÃO repita a mesma tese com palavras diferentes.
-3. NÃO parafraseie perguntas do teste.
-4. NÃO use linguagem de eixo como "alta abertura" ou "baixa extroversão" no texto final.
-5. Cada seção precisa revelar algo DIFERENTE.
-6. Cada seção deve ser ancorada em uma família psicológica diferente: execução/decisão, presença/expressão, mundo interno, relações/conflito, valor/oportunidade.
-7. O eixo central pode abrir o relatório, mas não pode dominar as demais seções.
-8. A seção de relações deve usar dados relacionais; a de estabilidade interna deve usar dados internos; a de valor/oportunidade deve usar risco, abundância, merecimento e timing.
-9. Sempre descreva comportamento observável, custo invisível e contexto real.
-10. Gere identificação imediata e desconforto construtivo, sem dramatização barata.
-11. Use follow-ups como desempate real de interpretação.
-12. Se houver compressão de respostas, trate isso como modulador do tom, não como desculpa para superficialidade.
-13. A seção de direção prática precisa trazer 3 movimentos em áreas DIFERENTES, não 3 variações do mesmo conselho.
-14. Na seção de presença social, use também a ENGINE EXTRA - PRESENÇA SOCIAL como fonte de nuance.
-15. Na seção de mundo interno, use também a ENGINE EXTRA - MUNDO INTERNO como fonte de nuance.
-16. Na seção de execução e tomada de decisão, usar também a ENGINE EXTRA - EXECUÇÃO/DECISÃO como fonte principal de nuance.
-17. Na seção de relações, limites e conflito, usar também a ENGINE EXTRA - RELAÇÕES/LIMITES como fonte principal de nuance.
-18. Na seção de valor, oportunidade e merecimento, usar também a ENGINE EXTRA - VALOR/OPORTUNIDADE como fonte principal de nuance.
+1. REGRA DE CAUSA PRINCIPAL ÚNICA: um mesmo padrão psicológico só pode ser usado como causa principal em UMA única seção.
+2. Se um padrão aparecer nas outras seções, ele pode surgir apenas como consequência, contexto ou efeito secundário, nunca como explicação central novamente.
+3. REGRA DE NÃO REPETIÇÃO SEMÂNTICA: é proibido repetir a mesma ideia com palavras diferentes.
+4. Exemplo prático de repetição proibida: "você entrega mais do que projeta", "seu valor aparece menos do que deveria" e "sua presença não acompanha sua capacidade" contam como a MESMA ideia.
+5. REGRA DE PERGUNTA ÚNICA POR SEÇÃO: cada seção deve responder uma pergunta diferente e não pode invadir a pergunta central da outra.
+6. EIXO CENTRAL responde: qual é o padrão dominante do seu funcionamento?
+7. EXECUÇÃO responde: como você decide e age?
+8. PRESENÇA responde: como você aparece para os outros?
+9. MUNDO INTERNO responde: como você funciona por dentro?
+10. RELAÇÕES responde: como você lida com pessoas, limites e conflito?
+11. VALOR responde: como você converte valor em oportunidade?
+12. REGRA DE FONTE EXCLUSIVA POR SEÇÃO: cada seção deve ser construída prioritariamente com sua própria fonte de dados.
+13. EIXO CENTRAL usa padrões + tensões globais.
+14. EXECUÇÃO usa prioritariamente a ENGINE EXTRA - EXECUÇÃO/DECISÃO.
+15. PRESENÇA usa prioritariamente a ENGINE EXTRA - PRESENÇA SOCIAL.
+16. MUNDO INTERNO usa prioritariamente a ENGINE EXTRA - MUNDO INTERNO.
+17. RELAÇÕES usa prioritariamente a ENGINE EXTRA - RELAÇÕES/LIMITES.
+18. VALOR usa prioritariamente a ENGINE EXTRA - VALOR/OPORTUNIDADE.
+19. É proibido usar padrões globais como base principal em todas as seções.
+20. É proibido misturar fontes sem critério narrativo claro.
+21. REGRA DE ÂNGULO NARRATIVO: cada seção deve enfatizar um ângulo diferente.
+22. Exemplos válidos de ângulo: execução = processo de decisão; presença = variação de comportamento social; mundo interno = processamento mental; relações = negociação de espaço; valor = conversão de valor em movimento.
+23. REGRA DE DIVERSIDADE REAL: cada seção deve trazer comportamento observável, custo invisível e contexto real.
+24. Esses três elementos não podem ser descritos do mesmo jeito em seções diferentes.
+25. NÃO reduza a pessoa a um único padrão dominante.
+26. NÃO parafraseie perguntas do teste.
+27. NÃO use linguagem de eixo como "alta abertura" ou "baixa extroversão" no texto final.
+28. Gere identificação imediata e desconforto construtivo, sem dramatização barata.
+29. Use follow-ups como desempate real de interpretação.
+30. Se houver compressão de respostas, trate isso como modulador do tom, não como desculpa para superficialidade.
+31. A seção de direção prática precisa trazer 3 movimentos em áreas DIFERENTES, não 3 variações do mesmo conselho.
+32. Antes de concluir o texto, faça uma checagem silenciosa: se duas seções estiverem respondendo a mesma pergunta ou repetindo a mesma causa principal, reescreva.
 
-MODULADOR DE TOM:
+MODULADOR DE COMPRESSÃO:
 {modulador_tom}
 
 DADOS GERAIS DO PERFIL:
@@ -1738,26 +1757,42 @@ INSUMOS POR SEÇÃO:
 
 ESTRUTURA OBRIGATORIA:
 1. EIXO CENTRAL DO SEU FUNCIONAMENTO
+(usar padrões + tensões)
 2. EXECUÇÃO E TOMADA DE DECISÃO
+(usar engine execução)
 3. PRESENÇA SOCIAL E EXPRESSÃO EXTERNA
+(usar engine presença)
 4. MUNDO INTERNO E AUTOIMAGEM
+(usar engine interno)
 5. RELAÇÕES, LIMITES E CONFLITO
+(usar engine relacional)
 6. VALOR, OPORTUNIDADE E MERECIMENTO
+(usar engine valor)
 7. DIREÇÃO PRÁTICA
+(3 ações em áreas DIFERENTES — não repetir foco)
 8. FRASE FINAL DE IMPACTO
 
-FORMATO:
-- escreva em português
-- fale em "você"
-- seja direto, humano e preciso
-- evite jargão técnico
-- cada seção deve ter foco próprio
-- não repetir a mesma ideia com palavras diferentes
-- na seção 2, usar explicitamente os sinais da engine de execução para diferenciar consistência, autonomia, timing e critério de entrada em ação
-- na seção 3, use explicitamente os sinais da engine de presença para evitar repetir apenas "entrega maior que projeção"
-- na seção 4, use explicitamente os sinais da engine de mundo interno para aprofundar mérito, autoexigência, crédito interno e elaboração psicológica
-- na seção 5, usar explicitamente os sinais da engine de relações para diferenciar nuance madura de limite implícito, evitação ou custo emocional do conflito
-- na seção 6, usar explicitamente os sinais da engine de valor/oportunidade para aprofundar abundância, crédito interno, autorização para crescer e conversão de valor em ganho real
+REGRAS DE ESTILO:
+- escrever em português
+- usar "você"
+- linguagem clara, direta e humana
+- sem jargão técnico
+- sem mencionar "engines"
+- sem linguagem de modelo psicológico
+
+REGRAS DE DISTRIBUIÇÃO DE FOCO:
+- seção 2: enfatizar processo de decisão, critério de entrada em ação, autonomia e timing
+- seção 3: enfatizar como você aparece para os outros e como sua presença varia conforme contexto social
+- seção 4: enfatizar funcionamento interno, elaboração psicológica, mérito, crédito interno e autoexigência
+- seção 5: enfatizar negociação de espaço, limite implícito, custo emocional do conflito e modo de proteger vínculo
+- seção 6: enfatizar conversão de valor em movimento, merecimento, abundância e transformação de capacidade em ganho real
+
+CHECK FINAL SILENCIOSO ANTES DE GERAR:
+- estou repetindo a mesma ideia em mais de uma seção?
+- cada seção tem foco diferente?
+- estou usando a fonte correta de dados como base principal?
+- estou trazendo algo novo em cada parte?
+Se houver repetição semântica ou duplicação de causa principal, reescreva antes de finalizar.
 """
 
     try:
@@ -1769,7 +1804,8 @@ FORMATO:
                     "content": (
                         "Você é um analista de comportamento humano especializado em transformar padrões de resposta em leitura reveladora. "
                         "Você não parafraseia perguntas. Você identifica mecanismos, custos, potencial escondido e contextos de alta performance. "
-                        "Você integra profundidade com amplitude. Se um cluster dominante já foi explorado, você usa as próximas seções para aprofundar outras facetas reais da pessoa."
+                        "Você integra profundidade com amplitude sem repetir semanticamente a mesma tese em várias seções. "
+                        "Cada seção precisa responder uma pergunta diferente, usar sua fonte principal correta e evitar reaproveitar a mesma causa central fora do lugar."
                     )
                 },
                 {
@@ -2379,3 +2415,4 @@ else:
     with col2:
         if st.button("Voltar ao início"):
             reset_all(0)
+            st.rerun()
