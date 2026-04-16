@@ -3,7 +3,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V8.1
+# Version: V8.2
 # Data: 2026-04-16
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
@@ -61,6 +61,17 @@
 #      - Injeta evidências itemizadas por seção com score bruto, ajustado e transparência de inversão
 #      - Reforça a proibição de voz conversacional na seção 9
 #      - Adiciona validação e uma segunda passada automática quando surgem contrastes artificiais
+# V8.1F - Correção isolada do fechamento para base comparativa funcional
+#      - Data: 2026-04-16
+#      - Sanea o texto final quando ainda vazam comandos, ofertas de ajuda ou voz de assistente
+#      - Limpa o bloco 9 e substitui fechamento contaminado por próximos passos concretos
+#      - Preserva a arquitetura atual para comparação posterior com a versão nova
+# V8.2 - Ampliação de derivadas, evidências e cobertura causal por seção
+#      - Data: 2026-04-16
+#      - Expande a camada intermediária com novas derivadas para Abertura, Neuroticismo, Segurança e Abundância
+#      - Aumenta a riqueza das evidências itemizadas por seção e sua priorização interpretativa
+#      - Reforça especialmente as seções de mundo interno, execução e valor/oportunidade
+#      - Mantém a base funcional saneada para comparação com a versão anterior
 #
 # V6.0 - Nova engine de inferência comportamental
 #      - Mantém Google Sheets, email, modo teste e debug
@@ -85,7 +96,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V8.1"
+APP_VERSION = "V8.2"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -642,10 +653,13 @@ SUBFACET_LIBRARY_V81 = {
     "abertura_curiosidade": {"label": "curiosidade e exploração intelectual", "bloco": "Abertura", "itens": [1, 3, 8]},
     "abertura_flexibilidade": {"label": "flexibilidade de crença", "bloco": "Abertura", "itens": [2, 7]},
     "abertura_abstracao": {"label": "abstração e conexão mental", "bloco": "Abertura", "itens": [4, 5]},
+    "abertura_revisao_crenca": {"label": "revisão de crença com abertura real", "bloco": "Abertura", "itens": [2, 5, 7]},
+    "abertura_exploracao_ativa": {"label": "exploração ativa de novidade", "bloco": "Abertura", "itens": [1, 3, 8]},
     "consc_planejamento": {"label": "planejamento e antecipação", "bloco": "Conscienciosidade", "itens": [13, 14, 18, 84]},
     "consc_constancia": {"label": "constância e sustentação", "bloco": "Conscienciosidade", "itens": [11, 20, 82]},
     "consc_revisao": {"label": "revisão e controle de qualidade", "bloco": "Conscienciosidade", "itens": [17, 78]},
     "consc_autonomia": {"label": "autonomia de execução", "bloco": "Conscienciosidade", "itens": [12, 16, 77]},
+    "consc_clareza_direcao": {"label": "clareza de direção e meta", "bloco": "Conscienciosidade", "itens": [18, 84]},
     "ext_energia_social": {"label": "energia social", "bloco": "Extroversao", "itens": [21, 25]},
     "ext_iniciativa_expressiva": {"label": "iniciativa de fala e exposição", "bloco": "Extroversao", "itens": [22, 24, 30]},
     "ext_busca_social": {"label": "busca ativa de contato", "bloco": "Extroversao", "itens": [26, 81]},
@@ -658,6 +672,8 @@ SUBFACET_LIBRARY_V81 = {
     "neuro_estabilidade_pressao": {"label": "estabilidade sob pressão", "bloco": "Neuroticismo", "itens": [43, 45, 47, 48]},
     "neuro_ruminacao": {"label": "ruminação e impacto pós-evento", "bloco": "Neuroticismo", "itens": [42, 46, 50, 52]},
     "neuro_merito_descanso": {"label": "descanso, mérito e autoaceitação", "bloco": "Neuroticismo", "itens": [79, 80, 89]},
+    "neuro_sensibilidade_critica": {"label": "sensibilidade à crítica e autoimpacto", "bloco": "Neuroticismo", "itens": [44, 46, 50, 80]},
+    "neuro_recuperacao": {"label": "recuperação depois da pressão", "bloco": "Neuroticismo", "itens": [47, 48, 79]},
     "seg_previsibilidade": {"label": "necessidade de previsibilidade", "bloco": "Seguranca", "itens": [53, 55, 61, 63]},
     "seg_transicao": {"label": "conforto em transição", "bloco": "Seguranca", "itens": [58, 62]},
     "seg_risco_acao": {"label": "ação sem garantia total", "bloco": "Seguranca", "itens": [54, 57, 60]},
@@ -667,24 +683,27 @@ SUBFACET_LIBRARY_V81 = {
     "abund_investimento_proprio": {"label": "investimento em si e retorno esperado", "bloco": "Abundancia", "itens": [66, 71]},
     "abund_pedido_valor": {"label": "pedido e cobrança de valor", "bloco": "Abundancia", "itens": [72]},
     "abund_perda_prudencia": {"label": "perda, prudência e mérito silencioso", "bloco": "Abundancia", "itens": [69, 74, 76]},
+    "abund_merecimento": {"label": "merecimento econômico e autorização para receber", "bloco": "Abundancia", "itens": [72, 76, 80]},
+    "abund_comparacao": {"label": "comparação e contração por insuficiência", "bloco": "Abundancia", "itens": [65, 67, 73]},
+    "abund_protecao_perda": {"label": "proteção contra perda e recuo de expansão", "bloco": "Abundancia", "itens": [69, 74]},
 }
 
 SECTION_SUBFACETS_V81 = {
-    "central": ["abertura_curiosidade", "consc_constancia", "neuro_merito_descanso", "seg_previsibilidade", "abund_escassez"],
-    "execucao_decisao": ["consc_planejamento", "consc_constancia", "consc_autonomia", "seg_risco_acao", "seg_apego_estavel"],
+    "central": ["abertura_curiosidade", "abertura_revisao_crenca", "consc_constancia", "neuro_merito_descanso", "seg_previsibilidade", "abund_escassez"],
+    "execucao_decisao": ["consc_planejamento", "consc_constancia", "consc_autonomia", "consc_clareza_direcao", "seg_risco_acao", "seg_apego_estavel"],
     "presenca_expressao": ["ext_energia_social", "ext_iniciativa_expressiva", "ext_busca_social", "ext_modulacao_presenca"],
-    "mundo_interno": ["abertura_curiosidade", "abertura_abstracao", "neuro_antecipacao", "neuro_ruminacao", "neuro_merito_descanso"],
+    "mundo_interno": ["abertura_curiosidade", "abertura_abstracao", "abertura_revisao_crenca", "neuro_antecipacao", "neuro_ruminacao", "neuro_sensibilidade_critica", "neuro_recuperacao", "neuro_merito_descanso"],
     "relacoes_conflito": ["amab_empatia", "amab_limites", "amab_atrito", "amab_reparacao_presenca"],
-    "valor_oportunidade": ["abund_expansao", "abund_escassez", "abund_investimento_proprio", "abund_pedido_valor", "abund_perda_prudencia"],
+    "valor_oportunidade": ["abund_expansao", "abund_escassez", "abund_investimento_proprio", "abund_pedido_valor", "abund_perda_prudencia", "abund_merecimento", "abund_comparacao", "abund_protecao_perda"],
 }
 
 SECTION_ITEM_IDS_V81 = {
-    "central": [1, 11, 17, 44, 54, 65, 72, 79, 80, 89],
-    "execucao_decisao": [11, 13, 17, 20, 54, 57, 60, 61, 63, 77, 78, 82, 84],
-    "presenca_expressao": [21, 22, 24, 26, 29, 30, 81, 88],
-    "mundo_interno": [1, 3, 4, 5, 7, 8, 42, 44, 49, 50, 52, 79, 80, 89],
+    "central": [1, 5, 11, 17, 44, 54, 65, 72, 76, 79, 80, 89],
+    "execucao_decisao": [11, 13, 14, 17, 18, 20, 54, 57, 60, 61, 63, 77, 78, 82, 84],
+    "presenca_expressao": [21, 22, 23, 24, 26, 29, 30, 81, 88],
+    "mundo_interno": [1, 2, 3, 4, 5, 7, 8, 42, 44, 46, 49, 50, 52, 79, 80, 89],
     "relacoes_conflito": [31, 32, 33, 35, 36, 37, 38, 39, 75, 85, 86, 87],
-    "valor_oportunidade": [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 76, 83],
+    "valor_oportunidade": [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 76, 80, 83],
 }
 
 
@@ -724,7 +743,15 @@ def get_top_subfacets_for_section(subfacetas, section_name, limit=4):
     return candidatos[:limit]
 
 
-def build_section_evidence_v81(raw, adjusted, section_name, limit=4):
+def score_evidencia_v82(bruto, ajustado, invertida):
+    distancia = abs(ajustado - 3)
+    bonus_inversao = 0.15 if invertida and bruto != ajustado else 0.0
+    bonus_extremo = 0.2 if ajustado >= 4.3 or ajustado <= 1.7 else 0.0
+    bonus_contraste = 0.1 if abs(bruto - ajustado) >= 1 else 0.0
+    return round(distancia + bonus_inversao + bonus_extremo + bonus_contraste, 3)
+
+
+def build_section_evidence_v81(raw, adjusted, section_name, limit=6):
     evidencias = []
     for q in SECTION_ITEM_IDS_V81.get(section_name, []):
         bruto = raw.get(q, 3)
@@ -750,9 +777,10 @@ def build_section_evidence_v81(raw, adjusted, section_name, limit=4):
             "ajustado": ajustado,
             "invertida": invertida,
             "forca": abs(ajustado - 3),
+            "score_evidencia": score_evidencia_v82(bruto, ajustado, invertida),
             "leitura": leitura,
         })
-    evidencias = sorted(evidencias, key=lambda x: (x["forca"], x["invertida"]), reverse=True)
+    evidencias = sorted(evidencias, key=lambda x: (x["score_evidencia"], x["forca"], x["invertida"]), reverse=True)
     return evidencias[:limit]
 
 
@@ -766,16 +794,30 @@ def build_all_section_evidences_v81(raw, adjusted):
 def compute_derived_variables(medias, raw, adjusted, followup_answers=None):
     followup_answers = followup_answers or {}
 
-    # Base comportamental
-    auto_reconhecimento = round((raw.get(80, 3) + raw.get(89, 3) + raw.get(76, 3)) / 3, 2)
-    assertividade = round((raw.get(87, 3) + raw.get(88, 3) + adjusted.get(36, 3) + adjusted.get(30, 3)) / 4, 2)
-    tolerancia_risco = round((adjusted.get(54, 3) + adjusted.get(57, 3) + adjusted.get(60, 3) + adjusted.get(62, 3)) / 4, 2)
-    presenca_relacional = round((raw.get(85, 3) + raw.get(86, 3) + raw.get(75, 3)) / 3, 2)
-    impulso_social = round((adjusted.get(21, 3) + adjusted.get(22, 3) + adjusted.get(24, 3) + adjusted.get(26, 3)) / 4, 2)
-    autoexigencia = round(((6 - raw.get(79, 3)) + (6 - raw.get(80, 3)) + (6 - raw.get(89, 3))) / 3, 2)
-    visibilidade_pessoal = round((adjusted.get(30, 3) + raw.get(88, 3) + raw.get(89, 3)) / 3, 2)
-    evita_conflito = round((raw.get(33, 3) + raw.get(37, 3) + raw.get(39, 3)) / 3, 2)
-    autonomia_execucao = round((raw.get(77, 3) + raw.get(82, 3) + adjusted.get(11, 3) + adjusted.get(17, 3)) / 4, 2)
+    def avg(*values):
+        return round(sum(values) / len(values), 2)
+
+    # Base comportamental preservada
+    auto_reconhecimento = avg(raw.get(80, 3), raw.get(89, 3), raw.get(76, 3))
+    assertividade = avg(raw.get(87, 3), raw.get(88, 3), adjusted.get(36, 3), adjusted.get(30, 3))
+    tolerancia_risco = avg(adjusted.get(54, 3), adjusted.get(57, 3), adjusted.get(60, 3), adjusted.get(62, 3))
+    presenca_relacional = avg(raw.get(85, 3), raw.get(86, 3), raw.get(75, 3))
+    impulso_social = avg(adjusted.get(21, 3), adjusted.get(22, 3), adjusted.get(24, 3), adjusted.get(26, 3))
+    autoexigencia = avg((6 - raw.get(79, 3)), (6 - raw.get(80, 3)), (6 - raw.get(89, 3)))
+    visibilidade_pessoal = avg(adjusted.get(30, 3), raw.get(88, 3), raw.get(89, 3))
+    evita_conflito = avg(raw.get(33, 3), raw.get(37, 3), raw.get(39, 3))
+    autonomia_execucao = avg(raw.get(77, 3), raw.get(82, 3), adjusted.get(11, 3), adjusted.get(17, 3))
+
+    # Novas derivadas para ampliar cobertura
+    flexibilidade_cognitiva = avg(adjusted.get(2, 3), adjusted.get(5, 3), adjusted.get(7, 3))
+    conforto_abstracao = avg(adjusted.get(4, 3), adjusted.get(5, 3), adjusted.get(8, 3))
+    planejamento_antecipado = avg(adjusted.get(13, 3), adjusted.get(14, 3), adjusted.get(18, 3), adjusted.get(84, 3))
+    sensibilidade_pressao = avg(adjusted.get(43, 3), adjusted.get(45, 3), adjusted.get(47, 3), adjusted.get(48, 3))
+    ruminacao_pos_evento = avg(adjusted.get(42, 3), adjusted.get(46, 3), adjusted.get(50, 3), adjusted.get(52, 3))
+    necessidade_previsibilidade = avg(adjusted.get(53, 3), adjusted.get(55, 3), adjusted.get(61, 3), adjusted.get(63, 3))
+    merecimento_economico = avg(raw.get(72, 3), raw.get(76, 3), raw.get(80, 3))
+    impulso_expansao = avg(adjusted.get(64, 3), adjusted.get(68, 3), adjusted.get(70, 3), adjusted.get(83, 3))
+    comparacao_escassez = avg(adjusted.get(65, 3), adjusted.get(67, 3), adjusted.get(73, 3))
 
     # Ajustes pelos follow-ups
     if followup_answers.get("posicionamento_social") == "Falo de forma direta e tranquila":
@@ -787,21 +829,27 @@ def compute_derived_variables(medias, raw, adjusted, followup_answers=None):
 
     if followup_answers.get("natureza_conflito") == "Desconforto real com tensão ou desaprovação":
         evita_conflito = min(5.0, round(evita_conflito + 0.40, 2))
+        sensibilidade_pressao = min(5.0, round(sensibilidade_pressao + 0.15, 2))
     elif followup_answers.get("natureza_conflito") == "Estratégia - acho desnecessário em muitos casos":
         evita_conflito = max(1.0, round(evita_conflito - 0.20, 2))
 
     if followup_answers.get("reconhecimento") == "Fico desconfortável e tento mudar de assunto":
         auto_reconhecimento = max(1.0, round(auto_reconhecimento - 0.45, 2))
         visibilidade_pessoal = max(1.0, round(visibilidade_pessoal - 0.25, 2))
+        merecimento_economico = max(1.0, round(merecimento_economico - 0.25, 2))
     elif followup_answers.get("reconhecimento") == "Agradeço, mas minimizo por hábito":
         auto_reconhecimento = max(1.0, round(auto_reconhecimento - 0.20, 2))
+        merecimento_economico = max(1.0, round(merecimento_economico - 0.15, 2))
     elif followup_answers.get("reconhecimento") == "Recebo bem e sigo em frente":
         auto_reconhecimento = min(5.0, round(auto_reconhecimento + 0.20, 2))
+        merecimento_economico = min(5.0, round(merecimento_economico + 0.15, 2))
 
     if followup_answers.get("risco_expansao") == "Permanecer no que já funciona":
         tolerancia_risco = max(1.0, round(tolerancia_risco - 0.30, 2))
+        impulso_expansao = max(1.0, round(impulso_expansao - 0.20, 2))
     elif followup_answers.get("risco_expansao") == "Agir se o upside parecer claro":
         tolerancia_risco = min(5.0, round(tolerancia_risco + 0.20, 2))
+        impulso_expansao = min(5.0, round(impulso_expansao + 0.15, 2))
 
     return {
         "auto_reconhecimento": auto_reconhecimento,
@@ -813,6 +861,15 @@ def compute_derived_variables(medias, raw, adjusted, followup_answers=None):
         "visibilidade_pessoal": visibilidade_pessoal,
         "evita_conflito": evita_conflito,
         "autonomia_execucao": autonomia_execucao,
+        "flexibilidade_cognitiva": flexibilidade_cognitiva,
+        "conforto_abstracao": conforto_abstracao,
+        "planejamento_antecipado": planejamento_antecipado,
+        "sensibilidade_pressao": sensibilidade_pressao,
+        "ruminacao_pos_evento": ruminacao_pos_evento,
+        "necessidade_previsibilidade": necessidade_previsibilidade,
+        "merecimento_economico": merecimento_economico,
+        "impulso_expansao": impulso_expansao,
+        "comparacao_escassez": comparacao_escassez,
     }
 
 
@@ -1029,6 +1086,9 @@ def engine_valor_oportunidade(medias, derived, raw, followup_answers=None):
     auto_rec = derived["auto_reconhecimento"]
     risco = derived["tolerancia_risco"]
     autoex = derived["autoexigencia"]
+    merecimento = derived.get("merecimento_economico", 3)
+    impulso_expansao = derived.get("impulso_expansao", 3)
+    comparacao_escassez = derived.get("comparacao_escassez", 3)
     rec = followup_answers.get("reconhecimento", "")
     risco_exp = followup_answers.get("risco_expansao", "")
 
@@ -1040,9 +1100,21 @@ def engine_valor_oportunidade(medias, derived, raw, followup_answers=None):
         leitura.append("credito_interno_insuficiente")
         riscos.append("Você pode construir valor real sem convertê-lo em autorização interna para avançar.")
 
+    if merecimento <= 2.9:
+        leitura.append("merecimento_economico_rebaixado")
+        riscos.append("Pode existir competência real sem autorização interna proporcional para pedir, cobrar ou receber melhor.")
+
+    if comparacao_escassez >= 3.6:
+        leitura.append("comparacao_contrai_expansao")
+        riscos.append("Quando a referência vira insuficiência, parte da energia que poderia virar movimento vai para proteção e comparação.")
+
     if risco <= 3.0:
         leitura.append("oportunidade_passa_por_filtro_de_segurança")
         riscos.append("Você pode exigir garantias demais antes de pedir, propor, cobrar ou ocupar espaço.")
+
+    if impulso_expansao <= 3.0:
+        leitura.append("expansao_precisa_de_justificativa_forte")
+        riscos.append("Seu movimento de crescimento pode depender de prova demais antes de se tornar ação concreta.")
 
     if autoex >= 4.0:
         leitura.append("patrimonio_interno_subcontabilizado")
@@ -1067,10 +1139,14 @@ def engine_valor_oportunidade(medias, derived, raw, followup_answers=None):
     elif risco_exp == "Agir se o upside parecer claro":
         forcas.append("movimento_quando_o_ganho_faz_sentido")
 
-    if abund >= 3.4 and auto_rec >= 3.1:
+    if abund >= 3.4 and auto_rec >= 3.1 and merecimento >= 3.1:
         forcas.append("potencial_de_expansao_mais_saudavel")
 
+    if impulso_expansao >= 3.5 and comparacao_escassez <= 3.0:
+        forcas.append("expansao_com_menos_contracao_defensiva")
+
     ajustes.append("Seu gargalo pode não estar em gerar valor, e sim em converter valor em avanço, percepção e ganho proporcional.")
+    ajustes.append("Nesta versão, a leitura de valor considera não só abundância média, mas também merecimento, comparação e impulso real de expansão.")
 
     return {
         "leitura": leitura,
@@ -1600,6 +1676,8 @@ def build_section_map_v71(perfil):
                 "Seguranca": medias["Seguranca"],
                 "autonomia_execucao": derived["autonomia_execucao"],
                 "tolerancia_risco": derived["tolerancia_risco"],
+                "planejamento_antecipado": derived.get("planejamento_antecipado", 3),
+                "necessidade_previsibilidade": derived.get("necessidade_previsibilidade", 3),
             },
         },
         "presenca_expressao": {
@@ -1624,6 +1702,10 @@ def build_section_map_v71(perfil):
                 "Neuroticismo": medias["Neuroticismo"],
                 "auto_reconhecimento": derived["auto_reconhecimento"],
                 "autoexigencia": derived["autoexigencia"],
+                "flexibilidade_cognitiva": derived.get("flexibilidade_cognitiva", 3),
+                "conforto_abstracao": derived.get("conforto_abstracao", 3),
+                "sensibilidade_pressao": derived.get("sensibilidade_pressao", 3),
+                "ruminacao_pos_evento": derived.get("ruminacao_pos_evento", 3),
                 "reconhecimento": followups.get("reconhecimento", ""),
             },
         },
@@ -1646,6 +1728,9 @@ def build_section_map_v71(perfil):
                 {"tipo": "media", "nome": "Abundancia", "valor": medias["Abundancia"]},
                 {"tipo": "derived", "nome": "auto_reconhecimento", "valor": derived["auto_reconhecimento"]},
                 {"tipo": "derived", "nome": "tolerancia_risco", "valor": derived["tolerancia_risco"]},
+                {"tipo": "derived", "nome": "merecimento_economico", "valor": derived.get("merecimento_economico", 3)},
+                {"tipo": "derived", "nome": "impulso_expansao", "valor": derived.get("impulso_expansao", 3)},
+                {"tipo": "derived", "nome": "comparacao_escassez", "valor": derived.get("comparacao_escassez", 3)},
                 {"tipo": "followup", "nome": "reconhecimento", "valor": followups.get("reconhecimento", "")},
                 {"tipo": "followup", "nome": "risco_expansao", "valor": followups.get("risco_expansao", "")},
             ]
@@ -1742,6 +1827,62 @@ def validate_generated_report_v81(texto):
         if re.search(padrao, texto_limpo, flags=re.IGNORECASE | re.DOTALL):
             problemas.append(descricao)
     return list(dict.fromkeys(problemas))
+
+
+def sanitize_report_output_v81(texto):
+    if not texto:
+        return texto
+
+    texto = texto.replace("\r\n", "\n")
+
+    padroes_linha_proibida = [
+        r"^\s*se quiser.*$",
+        r"^\s*se desejar.*$",
+        r"^\s*caso queira.*$",
+        r"^\s*eu posso.*$",
+        r"^\s*posso transformar.*$",
+        r"^\s*posso adaptar.*$",
+        r"^\s*posso converter.*$",
+        r"^\s*posso te ajudar.*$",
+        r"^\s*se preferir.*$",
+    ]
+
+    linhas = []
+    for linha in texto.split("\n"):
+        linha_limpa = linha.strip().lower()
+        if any(re.search(p, linha_limpa, flags=re.IGNORECASE) for p in padroes_linha_proibida):
+            continue
+        if "causas principais definidas" in linha_limpa:
+            continue
+        linhas.append(linha)
+
+    texto = "\n".join(linhas)
+
+    match_secao_9 = re.search(r"(^|\n)(9\.[^\n]*próximos passos[^\n]*\n)(.*)$", texto, flags=re.IGNORECASE | re.DOTALL)
+    if match_secao_9:
+        cabecalho = match_secao_9.group(2)
+        corpo = match_secao_9.group(3)
+        linhas_validas = []
+        for linha in corpo.split("\n"):
+            linha_limpa = linha.strip()
+            if not linha_limpa:
+                continue
+            baixa = linha_limpa.lower()
+            if any(expr in baixa for expr in ["se quiser", "eu posso", "posso transformar", "caso queira", "se desejar", "posso adaptar", "posso converter"]):
+                continue
+            linhas_validas.append(linha_limpa)
+
+        if not linhas_validas:
+            linhas_validas = [
+                "1. Escolha uma situação concreta desta semana para se posicionar com mais clareza, sem adiar a conversa necessária.",
+                "2. Registre por escrito uma entrega recente de valor e o resultado objetivo que ela gerou, para consolidar mérito com evidência.",
+                "3. Defina um movimento pequeno de expansão com prazo curto, mesmo sem esperar sensação de certeza total.",
+            ]
+
+        texto = texto[:match_secao_9.start()] + ("\n" if not texto[:match_secao_9.start()].endswith("\n") else "") + cabecalho + "\n".join(linhas_validas)
+
+    texto = re.sub(r"\n{3,}", "\n\n", texto).strip()
+    return texto
 
 
 def gerar_relatorio(perfil):
@@ -1944,6 +2085,15 @@ VARIAVEIS DERIVADAS:
 - visibilidade_pessoal: {derived['visibilidade_pessoal']:.2f}
 - evita_conflito: {derived['evita_conflito']:.2f}
 - autonomia_execucao: {derived['autonomia_execucao']:.2f}
+- flexibilidade_cognitiva: {derived.get('flexibilidade_cognitiva', 3):.2f}
+- conforto_abstracao: {derived.get('conforto_abstracao', 3):.2f}
+- planejamento_antecipado: {derived.get('planejamento_antecipado', 3):.2f}
+- sensibilidade_pressao: {derived.get('sensibilidade_pressao', 3):.2f}
+- ruminacao_pos_evento: {derived.get('ruminacao_pos_evento', 3):.2f}
+- necessidade_previsibilidade: {derived.get('necessidade_previsibilidade', 3):.2f}
+- merecimento_economico: {derived.get('merecimento_economico', 3):.2f}
+- impulso_expansao: {derived.get('impulso_expansao', 3):.2f}
+- comparacao_escassez: {derived.get('comparacao_escassez', 3):.2f}
 
 PADROES PRIORIZADOS:
 {linhas_padroes}
@@ -2105,6 +2255,7 @@ Texto a reescrever:
                 temperature=0.2,
             )
             texto_final = response.choices[0].message.content
+        texto_final = sanitize_report_output_v81(texto_final)
         return texto_final, bloco_forcas, bloco_desafios
     except AuthenticationError:
         return (
