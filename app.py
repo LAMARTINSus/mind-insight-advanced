@@ -3,7 +3,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V8.2
+# Version: V8.3
 # Data: 2026-04-16
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
@@ -72,6 +72,12 @@
 #      - Aumenta a riqueza das evidências itemizadas por seção e sua priorização interpretativa
 #      - Reforça especialmente as seções de mundo interno, execução e valor/oportunidade
 #      - Mantém a base funcional saneada para comparação com a versão anterior
+# V8.3 - Linguagem do povo, mensagem direta e frase que cala na alma
+#      - Data: 2026-04-16
+#      - Reescreve o padrão de prompt para linguagem simples, concreta e memorável
+#      - Exige que cada seção nomeie padrão, força, custo e efeito prático com clareza
+#      - Bloqueia formulação bonita demais, abstração vazia e elegância sem mensagem
+#      - Mantém a estrutura técnica da V8.2, mas muda profundamente a voz do relatório
 #
 # V6.0 - Nova engine de inferência comportamental
 #      - Mantém Google Sheets, email, modo teste e debug
@@ -96,7 +102,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V8.2"
+APP_VERSION = "V8.3"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -1821,11 +1827,24 @@ def validate_generated_report_v81(texto):
         (r"não é .*?é ", "construção por negação comparativa"),
         (r"nao e .*?e ", "construção por negação comparativa"),
         (r"causas principais definidas", "vazamento de raciocínio interno"),
+        (r"integração entre", "abertura abstrata demais"),
+        (r"amplitude de pensamento", "linguagem abstrata demais"),
+        (r"trajetória mais estável", "formulação genérica demais"),
+        (r"esse encontro produz", "frase bonita demais e pouco direta"),
+        (r"há curiosidade genuína", "abertura descritiva genérica"),
+        (r"o ponto mais sensível do processo", "entrada elegante demais para crítica prática"),
     ]
     texto_limpo = texto.lower()
     for padrao, descricao in verificacoes:
         if re.search(padrao, texto_limpo, flags=re.IGNORECASE | re.DOTALL):
             problemas.append(descricao)
+
+    if "1. eixo central" in texto_limpo and "você" not in texto_limpo:
+        problemas.append("texto distante demais; falta tratamento direto da pessoa")
+
+    if len(re.findall(r"\bcapacidade de\b", texto_limpo)) >= 3:
+        problemas.append("repetição de formulação abstrata")
+
     return list(dict.fromkeys(problemas))
 
 
@@ -2159,40 +2178,45 @@ ESTRUTURA OBRIGATORIA:
 9. PRÓXIMOS PASSOS
 
 INSTRUÇÕES ESPECÍFICAS POR SEÇÃO:
-- EIXO CENTRAL: esta é a única seção autorizada a abrir a tese principal do retrato. Além do padrão organizador, saliente também um potencial positivo estrutural que não apareça só como defesa ou limitação.
-- EXECUÇÃO: foque em decisão, critério de entrada em ação, autonomia, reversibilidade, clareza e timing. Sempre que houver base nos dados, saliente autonomia silenciosa, constância e forma de aprender com o processo. Não repetir presença, reconhecimento ou valor como eixo.
-- PRESENÇA: foque em modulação social, leitura de contexto, seletividade de emissão, qualidade de escuta e comportamento situacional. A seção de presença não pode ser organizada por déficit de percepção, subestimação, invisibilidade ou diferença entre valor real e leitura externa.
-- MUNDO INTERNO: foque em autoimagem, mérito, exigência interna, elaboração psicológica, complexidade mental e crédito interno. Pode falar de riqueza interna e repertório mental quando houver evidência, mas não pode usar isso como ponte para antecipar a seção de valor.
-- RELAÇÕES: foque em limites, convivência, conflito, negociação de espaço, custo emocional do atrito e preservação de vínculo. Diferencie convivência relacional de presença social. Se houver base, saliente escuta, leitura fina do outro e ajuste relacional sem teatralidade.
-- VALOR: foque em pedido, cobrança, negociação, ocupação de espaço, proposta, precificação e avanço prático. A seção de valor não pode ser construída como tradução econômica, de reconhecimento ou de visibilidade da tese central.
-- DIREÇÃO PRÁTICA: as três ações não podem corrigir a mesma causa por três portas diferentes. Cada ação deve atacar um mecanismo diferente e ser rastreável a seções diferentes do relatório.
-- FRASE FINAL: deve ser forte, precisa e memorável, mas não pode resumir a tese do eixo central nem repetir o principal gargalo da seção de valor. Ela deve sintetizar direção, não condensar causalidade.
+- BLOCO 1: diga logo, em português simples, qual é o jeito principal de a pessoa funcionar. Nomeie a força e o custo. Esta seção deve conter pelo menos uma frase que poderia ser repetida para resumir a pessoa sem perder a essência.
+- EXECUÇÃO: diga com clareza como a pessoa decide, onde ela trava, o que faz ela entrar em ação e qual é o custo prático disso. Troque formulações elegantes por algo que a pessoa reconheça na vida real.
+- PRESENÇA: diga como a pessoa aparece nos ambientes, quando ela se solta, quando ela se segura e o que isso produz nos outros. Não usar invisibilidade ou reconhecimento como explicação principal.
+- MUNDO INTERNO: diga como a pessoa pensa, se cobra, se reconhece e se desgasta por dentro. Troque abstrações como "densidade" e "elaboração" por leitura concreta de vida mental.
+- RELAÇÕES: diga como a pessoa cuida do vínculo, onde ela cede demais, onde ela segura demais e o preço emocional disso. Diferencie relação de presença social.
+- VALOR: diga de forma concreta como a pessoa lida com pedir, cobrar, negociar, ocupar espaço e transformar capacidade em avanço. Esta seção precisa soar prática, não conceitual.
+- DIREÇÃO PRÁTICA: cada ação deve atacar um mecanismo diferente e ser escrita como orientação simples, executável e sem linguagem de consultoria.
+- FRASE FINAL: deve ser curta, forte e memorável. Precisa soar como verdade direta, não como frase bonita.
 - PRÓXIMOS PASSOS: escreva ações concretas, observáveis e executáveis pela própria pessoa. É proibido usar voz conversacional, convite, oferta de ajuda, primeira pessoa do assistente ou qualquer formulação do tipo "se quiser", "eu posso" ou "posso transformar".
 - QUALQUER BLOCO FINAL DE RESUMO, TRAÇOS, FORTALEZAS OU DESAFIOS: se existir, ele não pode repetir literalmente nem por equivalência as teses centrais já usadas nas seções anteriores. Ele deve acrescentar informação complementar, e não recompactar o relatório em frases curtas.
 
 REGRA DE HUMANIZAÇÃO:
-O texto final não pode soar técnico, analítico demais ou com cara de ferramenta.
-O texto final deve soar como uma leitura direta, humana, fluida e precisa de uma pessoa real.
-Evite frases diagnósticas frias e abstrações excessivas.
-Prefira descrever comportamento, custo e contexto de maneira natural.
+O texto final precisa falar a língua do povo sem perder precisão.
+Escreva como quem traduz uma verdade psicológica complexa para algo que a pessoa entende na hora.
+Cada seção precisa nomear com clareza: o padrão principal, a força disso, o custo disso e como isso aparece na vida real.
+Prefira frases curtas, concretas e memoráveis.
+Evite abstrações elegantes que soem inteligentes mas não transmitam mensagem.
+Se puder dizer "você demora para começar porque quer clareza antes de agir", não escreva "seu movimento costuma ser precedido por entendimento".
+Se puder dizer "você faz bem, mas nem sempre sente que já pode ocupar o espaço que merece", não escreva formulações abstratas sobre crédito interno.
 Não introduza uma característica dizendo primeiro o que a pessoa não é.
 Evite construções como "não é X, nem Y; é Z", "não porque..., mas porque..." e outros contrastes negativos usados apenas para criar efeito de profundidade.
-Se o traço principal puder ser dito diretamente, diga diretamente.
+Cada seção deve ter pelo menos uma frase que poderia ser lembrada depois de horas.
 Não use no texto final palavras como "engine", "modelo", "sistema" ou "eixo".
+Não use linguagem solene demais, acadêmica demais ou elegante demais.
 
 TESTES FINAIS BLOQUEANTES:
-1. Se 3 ou mais seções puderem ser resumidas por "você faz mais do que mostra", o relatório está errado.
-2. Se duas seções puderem ser resumidas pela mesma tese-mãe, o relatório está errado.
-3. Se duas seções tiverem a mesma causa principal, o relatório está errado.
-4. Se duas seções tiverem a mesma lente, o relatório está errado.
+1. Se a pessoa puder ler uma seção e dizer "falou bonito mas não disse nada", o relatório está errado.
+2. Se uma seção não puder ser resumida em uma frase simples e forte, o relatório está errado.
+3. Se duas seções puderem ser resumidas pela mesma tese-mãe, o relatório está errado.
+4. Se duas seções tiverem a mesma causa principal, o relatório está errado.
 5. Se presença e valor falarem de percepção, visibilidade, reconhecimento ou subestimação como eixo, o relatório está errado.
 6. Se uma seção estiver usando como motor causal principal uma fonte que não seja a dela, o relatório está errado.
 7. Se um bloco final de resumo, traços, fortalezas ou desafios recompuser em frases curtas o que o corpo do relatório já disse, o relatório está errado.
-8. Se a frase final resumir a tese do eixo central, o relatório está errado.
+8. Se a frase final resumir a tese do bloco 1, o relatório está errado.
 9. Se aparecer no texto final qualquer lista de causas internas, preparação metodológica ou bastidor do raciocínio, o relatório está errado.
 10. Se o texto depender de contrastes negativos artificiais para descrever a pessoa, o relatório está errado.
 11. Se áreas claramente presentes nos dados continuarem sem ser salientadas porque a mesma tese ocupou espaço demais, o relatório está errado.
-12. Se o texto parecer técnico, frio ou com cara de ferramenta, o relatório está errado.
+12. Se o texto parecer técnico, frio, ornamental ou com cara de ferramenta, o relatório está errado.
+13. Se a leitura parecer servir para quase qualquer pessoa, o relatório está errado.
 Se qualquer teste falhar, reescreva antes de finalizar.
 """
 
@@ -2204,11 +2228,13 @@ Se qualquer teste falhar, reescreva antes de finalizar.
                 {
                     "role": "system",
                     "content": (
-                        "Você é um analista de comportamento humano especializado em transformar padrões de resposta em leitura reveladora, humana, direta e estruturalmente precisa. "
-                        "Você não parafraseia perguntas. Você identifica mecanismos, custos, contexto real e potencial escondido sem soar técnico. "
+                        "Você é um analista de comportamento humano que escreve de forma simples, certeira, humana e memorável. "
+                        "Seu trabalho é transformar padrões de resposta em frases que a pessoa entende na hora e reconhece como verdade da própria vida. "
+                        "Você não escreve para impressionar. Você escreve para acertar. "
+                        "Você não parafraseia perguntas. Você nomeia mecanismo, força, custo e efeito prático. "
                         "Você deve aplicar exclusividade causal forçada: cada seção precisa nascer de uma causa principal realmente diferente, e não de variações elegantes da mesma tese-mãe. "
                         "Você não deve externalizar o seu planejamento interno, nem usar contrastes negativos artificiais para parecer profundo. "
-                        "Cada seção precisa responder a uma pergunta diferente, usar sua fonte principal correta, salientar uma área real do perfil que ainda não tenha sido explorada e soar como leitura de pessoa, não como saída de ferramenta."
+                        "Cada seção precisa responder a uma pergunta diferente, usar sua fonte principal correta, salientar uma área real do perfil que ainda não tenha sido explorada e soar como alguém dizendo uma verdade importante de forma clara, e não como saída de ferramenta."
                     )
                 },
                 {
@@ -2232,7 +2258,10 @@ Regras inegociáveis:
 - Não usar voz conversacional do assistente.
 - A seção 9 deve conter apenas próximos passos concretos, impessoais e acionáveis.
 - Não mostrar bastidores, causas internas ou planejamento oculto.
-- Preservar profundidade, exclusividade causal e linguagem humana.
+- Trocar linguagem bonita demais por linguagem simples, direta e memorável.
+- Cada seção deve dizer claramente o que a pessoa faz, qual é a força disso, qual é o custo disso e como isso aparece na prática.
+- Se uma frase puder ser dita de forma mais simples e mais forte, reescreva.
+- Preserve profundidade e exclusividade causal, mas fale como gente.
 
 Texto a reescrever:
 {texto_final}
@@ -2243,8 +2272,8 @@ Texto a reescrever:
                     {
                         "role": "system",
                         "content": (
-                            "Você revisa relatórios comportamentais já escritos para remover artificialidade, voz de assistente e vazamentos metodológicos sem empobrecer o conteúdo. "
-                            "Você mantém a estrutura numerada, aprofunda o que for preciso e corrige qualquer formulação proibida."
+                            "Você revisa relatórios comportamentais já escritos para remover artificialidade, abstração vazia, voz de assistente e vazamentos metodológicos sem empobrecer o conteúdo. "
+                            "Você mantém a estrutura numerada, aprofunda o que for preciso e troca formulações bonitas demais por frases simples, fortes, humanas e memoráveis."
                         )
                     },
                     {
