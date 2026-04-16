@@ -3,7 +3,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V8.0
+# Version: V8.1
 # Data: 2026-04-16
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
@@ -55,6 +55,12 @@
 #      - Exige novidade real por seção e maior cobertura de áreas pouco salientadas do perfil
 #      - Reforça potenciais positivos, autonomia silenciosa, abertura cognitiva e escuta fina
 #      - Simplifica a afirmação de reconhecimento na calibração guiada
+# V8.1 - Subfacetas + evidências por seção + validação final de linguagem
+#      - Data: 2026-04-16
+#      - Amplia a preservação de sinais antes do prompt com subfacetas temáticas
+#      - Injeta evidências itemizadas por seção com score bruto, ajustado e transparência de inversão
+#      - Reforça a proibição de voz conversacional na seção 9
+#      - Adiciona validação e uma segunda passada automática quando surgem contrastes artificiais
 #
 # V6.0 - Nova engine de inferência comportamental
 #      - Mantém Google Sheets, email, modo teste e debug
@@ -74,11 +80,12 @@ import os
 import pandas as pd
 import smtplib
 import datetime
+import re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V8.0"
+APP_VERSION = "V8.1"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -630,6 +637,131 @@ BLOCOS = {
     "Seguranca":         [53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63],
     "Abundancia":        [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 76, 83],
 }
+
+SUBFACET_LIBRARY_V81 = {
+    "abertura_curiosidade": {"label": "curiosidade e exploração intelectual", "bloco": "Abertura", "itens": [1, 3, 8]},
+    "abertura_flexibilidade": {"label": "flexibilidade de crença", "bloco": "Abertura", "itens": [2, 7]},
+    "abertura_abstracao": {"label": "abstração e conexão mental", "bloco": "Abertura", "itens": [4, 5]},
+    "consc_planejamento": {"label": "planejamento e antecipação", "bloco": "Conscienciosidade", "itens": [13, 14, 18, 84]},
+    "consc_constancia": {"label": "constância e sustentação", "bloco": "Conscienciosidade", "itens": [11, 20, 82]},
+    "consc_revisao": {"label": "revisão e controle de qualidade", "bloco": "Conscienciosidade", "itens": [17, 78]},
+    "consc_autonomia": {"label": "autonomia de execução", "bloco": "Conscienciosidade", "itens": [12, 16, 77]},
+    "ext_energia_social": {"label": "energia social", "bloco": "Extroversao", "itens": [21, 25]},
+    "ext_iniciativa_expressiva": {"label": "iniciativa de fala e exposição", "bloco": "Extroversao", "itens": [22, 24, 30]},
+    "ext_busca_social": {"label": "busca ativa de contato", "bloco": "Extroversao", "itens": [26, 81]},
+    "ext_modulacao_presenca": {"label": "modulação entre escuta e protagonismo", "bloco": "Extroversao", "itens": [23, 29, 88]},
+    "amab_empatia": {"label": "empatia e leitura do outro", "bloco": "Amabilidade", "itens": [31, 32, 38]},
+    "amab_limites": {"label": "limites com firmeza", "bloco": "Amabilidade", "itens": [33, 36, 87]},
+    "amab_atrito": {"label": "custo relacional do atrito", "bloco": "Amabilidade", "itens": [35, 37, 39]},
+    "amab_reparacao_presenca": {"label": "reparação e presença com o outro", "bloco": "Amabilidade", "itens": [75, 85, 86]},
+    "neuro_antecipacao": {"label": "antecipação e necessidade de previsibilidade", "bloco": "Neuroticismo", "itens": [44, 49]},
+    "neuro_estabilidade_pressao": {"label": "estabilidade sob pressão", "bloco": "Neuroticismo", "itens": [43, 45, 47, 48]},
+    "neuro_ruminacao": {"label": "ruminação e impacto pós-evento", "bloco": "Neuroticismo", "itens": [42, 46, 50, 52]},
+    "neuro_merito_descanso": {"label": "descanso, mérito e autoaceitação", "bloco": "Neuroticismo", "itens": [79, 80, 89]},
+    "seg_previsibilidade": {"label": "necessidade de previsibilidade", "bloco": "Seguranca", "itens": [53, 55, 61, 63]},
+    "seg_transicao": {"label": "conforto em transição", "bloco": "Seguranca", "itens": [58, 62]},
+    "seg_risco_acao": {"label": "ação sem garantia total", "bloco": "Seguranca", "itens": [54, 57, 60]},
+    "seg_apego_estavel": {"label": "apego ao que já funciona", "bloco": "Seguranca", "itens": [56, 59]},
+    "abund_expansao": {"label": "expansão e visão de ganho", "bloco": "Abundancia", "itens": [64, 68, 70, 83]},
+    "abund_escassez": {"label": "escassez, comparação e insuficiência", "bloco": "Abundancia", "itens": [65, 67, 73]},
+    "abund_investimento_proprio": {"label": "investimento em si e retorno esperado", "bloco": "Abundancia", "itens": [66, 71]},
+    "abund_pedido_valor": {"label": "pedido e cobrança de valor", "bloco": "Abundancia", "itens": [72]},
+    "abund_perda_prudencia": {"label": "perda, prudência e mérito silencioso", "bloco": "Abundancia", "itens": [69, 74, 76]},
+}
+
+SECTION_SUBFACETS_V81 = {
+    "central": ["abertura_curiosidade", "consc_constancia", "neuro_merito_descanso", "seg_previsibilidade", "abund_escassez"],
+    "execucao_decisao": ["consc_planejamento", "consc_constancia", "consc_autonomia", "seg_risco_acao", "seg_apego_estavel"],
+    "presenca_expressao": ["ext_energia_social", "ext_iniciativa_expressiva", "ext_busca_social", "ext_modulacao_presenca"],
+    "mundo_interno": ["abertura_curiosidade", "abertura_abstracao", "neuro_antecipacao", "neuro_ruminacao", "neuro_merito_descanso"],
+    "relacoes_conflito": ["amab_empatia", "amab_limites", "amab_atrito", "amab_reparacao_presenca"],
+    "valor_oportunidade": ["abund_expansao", "abund_escassez", "abund_investimento_proprio", "abund_pedido_valor", "abund_perda_prudencia"],
+}
+
+SECTION_ITEM_IDS_V81 = {
+    "central": [1, 11, 17, 44, 54, 65, 72, 79, 80, 89],
+    "execucao_decisao": [11, 13, 17, 20, 54, 57, 60, 61, 63, 77, 78, 82, 84],
+    "presenca_expressao": [21, 22, 24, 26, 29, 30, 81, 88],
+    "mundo_interno": [1, 3, 4, 5, 7, 8, 42, 44, 49, 50, 52, 79, 80, 89],
+    "relacoes_conflito": [31, 32, 33, 35, 36, 37, 38, 39, 75, 85, 86, 87],
+    "valor_oportunidade": [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 76, 83],
+}
+
+
+def classificar_intensidade_curta(valor):
+    if valor >= 4.2:
+        return "muito saliente"
+    if valor >= 3.5:
+        return "saliente"
+    if valor >= 2.8:
+        return "contextual"
+    if valor >= 2.2:
+        return "contido"
+    return "muito contido"
+
+
+def compute_subfacets(raw, adjusted):
+    subfacetas = {}
+    for nome, meta in SUBFACET_LIBRARY_V81.items():
+        itens = meta["itens"]
+        valores = [adjusted.get(q, 3) for q in itens]
+        score = round(sum(valores) / len(valores), 2) if valores else 3.0
+        subfacetas[nome] = {
+            "nome": nome,
+            "label": meta["label"],
+            "bloco": meta["bloco"],
+            "itens": itens,
+            "score": score,
+            "intensidade": classificar_intensidade_curta(score),
+        }
+    return subfacetas
+
+
+def get_top_subfacets_for_section(subfacetas, section_name, limit=4):
+    nomes = SECTION_SUBFACETS_V81.get(section_name, [])
+    candidatos = [subfacetas[n] for n in nomes if n in subfacetas]
+    candidatos = sorted(candidatos, key=lambda x: abs(x["score"] - 3), reverse=True)
+    return candidatos[:limit]
+
+
+def build_section_evidence_v81(raw, adjusted, section_name, limit=4):
+    evidencias = []
+    for q in SECTION_ITEM_IDS_V81.get(section_name, []):
+        bruto = raw.get(q, 3)
+        ajustado = adjusted.get(q, 3)
+        invertida = q in PERGUNTAS_INVERTIDAS
+        texto = questions_display.get(q, "-")
+        if ajustado >= 4.2:
+            leitura = "o sinal aparece com força e merece peso real na leitura"
+        elif ajustado >= 3.5:
+            leitura = "o sinal aparece de forma consistente"
+        elif ajustado <= 1.8:
+            leitura = "o sinal aparece muito pouco e funciona como ausência relevante"
+        elif ajustado <= 2.5:
+            leitura = "o sinal aparece com reserva e ajuda a limitar conclusões exageradas"
+        else:
+            leitura = "o sinal é contextual e pede leitura sem absolutismo"
+        if invertida and bruto != ajustado:
+            leitura += "; a interpretação final depende do score ajustado após inversão"
+        evidencias.append({
+            "q": q,
+            "texto": texto,
+            "bruto": bruto,
+            "ajustado": ajustado,
+            "invertida": invertida,
+            "forca": abs(ajustado - 3),
+            "leitura": leitura,
+        })
+    evidencias = sorted(evidencias, key=lambda x: (x["forca"], x["invertida"]), reverse=True)
+    return evidencias[:limit]
+
+
+def build_all_section_evidences_v81(raw, adjusted):
+    return {
+        nome: build_section_evidence_v81(raw, adjusted, nome)
+        for nome in SECTION_ITEM_IDS_V81.keys()
+    }
+
 
 def compute_derived_variables(medias, raw, adjusted, followup_answers=None):
     followup_answers = followup_answers or {}
@@ -1260,6 +1392,8 @@ def gerar_perfil(respostas, followup_answers=None):
     eixos_moderados = {k: v for k, v in medias.items() if 3.0 <= v < 3.5}
 
     derived = compute_derived_variables(medias, respostas, respostas_ajustadas, followup_answers)
+    subfacetas = compute_subfacets(respostas, respostas_ajustadas)
+    evidencias_por_secao = build_all_section_evidences_v81(respostas, respostas_ajustadas)
 
     engine_presenca = engine_presenca_social(medias, derived, respostas, followup_answers)
     engine_interno = engine_mundo_interno(medias, derived, respostas, followup_answers)
@@ -1367,6 +1501,8 @@ def gerar_perfil(respostas, followup_answers=None):
         "pct_3_4": round(pct_3_4, 1),
         "scores_diagnosticos": scores_diagnosticos,
         "derived": derived,
+        "subfacetas": subfacetas,
+        "evidencias_por_secao": evidencias_por_secao,
         "padroes": padroes,
         "tensoes": tensoes,
         "padroes_v62": padroes_v62,
@@ -1425,6 +1561,8 @@ def build_section_map_v71(perfil):
     padroes = perfil.get("padroes_v62", [])
     tensoes = perfil.get("tensoes_v62", [])
     comportamentos = perfil.get("comportamentos_v62", [])
+    subfacetas = perfil.get("subfacetas", {})
+    evidencias_por_secao = perfil.get("evidencias_por_secao", {})
 
     annotated_patterns = []
     for p in padroes:
@@ -1449,10 +1587,14 @@ def build_section_map_v71(perfil):
         "central": {
             "patterns": annotated_patterns[:3],
             "tensions": annotated_tensions[:1],
+            "subfacets": get_top_subfacets_for_section(subfacetas, "central"),
+            "evidencias": evidencias_por_secao.get("central", []),
         },
         "execucao_decisao": {
             "patterns": _pick_items_v71([p for p in annotated_patterns if p["dominio"] == "execucao"], used, limit=2),
             "tensions": _pick_items_v71([t for t in annotated_tensions if t["dominio"] == "execucao"], used, limit=1),
+            "subfacets": get_top_subfacets_for_section(subfacetas, "execucao_decisao"),
+            "evidencias": evidencias_por_secao.get("execucao_decisao", []),
             "facts": {
                 "Conscienciosidade": medias["Conscienciosidade"],
                 "Seguranca": medias["Seguranca"],
@@ -1463,6 +1605,8 @@ def build_section_map_v71(perfil):
         "presenca_expressao": {
             "patterns": _pick_items_v71([p for p in annotated_patterns if p["dominio"] == "presenca"], used, limit=2),
             "tensions": _pick_items_v71([t for t in annotated_tensions if t["dominio"] == "presenca"], used, limit=1),
+            "subfacets": get_top_subfacets_for_section(subfacetas, "presenca_expressao"),
+            "evidencias": evidencias_por_secao.get("presenca_expressao", []),
             "facts": {
                 "Extroversao": medias["Extroversao"],
                 "visibilidade_pessoal": derived["visibilidade_pessoal"],
@@ -1473,6 +1617,8 @@ def build_section_map_v71(perfil):
         "mundo_interno": {
             "patterns": _pick_items_v71([p for p in annotated_patterns if p["dominio"] == "interno"], used, limit=2),
             "tensions": _pick_items_v71([t for t in annotated_tensions if t["dominio"] == "interno"], used, limit=1),
+            "subfacets": get_top_subfacets_for_section(subfacetas, "mundo_interno"),
+            "evidencias": evidencias_por_secao.get("mundo_interno", []),
             "facts": {
                 "Abertura": medias["Abertura"],
                 "Neuroticismo": medias["Neuroticismo"],
@@ -1484,6 +1630,8 @@ def build_section_map_v71(perfil):
         "relacoes_conflito": {
             "patterns": _pick_items_v71([p for p in annotated_patterns if p["dominio"] == "relacional"], used, limit=2),
             "tensions": _pick_items_v71([t for t in annotated_tensions if t["dominio"] == "relacional"], used, limit=1),
+            "subfacets": get_top_subfacets_for_section(subfacetas, "relacoes_conflito"),
+            "evidencias": evidencias_por_secao.get("relacoes_conflito", []),
             "facts": {
                 "Amabilidade": medias["Amabilidade"],
                 "presenca_relacional": derived["presenca_relacional"],
@@ -1492,6 +1640,8 @@ def build_section_map_v71(perfil):
             },
         },
         "valor_oportunidade": {
+            "subfacets": get_top_subfacets_for_section(subfacetas, "valor_oportunidade"),
+            "evidencias": evidencias_por_secao.get("valor_oportunidade", []),
             "facts": [
                 {"tipo": "media", "nome": "Abundancia", "valor": medias["Abundancia"]},
                 {"tipo": "derived", "nome": "auto_reconhecimento", "valor": derived["auto_reconhecimento"]},
@@ -1506,6 +1656,11 @@ def build_section_map_v71(perfil):
 
 def format_section_inputs_v71(section):
     lines = []
+    for sf in section.get("subfacets", []):
+        lines.append(f"- subfaceta: {sf['label']} = {sf['score']:.2f} [{sf['intensidade']}] | itens {sf['itens']}")
+    for ev in section.get("evidencias", []):
+        inv = "sim" if ev["invertida"] else "nao"
+        lines.append(f"- evidencia: Q{ev['q']} | bruto={ev['bruto']} | ajustado={ev['ajustado']} | invertida={inv} | {ev['texto']} | leitura: {ev['leitura']}")
     for p in section.get("patterns", []):
         info = PATTERN_LIBRARY.get(p["nome"], {})
         lines.append(f"- padrão ({p['peso']}): {info.get('insight','')} | {info.get('descricao','')}")
@@ -1527,6 +1682,7 @@ def gerar_resumo_base(perfil):
     tensoes_v62 = perfil.get("tensoes_v62", [])
     comportamentos_v62 = perfil.get("comportamentos_v62", [])
     derived = perfil["derived"]
+    subfacetas = perfil.get("subfacetas", {})
 
     partes = []
 
@@ -1549,6 +1705,12 @@ def gerar_resumo_base(perfil):
         for c in comportamentos_v62[:5]:
             partes.append(f"- ({c['peso']}) {c['descricao']}")
 
+    if subfacetas:
+        partes.append("Subfacetas com maior evidência:")
+        top_subfacetas = sorted(subfacetas.values(), key=lambda x: abs(x["score"] - 3), reverse=True)[:8]
+        for sf in top_subfacetas:
+            partes.append(f"- {sf['label']}: {sf['score']:.2f} [{sf['intensidade']}] | itens {sf['itens']}")
+
     partes.append(
         "Variáveis derivadas: "
         f"auto_reconhecimento={derived['auto_reconhecimento']:.2f}, "
@@ -1561,6 +1723,25 @@ def gerar_resumo_base(perfil):
     )
 
     return "\n".join(partes)
+
+
+def validate_generated_report_v81(texto):
+    problemas = []
+    verificacoes = [
+        (r"se quiser", "voz conversacional proibida"),
+        (r"eu posso", "voz de assistente proibida"),
+        (r"posso transformar", "oferta de serviço proibida"),
+        (r"nao por .*?, mas por", "contraste artificial do tipo nao X, mas Y"),
+        (r"não por .*?, mas por", "contraste artificial do tipo não X, mas Y"),
+        (r"não é .*?é ", "construção por negação comparativa"),
+        (r"nao e .*?e ", "construção por negação comparativa"),
+        (r"causas principais definidas", "vazamento de raciocínio interno"),
+    ]
+    texto_limpo = texto.lower()
+    for padrao, descricao in verificacoes:
+        if re.search(padrao, texto_limpo, flags=re.IGNORECASE | re.DOTALL):
+            problemas.append(descricao)
+    return list(dict.fromkeys(problemas))
 
 
 def gerar_relatorio(perfil):
@@ -1580,6 +1761,7 @@ def gerar_relatorio(perfil):
     followup_answers = perfil.get("followup_answers", {})
     resumo_base = gerar_resumo_base(perfil)
     section_map = build_section_map_v71(perfil)
+    subfacetas = perfil.get("subfacetas", {})
     engine_presenca = perfil.get("engine_presenca", {})
     engine_mundo_interno = perfil.get("engine_mundo_interno", {})
     engine_execucao = perfil.get("engine_execucao_decisao", {})
@@ -1662,6 +1844,11 @@ def gerar_relatorio(perfil):
         [f"- ajuste: {x}" for x in engine_valor.get("ajustes", [])]
     ) if engine_valor else "- sem dados extras"
 
+    linhas_subfacetas = "\n".join([
+        f"- {sf['label']}: {sf['score']:.2f} [{sf['intensidade']}] | bloco={sf['bloco']} | itens={sf['itens']}"
+        for sf in sorted(subfacetas.values(), key=lambda x: abs(x["score"] - 3), reverse=True)[:12]
+    ]) if subfacetas else "- sem subfacetas adicionais"
+
     prompt = f"""
 Você é um analista de comportamento humano altamente preciso.
 Seu trabalho é produzir um relatório fiel, profundo, multidimensional e psicologicamente impactante.
@@ -1722,6 +1909,7 @@ REGRAS CRÍTICAS:
 10. Use follow-ups como desempate real de interpretação.
 11. Se houver compressão de respostas, trate isso como modulador do tom, não como desculpa para superficialidade.
 12. A seção de direção prática precisa trazer 3 movimentos em áreas realmente diferentes.
+13. A seção 9 é estritamente prática e impessoal: não use primeira pessoa, não ofereça ajuda, não diga "se quiser", não diga "eu posso" e não fale como assistente.
 
 PROTOCOLO INTERNO OBRIGATÓRIO ANTES DE ESCREVER CADA SEÇÃO:
 Antes de escrever cada seção, faça silenciosamente uma ficha interna com estes campos:
@@ -1771,6 +1959,9 @@ FOLLOW-UPS:
 
 RESUMO BASE:
 {resumo_base}
+
+SUBFACETAS DE MAIOR EVIDÊNCIA:
+{linhas_subfacetas}
 
 ENGINE EXTRA - PRESENÇA SOCIAL:
 {bloco_engine_presenca}
@@ -1826,6 +2017,7 @@ INSTRUÇÕES ESPECÍFICAS POR SEÇÃO:
 - VALOR: foque em pedido, cobrança, negociação, ocupação de espaço, proposta, precificação e avanço prático. A seção de valor não pode ser construída como tradução econômica, de reconhecimento ou de visibilidade da tese central.
 - DIREÇÃO PRÁTICA: as três ações não podem corrigir a mesma causa por três portas diferentes. Cada ação deve atacar um mecanismo diferente e ser rastreável a seções diferentes do relatório.
 - FRASE FINAL: deve ser forte, precisa e memorável, mas não pode resumir a tese do eixo central nem repetir o principal gargalo da seção de valor. Ela deve sintetizar direção, não condensar causalidade.
+- PRÓXIMOS PASSOS: escreva ações concretas, observáveis e executáveis pela própria pessoa. É proibido usar voz conversacional, convite, oferta de ajuda, primeira pessoa do assistente ou qualquer formulação do tipo "se quiser", "eu posso" ou "posso transformar".
 - QUALQUER BLOCO FINAL DE RESUMO, TRAÇOS, FORTALEZAS OU DESAFIOS: se existir, ele não pode repetir literalmente nem por equivalência as teses centrais já usadas nas seções anteriores. Ele deve acrescentar informação complementar, e não recompactar o relatório em frases curtas.
 
 REGRA DE HUMANIZAÇÃO:
@@ -1876,7 +2068,44 @@ Se qualquer teste falhar, reescreva antes de finalizar.
             ],
             temperature=0.28,
         )
-        return response.choices[0].message.content, bloco_forcas, bloco_desafios
+        texto_final = response.choices[0].message.content
+        problemas = validate_generated_report_v81(texto_final)
+        if problemas:
+            lista_problemas = "- " + "\n- ".join(problemas)
+            prompt_revisao = f"""Reescreva integralmente o relatório abaixo mantendo a mesma estrutura numerada de 1 a 9.
+
+Problemas detectados na primeira versão:
+{lista_problemas}
+
+Regras inegociáveis:
+- Não usar contrastes do tipo “não X, mas Y”.
+- Não usar voz conversacional do assistente.
+- A seção 9 deve conter apenas próximos passos concretos, impessoais e acionáveis.
+- Não mostrar bastidores, causas internas ou planejamento oculto.
+- Preservar profundidade, exclusividade causal e linguagem humana.
+
+Texto a reescrever:
+{texto_final}
+"""
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Você revisa relatórios comportamentais já escritos para remover artificialidade, voz de assistente e vazamentos metodológicos sem empobrecer o conteúdo. "
+                            "Você mantém a estrutura numerada, aprofunda o que for preciso e corrige qualquer formulação proibida."
+                        )
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt_revisao
+                    }
+                ],
+                temperature=0.2,
+            )
+            texto_final = response.choices[0].message.content
+        return texto_final, bloco_forcas, bloco_desafios
     except AuthenticationError:
         return (
             "Erro ao gerar relatorio:\n\n"
