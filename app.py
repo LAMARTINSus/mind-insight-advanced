@@ -3,7 +3,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V8.3
+# Version: V8.4
 # Data: 2026-04-16
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
@@ -102,7 +102,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V8.3"
+APP_VERSION = "V8.4"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -894,34 +894,40 @@ def engine_presenca_social(medias, derived, raw, followup_answers=None):
     vis = derived["visibilidade_pessoal"]
     ass = derived["assertividade"]
     ext = medias["Extroversao"]
+    impulso_social = derived.get("impulso_social", 3)
     pos = followup_answers.get("posicionamento_social", "")
 
-    if vis <= 2.9:
-        leitura.append("valor_aparece_menos_do_que_deveria")
-        riscos.append("Sua qualidade pode demorar mais para ser percebida em ambientes onde visibilidade pesa tanto quanto competência.")
+    if pos == "Depende muito da pessoa e do contexto":
+        leitura.append("aquecimento_social_contextual")
+        ajustes.append("Sua presença não entra igual em todo lugar. Você lê o ambiente primeiro e só ocupa mais espaço quando sente abertura real.")
 
-    if ext <= 3.1:
-        leitura.append("presenca_nao_expansiva")
-    elif ext >= 3.6:
-        leitura.append("presenca_espontaneamente_ativa")
+    if 3.0 <= ext <= 3.4 and 3.0 <= impulso_social <= 3.2:
+        leitura.append("presenca_de_arranque_lento")
+        riscos.append("Em ambientes novos, você pode demorar um pouco para mostrar a parte mais viva do seu repertório.")
+
+    if vis >= 3.4 and ass >= 3.4:
+        forcas.append("ocupacao_clara_quando_ha_abertura")
+
+    if vis <= 3.1 and ass <= 3.1:
+        leitura.append("legibilidade_social_variavel")
+        riscos.append("Quem vê só o seu começo pode subestimar presença, clareza ou firmeza que aparecem depois.")
 
     if ass <= 3.0:
-        leitura.append("assertividade_contida")
-        riscos.append("Em ambientes competitivos, sua posição pode parecer menos nítida do que realmente é.")
+        leitura.append("ocupacao_medida_do_espaco")
+        riscos.append("Sua entrada costuma ser mais medida do que imediata, e isso pode reduzir impacto inicial em contextos mais competitivos.")
     elif ass >= 3.7:
         forcas.append("posicionamento_claro")
 
-    if pos == "Depende muito da pessoa e do contexto":
-        leitura.append("expressao_contextual")
-        ajustes.append("Sua presença muda bastante conforme o ambiente, o vínculo e o nível de segurança relacional.")
-    elif pos == "Falo de forma direta e tranquila":
+    if ext >= 3.6:
+        forcas.append("presenca_espontaneamente_ativa")
+    elif ext <= 3.0 and pos != "Adio ou evito para não criar tensão":
+        leitura.append("presenca_sem_pressa_de_aparecer")
+
+    if pos == "Falo de forma direta e tranquila":
         forcas.append("fala_direta_sem_teatralidade")
     elif pos == "Adio ou evito para não criar tensão":
-        riscos.append("Você pode proteger demais a fluidez do ambiente e perder timing de posicionamento.")
-
-    if vis <= 3.0 and medias["Conscienciosidade"] >= 3.5:
-        leitura.append("entrega_maior_que_presenca")
-        riscos.append("Você tende a depender demais de que os outros percebam sozinhos o seu valor.")
+        leitura.append("entrada_social_contida_pelo_clima")
+        riscos.append("Quando o ambiente parece áspero, você pode segurar demais a própria emissão para não piorar o clima.")
 
     return {
         "leitura": leitura,
@@ -943,34 +949,44 @@ def engine_mundo_interno(medias, derived, raw, followup_answers=None):
     autoex = derived["autoexigencia"]
     aber = medias["Abertura"]
     neuro = medias["Neuroticismo"]
+    flex = derived.get("flexibilidade_cognitiva", 3)
+    pressao = derived.get("sensibilidade_pressao", 3)
+    rum = derived.get("ruminacao_pos_evento", 3)
     rec = followup_answers.get("reconhecimento", "")
 
-    if aber >= 3.7:
-        leitura.append("vida_mental_rica")
-        forcas.append("complexidade_interna")
-        ajustes.append("Seu mundo interno tende a ter mais camadas, conexões e elaboração do que aparece de imediato.")
+    if aber >= 3.7 and flex >= 3.7:
+        leitura.append("mente_associativa_viva")
+        forcas.append("revisao_inteligente_de_perspectiva")
+        ajustes.append("Sua mente costuma ligar pontos rápido, revisar ideia boa sem muito apego e aprender por interesse real.")
 
-    if auto_rec <= 2.9:
-        leitura.append("merito_nao_internalizado")
-        riscos.append("Você pode continuar produzindo sem transformar resultado em crédito interno real.")
+    if aber >= 3.7 and rum <= 3.1:
+        forcas.append("curiosidade_sem_excesso_de_ruido")
 
-    if autoex >= 4.0:
-        leitura.append("autoexigencia_alta")
-        riscos.append("O que você entrega pode virar obrigação cumprida, não evidência acumulada de valor.")
+    if autoex >= 3.8:
+        leitura.append("autoavaliacao_em_aberto")
+        riscos.append("Sua cabeça pode seguir revisando o que fez mesmo quando já existe base suficiente para encerrar o julgamento.")
+
+    if pressao >= 3.6 or rum >= 3.6:
+        leitura.append("mente_puxa_assunto_depois_do_fato")
+        riscos.append("Depois de situações marcantes, sua mente pode continuar trabalhando nelas mais tempo do que seria útil.")
 
     if neuro <= 2.9:
         forcas.append("estabilidade_funcional")
-        ajustes.append("Seu custo interno nem sempre aparece como drama. Ele pode surgir de forma limpa, funcional e silenciosa.")
+        ajustes.append("Seu desgaste interno nem sempre aparece como drama. Muitas vezes ele vem em forma de revisão silenciosa e cobrança limpa.")
+
+    if auto_rec <= 2.9:
+        leitura.append("merito_demora_a_assentar")
+        riscos.append("Você pode entender bastante, produzir bastante e ainda assim demorar para sentir por dentro o peso real do que já construiu.")
 
     if rec == "Recebo bem e sigo em frente":
-        leitura.append("reconhecimento_nao_fixado")
-        riscos.append("Você pode receber reconhecimento sem metabolizar de fato o que aquilo confirma sobre você.")
+        leitura.append("reconhecimento_passa_sem_fixar")
+        riscos.append("Você pode receber validação, mas não deixar isso assentar de verdade dentro de você.")
     elif rec == "Agradeço, mas minimizo por hábito":
-        leitura.append("minimizacao_do_merito")
-        riscos.append("Há chance de você reduzir internamente conquistas legítimas quase por reflexo.")
+        leitura.append("minimizacao_do_proprio_tamanho")
+        riscos.append("Sua tendência pode ser baixar o volume interno das próprias conquistas quase por reflexo.")
     elif rec == "Fico desconfortável e tento mudar de assunto":
-        leitura.append("desconforto_com_o_proprio_valor")
-        riscos.append("O reconhecimento pode tocar mais em desconforto do que em consolidação de identidade.")
+        leitura.append("desconforto_com_reconhecimento")
+        riscos.append("Quando o reconhecimento chega, ele pode tocar mais em exposição do que em descanso interno.")
 
     return {
         "leitura": leitura,
@@ -992,6 +1008,8 @@ def engine_execucao_decisao(medias, derived, raw, followup_answers=None):
     seg = medias["Seguranca"]
     risco = derived["tolerancia_risco"]
     auto_exec = derived["autonomia_execucao"]
+    previs = derived.get("necessidade_previsibilidade", 3)
+    planejamento = derived.get("planejamento_antecipado", 3)
     risco_exp = followup_answers.get("risco_expansao", "")
 
     if consc >= 3.5:
@@ -1002,6 +1020,9 @@ def engine_execucao_decisao(medias, derived, raw, followup_answers=None):
         leitura.append("autonomia_para_executar")
         forcas.append("funciona_melhor_com_liberdade_do_que_com_supervisao")
 
+    if planejamento >= 3.2 and previs >= 3.6:
+        leitura.append("preparacao_antes_da_virada")
+
     if seg >= 3.4 and risco <= 3.0:
         leitura.append("entrada_com_base_suficiente")
         riscos.append("Você pode esperar maturidade demais do cenário antes do movimento estratégico.")
@@ -1011,7 +1032,7 @@ def engine_execucao_decisao(medias, derived, raw, followup_answers=None):
         riscos.append("Pode perder vantagem de posição por exigir clareza acima do que o contexto entrega.")
     elif risco_exp == "Permanecer no que já funciona":
         leitura.append("continuidade_antes_de_expansao")
-        riscos.append("Pode proteger demais o que já funciona e crescer abaixo do que seria possível.")
+        riscos.append("Pode proteger demais o que já funciona e adiar movimentos que dependem mais de decisão do que de prova nova.")
     elif risco_exp == "Agir se o upside parecer claro":
         forcas.append("acao_condicionada_a_logica_de_ganho")
 
@@ -1049,24 +1070,24 @@ def engine_relacoes_limites(medias, derived, raw, followup_answers=None):
         forcas.append("presenca_relacional_estavel")
 
     if evita >= 3.2 and ass <= 3.1:
-        leitura.append("limites_implícitos")
+        leitura.append("limite_tardio")
         riscos.append("Os outros podem interpretar sua contenção como concordância ou disponibilidade.")
 
     if pos == "Depende muito da pessoa e do contexto":
-        leitura.append("limite_contextual")
+        leitura.append("ajuste_relacional_antes_do_posicionamento")
         ajustes.append("Sua forma de se posicionar muda bastante conforme o vínculo e a leitura de abertura do outro.")
 
     if nat == "Desconforto real com tensão ou desaprovação":
-        leitura.append("custo_emocional_do_conflito")
+        leitura.append("atrito_caro_demais")
         riscos.append("Você pode adiar conversas necessárias não por falta de clareza, mas pelo desgaste emocional antecipado.")
     elif nat == "Estratégia - acho desnecessário em muitos casos":
         leitura.append("seletividade_no_conflito")
         forcas.append("nao_compra_toda_fricao")
     elif nat == "Medo de prejudicar a relação":
-        leitura.append("protege_vinculo_antes_da_nitidez")
+        leitura.append("preserva_vinculo_antes_do_limite")
         riscos.append("Pode sacrificar clareza demais para preservar o vínculo.")
     elif nat == "Não sei - só percebo que evito":
-        leitura.append("evitacao_sem_nome_claro")
+        leitura.append("cede_antes_de_nomear")
         riscos.append("Você pode ceder espaço relacional antes mesmo de perceber que está cedendo.")
 
     if amab >= 3.3 and evita >= 3.2:
@@ -1099,31 +1120,31 @@ def engine_valor_oportunidade(medias, derived, raw, followup_answers=None):
     risco_exp = followup_answers.get("risco_expansao", "")
 
     if abund <= 3.3:
-        leitura.append("expansao_filtrada")
+        leitura.append("valor_ainda_nao_virou_avanco")
         riscos.append("Seu crescimento pode ficar abaixo do que sua capacidade já sustenta.")
 
-    if auto_rec <= 2.9:
-        leitura.append("credito_interno_insuficiente")
-        riscos.append("Você pode construir valor real sem convertê-lo em autorização interna para avançar.")
-
     if merecimento <= 2.9:
-        leitura.append("merecimento_economico_rebaixado")
+        leitura.append("pedido_e_cobranca_pedem_autorizacao_alta")
         riscos.append("Pode existir competência real sem autorização interna proporcional para pedir, cobrar ou receber melhor.")
 
-    if comparacao_escassez >= 3.6:
-        leitura.append("comparacao_contrai_expansao")
-        riscos.append("Quando a referência vira insuficiência, parte da energia que poderia virar movimento vai para proteção e comparação.")
-
     if risco <= 3.0:
-        leitura.append("oportunidade_passa_por_filtro_de_segurança")
+        leitura.append("ocupacao_de_espaco_passa_por_filtro_de_segurança")
         riscos.append("Você pode exigir garantias demais antes de pedir, propor, cobrar ou ocupar espaço.")
 
     if impulso_expansao <= 3.0:
-        leitura.append("expansao_precisa_de_justificativa_forte")
+        leitura.append("avanco_precisa_de_justificativa_forte")
         riscos.append("Seu movimento de crescimento pode depender de prova demais antes de se tornar ação concreta.")
 
+    if comparacao_escassez >= 3.6:
+        leitura.append("comparacao_encolhe_negociacao")
+        riscos.append("Quando a referência vira insuficiência, parte da energia que poderia virar movimento vai para proteção e comparação.")
+
+    if auto_rec <= 2.9 and merecimento <= 3.0:
+        leitura.append("capacidade_sem_conversao_em_pedido")
+        riscos.append("Você pode construir valor real sem convertê-lo em autorização prática para pedir, propor ou ocupar mais espaço.")
+
     if autoex >= 4.0:
-        leitura.append("patrimonio_interno_subcontabilizado")
+        leitura.append("regua_sobe_antes_do_ganho_assentar")
         riscos.append("Sua régua sobe rápido demais e faz conquistas reais parecerem apenas obrigação básica.")
 
     if rec == "Agradeço, mas minimizo por hábito":
@@ -1133,26 +1154,25 @@ def engine_valor_oportunidade(medias, derived, raw, followup_answers=None):
         leitura.append("desconforto_com_expansao_do_proprio_valor")
         riscos.append("Reconhecimento pode tocar mais em exposição do que em patrimônio interno.")
     elif rec == "Recebo bem e sigo em frente":
-        leitura.append("reconhecimento_sem_fixacao")
-        ajustes.append("Você recebe o reconhecimento, mas nem sempre o transforma em base acumulada de confiança.")
+        ajustes.append("Você recebe o reconhecimento, mas nem sempre transforma isso em autorização prática para pedir mais, cobrar melhor ou avançar logo.")
 
     if risco_exp == "Esperar informação suficiente antes de agir":
-        leitura.append("oportunidade_precisa_parecer_justificada_antes")
+        leitura.append("autorizacao_tardia_para_avanco")
         riscos.append("Você pode tratar expansão como algo que precisa estar completamente sustentado antes de ser ocupado.")
     elif risco_exp == "Permanecer no que já funciona":
-        leitura.append("protecao_do_estavel")
+        leitura.append("valor_fica_preso_no_que_ja_provou")
         riscos.append("Parte da abundância potencial pode ficar presa atrás de prudência excessiva.")
     elif risco_exp == "Agir se o upside parecer claro":
         forcas.append("movimento_quando_o_ganho_faz_sentido")
 
-    if abund >= 3.4 and auto_rec >= 3.1 and merecimento >= 3.1:
+    if abund >= 3.4 and merecimento >= 3.1:
         forcas.append("potencial_de_expansao_mais_saudavel")
 
     if impulso_expansao >= 3.5 and comparacao_escassez <= 3.0:
         forcas.append("expansao_com_menos_contracao_defensiva")
 
-    ajustes.append("Seu gargalo pode não estar em gerar valor, e sim em converter valor em avanço, percepção e ganho proporcional.")
-    ajustes.append("Nesta versão, a leitura de valor considera não só abundância média, mas também merecimento, comparação e impulso real de expansão.")
+    ajustes.append("Seu gargalo pode não estar em gerar valor, e sim em transformar capacidade em pedido, proposta, negociação e avanço concreto.")
+    ajustes.append("Nesta versão, a leitura de valor precisa nascer de ocupação, merecimento, negociação e autorização para avançar — não só de prudência geral.")
 
     return {
         "leitura": leitura,
@@ -1233,6 +1253,41 @@ PATTERN_LIBRARY = {
         "descricao": "Você pode ter boa substância interna, mas baixa ocupação verbal do próprio mérito.",
         "custo": "Seu valor fica claro para quem convive de perto, mas menos nítido para quem decide oportunidades."
     },
+    "entrada_tardia_por_criterio": {
+        "peso": 8,
+        "tipo": "decisao",
+        "insight": "Você sabe tocar, mas às vezes entra tarde demais.",
+        "descricao": "Seu gargalo não costuma ser manter o movimento; costuma ser decidir a hora de começar.",
+        "custo": "Timing, posição e janela de oportunidade podem escapar antes da sua entrada."
+    },
+    "aquecimento_social_contextual": {
+        "peso": 8,
+        "tipo": "social",
+        "insight": "Você não chega igual em todo lugar.",
+        "descricao": "Sua presença aquece conforme a leitura de abertura, afinidade e qualidade do ambiente.",
+        "custo": "Quem vê só o começo pode errar feio a leitura do seu tamanho social."
+    },
+    "mente_associativa_viva": {
+        "peso": 8,
+        "tipo": "interno",
+        "insight": "Sua cabeça liga pontos o tempo todo.",
+        "descricao": "Você aprende por conexão, revisa ideia boa sem apego e costuma enxergar relação entre assuntos com rapidez.",
+        "custo": "Sem fechamento interno suficiente, a mente pode continuar aberta demais mesmo depois de já haver base."
+    },
+    "limite_tardio_por_preservacao": {
+        "peso": 8,
+        "tipo": "relacional",
+        "insight": "Você costuma segurar o limite para preservar a relação.",
+        "descricao": "Antes de endurecer, você tenta manter vínculo, clima e convivência minimamente intactos.",
+        "custo": "Isso pode fazer o limite chegar tarde, já com acúmulo desnecessário."
+    },
+    "valor_sem_conversao_em_pedido": {
+        "peso": 8,
+        "tipo": "valor",
+        "insight": "Você pode ter valor real e ainda assim pedir menos do que poderia.",
+        "descricao": "Existe capacidade, mas a conversão disso em proposta, cobrança, negociação ou ocupação de espaço pode atrasar.",
+        "custo": "Ganho, avanço e posicionamento ficam aquém do que o valor já sustentaria."
+    },
 }
 
 TENSION_LIBRARY = {
@@ -1259,6 +1314,26 @@ TENSION_LIBRARY = {
     "funcionalidade_social_vs_busca_de_palco": {
         "peso": 6,
         "texto": "Você pode funcionar bem socialmente sem buscar exposição como fonte de energia ou identidade."
+    },
+    "timing_vs_execucao": {
+        "peso": 8,
+        "texto": "Sua capacidade de executar pode ser maior do que a velocidade com que você se autoriza a começar."
+    },
+    "leitura_do_ambiente_vs_impacto_inicial": {
+        "peso": 8,
+        "texto": "Sua leitura fina do ambiente pode atrasar o impacto inicial da sua presença."
+    },
+    "mente_viva_vs_fechamento_interno": {
+        "peso": 8,
+        "texto": "Sua mente abre caminhos com facilidade, mas nem sempre fecha rápido o que já entendeu ou construiu."
+    },
+    "preservacao_do_vinculo_vs_limite_no_tempo_certo": {
+        "peso": 8,
+        "texto": "Sua vontade de preservar a relação pode atrasar o limite que protegeria você no tempo certo."
+    },
+    "capacidade_vs_conversao_em_avanco": {
+        "peso": 9,
+        "texto": "Sua capacidade pode estar pronta antes da sua autorização para pedir, negociar e ocupar espaço."
     },
 }
 
@@ -1289,6 +1364,7 @@ def extract_patterns_v62(medias, derived, raw, pct_3_4, followup_answers=None):
 
     if medias["Seguranca"] >= 3.4 and derived["tolerancia_risco"] <= 3.0:
         padroes.append({"nome": "prudencia_funcional", "peso": 8})
+        padroes.append({"nome": "entrada_tardia_por_criterio", "peso": 8})
 
     if medias["Conscienciosidade"] >= 3.5:
         padroes.append({"nome": "execucao_consistente", "peso": 7})
@@ -1299,11 +1375,15 @@ def extract_patterns_v62(medias, derived, raw, pct_3_4, followup_answers=None):
     pos = followup_answers.get("posicionamento_social")
     if pos == "Depende muito da pessoa e do contexto":
         padroes.append({"nome": "exposicao_seletiva", "peso": 8})
+        padroes.append({"nome": "aquecimento_social_contextual", "peso": 8})
     elif pos == "Adio ou evito para não criar tensão":
         padroes.append({"nome": "evita_atrito_contextual", "peso": 7})
 
     if derived["auto_reconhecimento"] <= 2.9:
         padroes.append({"nome": "competencia_nao_internalizada", "peso": 8})
+
+    if medias["Abertura"] >= 3.7 and derived.get("flexibilidade_cognitiva", 3) >= 3.7:
+        padroes.append({"nome": "mente_associativa_viva", "peso": 8})
 
     if derived["presenca_relacional"] >= 3.8 and raw.get(85, 3) >= 4 and raw.get(86, 3) >= 4:
         padroes.append({"nome": "presenca_relacional_rara", "peso": 6})
@@ -1311,7 +1391,12 @@ def extract_patterns_v62(medias, derived, raw, pct_3_4, followup_answers=None):
     if derived["visibilidade_pessoal"] <= 2.9 and raw.get(89, 3) <= 3:
         padroes.append({"nome": "autoexpressao_reduzida", "peso": 7})
 
-    # remover duplicados preservando maior peso
+    if derived["evita_conflito"] >= 3.2 and derived["assertividade"] <= 3.1:
+        padroes.append({"nome": "limite_tardio_por_preservacao", "peso": 8})
+
+    if derived.get("merecimento_economico", 3) <= 3.0 and derived.get("impulso_expansao", 3) >= 3.3:
+        padroes.append({"nome": "valor_sem_conversao_em_pedido", "peso": 8})
+
     best = {}
     for p in padroes:
         n = p["nome"]
@@ -1328,18 +1413,27 @@ def extract_tensions_v62(medias, derived, followup_answers=None):
 
     if medias["Seguranca"] >= 3.4 and derived["tolerancia_risco"] <= 3.0:
         tensoes.append({"nome": "seguranca_vs_expansao", "peso": 8})
+        tensoes.append({"nome": "timing_vs_execucao", "peso": 8})
 
     if medias["Abertura"] > medias["Extroversao"]:
         tensoes.append({"nome": "complexidade_interna_vs_expressao_externa", "peso": 8})
 
+    if medias["Abertura"] >= 3.7 and derived.get("flexibilidade_cognitiva", 3) >= 3.7:
+        tensoes.append({"nome": "mente_viva_vs_fechamento_interno", "peso": 8})
+
     if derived["assertividade"] <= 3.0 and derived["evita_conflito"] >= 3.2:
         tensoes.append({"nome": "adaptacao_social_vs_clareza_de_posicao", "peso": 7})
+        tensoes.append({"nome": "preservacao_do_vinculo_vs_limite_no_tempo_certo", "peso": 8})
 
     if medias["Neuroticismo"] <= 2.9 and derived["auto_reconhecimento"] <= 2.9:
         tensoes.append({"nome": "solidez_externa_vs_merito_interno", "peso": 8})
 
     if 2.8 <= medias["Extroversao"] <= 3.2 and derived["impulso_social"] <= 3.1:
         tensoes.append({"nome": "funcionalidade_social_vs_busca_de_palco", "peso": 6})
+        tensoes.append({"nome": "leitura_do_ambiente_vs_impacto_inicial", "peso": 8})
+
+    if derived.get("merecimento_economico", 3) <= 3.0 and derived.get("impulso_expansao", 3) >= 3.3:
+        tensoes.append({"nome": "capacidade_vs_conversao_em_avanco", "peso": 9})
 
     best = {}
     for t in tensoes:
@@ -1606,19 +1700,25 @@ def gerar_perfil(respostas, followup_answers=None):
 
 
 PATTERN_DOMAINS_V71 = {
-    "execucao": {"execucao_consistente", "prudencia_funcional", "economia_de_extremos"},
-    "presenca": {"merito_subcomunicado", "exposicao_seletiva", "autoexpressao_reduzida"},
-    "interno": {"clareza_interna_maior_que_presenca", "competencia_nao_internalizada"},
-    "relacional": {"evita_atrito_contextual", "presenca_relacional_rara"},
+    "execucao": {"execucao_consistente", "prudencia_funcional", "economia_de_extremos", "entrada_tardia_por_criterio"},
+    "presenca": {"merito_subcomunicado", "exposicao_seletiva", "autoexpressao_reduzida", "aquecimento_social_contextual"},
+    "interno": {"clareza_interna_maior_que_presenca", "competencia_nao_internalizada", "mente_associativa_viva"},
+    "relacional": {"evita_atrito_contextual", "presenca_relacional_rara", "limite_tardio_por_preservacao"},
+    "valor": {"valor_sem_conversao_em_pedido"},
 }
 
 TENSION_DOMAINS_V71 = {
     "valor_real_vs_presenca_percebida": "presenca",
     "seguranca_vs_expansao": "execucao",
+    "timing_vs_execucao": "execucao",
     "complexidade_interna_vs_expressao_externa": "interno",
+    "mente_viva_vs_fechamento_interno": "interno",
     "adaptacao_social_vs_clareza_de_posicao": "relacional",
+    "preservacao_do_vinculo_vs_limite_no_tempo_certo": "relacional",
     "solidez_externa_vs_merito_interno": "interno",
     "funcionalidade_social_vs_busca_de_palco": "presenca",
+    "leitura_do_ambiente_vs_impacto_inicial": "presenca",
+    "capacidade_vs_conversao_em_avanco": "valor",
 }
 
 
@@ -1728,6 +1828,8 @@ def build_section_map_v71(perfil):
             },
         },
         "valor_oportunidade": {
+            "patterns": _pick_items_v71([p for p in annotated_patterns if p["dominio"] == "valor"], used, limit=2),
+            "tensions": _pick_items_v71([t for t in annotated_tensions if t["dominio"] == "valor"], used, limit=1),
             "subfacets": get_top_subfacets_for_section(subfacetas, "valor_oportunidade"),
             "evidencias": evidencias_por_secao.get("valor_oportunidade", []),
             "facts": [
