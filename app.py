@@ -98,11 +98,12 @@ import pandas as pd
 import smtplib
 import datetime
 import re
+import hashlib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V8.4"
+APP_VERSION = "V8.5"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -220,6 +221,8 @@ DEFAULTS = {
     "followup_questions": [],
     "followup_answers": {},
     "followup_completo": False,
+    "debug_sheet_users": [],
+    "debug_sheet_error": "",
 }
 for k, v in DEFAULTS.items():
     if k not in st.session_state:
@@ -450,42 +453,241 @@ def carregar_ultimo_teste():
     return dict(ULTIMO_TESTE)
 
 
+PROGRESS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "progress_snapshots")
+os.makedirs(PROGRESS_DIR, exist_ok=True)
+
+
+def _progress_key(email):
+    email = str(email or "").strip().lower()
+    if not email:
+        return ""
+    return hashlib.sha256(email.encode("utf-8")).hexdigest()
+
+
+def _progress_path(email):
+    key = _progress_key(email)
+    if not key:
+        return ""
+    return os.path.join(PROGRESS_DIR, key + ".json")
+
+
+def _normalize_int_dict(data):
+    resultado = {}
+    if not isinstance(data, dict):
+        return resultado
+    for k, v in data.items():
+        try:
+            resultado[int(k)] = int(v)
+        except Exception:
+            continue
+    return resultado
+
+
+def save_progress_snapshot():
+    user_info = st.session_state.get("user_info", {}) or {}
+    email = str(user_info.get("email", "")).strip().lower()
+    path = _progress_path(email)
+    if not path:
+        return False
+
+    payload = {
+        "app_version": APP_VERSION,
+        "user_info": user_info,
+        "user_info_completo": bool(st.session_state.get("user_info_completo", False)),
+        "responses": {str(k): v for k, v in st.session_state.get("responses", {}).items()},
+        "current_question": int(st.session_state.get("current_question", 0) or 0),
+        "modo_selecionado": bool(st.session_state.get("modo_selecionado", False)),
+        "calibracao_completa": bool(st.session_state.get("calibracao_completa", False)),
+        "calibracao_respostas": dict(st.session_state.get("calibracao_respostas", {})),
+        "calibracao_followup": dict(st.session_state.get("calibracao_followup", {})),
+        "calibracao_ajustes": {str(k): v for k, v in st.session_state.get("calibracao_ajustes", {}).items()},
+        "followup_questions": list(st.session_state.get("followup_questions", [])),
+        "followup_answers": dict(st.session_state.get("followup_answers", {})),
+        "followup_completo": bool(st.session_state.get("followup_completo", False)),
+    }
+
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception:
+        return False
+
+
+def load_progress_snapshot(email):
+    path = _progress_path(email)
+    if not path or not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def clear_progress_snapshot(email=None):
+    if email is None:
+        email = (st.session_state.get("user_info", {}) or {}).get("email", "")
+    path = _progress_path(email)
+    if path and os.path.exists(path):
+        try:
+            os.remove(path)
+            return True
+        except Exception:
+            return False
+    return False
+
+
+def restore_progress_snapshot(snapshot):
+    if not isinstance(snapshot, dict):
+        return False
+
+    st.session_state.user_info = dict(snapshot.get("user_info", {}))
+    st.session_state.user_info_completo = bool(snapshot.get("user_info_completo", False))
+    st.session_state.responses = _normalize_int_dict(snapshot.get("responses", {}))
+    st.session_state.current_question = int(snapshot.get("current_question", 0) or 0)
+    st.session_state.modo_selecionado = bool(snapshot.get("modo_selecionado", False))
+    st.session_state.calibracao_completa = bool(snapshot.get("calibracao_completa", False))
+    st.session_state.calibracao_respostas = dict(snapshot.get("calibracao_respostas", {}))
+    st.session_state.calibracao_followup = dict(snapshot.get("calibracao_followup", {}))
+    st.session_state.calibracao_ajustes = _normalize_int_dict(snapshot.get("calibracao_ajustes", {}))
+    st.session_state.followup_questions = list(snapshot.get("followup_questions", []))
+    st.session_state.followup_answers = dict(snapshot.get("followup_answers", {}))
+    st.session_state.followup_completo = bool(snapshot.get("followup_completo", False))
+    st.session_state.perfil_cache = None
+    st.session_state.dados_registrados = False
+    return True
+
+
+def maybe_autosave_progress():
+    if MODO_TESTE:
+        return
+    if st.session_state.get("dados_registrados"):
+        return
+    if not st.session_state.get("user_info_completo"):
+        return
+    save_progress_snapshot()
+
+
 # =============================================================
 # GOOGLE SHEETS
 # =============================================================
 
-def registrar_no_sheets(dados):
+
+def get_google_sheet_worksheet():
     if not GSPREAD_OK:
-        return False, "gspread nao instalado"
+        raise RuntimeError("gspread nao instalado")
+
+    creds_dict = dict(st.secrets.get("gcp_service_account", {}))
+    if not creds_dict:
+        raise RuntimeError("gcp_service_account nao configurado em secrets")
+
+    if "private_key" in creds_dict:
+        pk = creds_dict["private_key"]
+        if "\\n" in pk and "\n" not in pk:
+            creds_dict["private_key"] = pk.replace("\\n", "\n")
+
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    gc = gspread.authorize(creds)
+
+    sheet_url = st.secrets.get("GOOGLE_SHEET_URL", "")
+    if not sheet_url:
+        raise RuntimeError("GOOGLE_SHEET_URL nao configurado em secrets")
+
+    _match = re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sheet_url)
+    if not _match:
+        raise RuntimeError("GOOGLE_SHEET_URL invalida - nao foi possivel extrair o ID")
+
+    sheet_id = _match.group(1)
+    sh = gc.open_by_key(sheet_id)
+    return sh.sheet1
+
+
+def listar_usuarios_sheets_debug(limit=200):
     try:
-        creds_dict = dict(st.secrets.get("gcp_service_account", {}))
-        if not creds_dict:
-            return False, "gcp_service_account nao configurado em secrets"
+        ws = get_google_sheet_worksheet()
+        registros = ws.get_all_records()
+        usuarios = []
+        for row in reversed(registros):
+            nome = str(row.get("nome", "") or "").strip()
+            email = str(row.get("email", "") or "").strip().lower()
+            data_hora = str(row.get("data_hora", "") or "").strip()
+            if not nome and not email:
+                continue
+            label = " | ".join([p for p in [nome or "Sem nome", email or "sem email", data_hora or "sem data"] if p])
+            usuarios.append({
+                "label": label,
+                "nome": nome,
+                "email": email,
+                "data_hora": data_hora,
+                "modo_teste": str(row.get("modo_teste", "") or ""),
+                "raw": row,
+            })
+            if len(usuarios) >= limit:
+                break
+        return usuarios, ""
+    except Exception as e:
+        return [], str(e)
 
-        if "private_key" in creds_dict:
-            pk = creds_dict["private_key"]
-            if "\\n" in pk and "\n" not in pk:
-                creds_dict["private_key"] = pk.replace("\\n", "\n")
 
-        scopes = [
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive",
-        ]
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        gc = gspread.authorize(creds)
+def carregar_registro_debug_do_sheets(registro):
+    try:
+        row = dict(registro.get("raw", {}))
+        respostas = {}
+        for q in QUESTION_KEYS:
+            bruto = row.get("Q" + str(q), "")
+            if bruto in [None, ""]:
+                continue
+            try:
+                respostas[q] = int(float(bruto))
+            except Exception:
+                continue
 
-        sheet_url = st.secrets.get("GOOGLE_SHEET_URL", "")
-        if not sheet_url:
-            return False, "GOOGLE_SHEET_URL nao configurado em secrets"
+        if not respostas:
+            return False, "O registro selecionado nao possui respostas validas para reconstruir o perfil."
 
-        import re as _re
-        _match = _re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", sheet_url)
-        if not _match:
-            return False, "GOOGLE_SHEET_URL invalida - nao foi possivel extrair o ID"
+        followup_answers = {}
+        followups_raw = row.get("followups", "")
+        if isinstance(followups_raw, str) and followups_raw.strip():
+            try:
+                parsed = json.loads(followups_raw)
+                if isinstance(parsed, dict):
+                    followup_answers = parsed
+            except Exception:
+                followup_answers = {}
 
-        sheet_id = _match.group(1)
-        sh = gc.open_by_key(sheet_id)
-        ws = sh.sheet1
+        st.session_state.user_info = {
+            "nome": str(row.get("nome", "") or "").strip(),
+            "idade": row.get("idade", ""),
+            "genero": str(row.get("genero", "") or "").strip(),
+            "email": str(row.get("email", "") or "").strip().lower(),
+        }
+        st.session_state.user_info_completo = True
+        st.session_state.responses = respostas
+        st.session_state.current_question = TOTAL + 1
+        st.session_state.modo_selecionado = True
+        st.session_state.calibracao_completa = True
+        st.session_state.calibracao_respostas = {}
+        st.session_state.calibracao_followup = {}
+        st.session_state.calibracao_ajustes = {}
+        st.session_state.followup_questions = []
+        st.session_state.followup_answers = followup_answers
+        st.session_state.followup_completo = True
+        st.session_state.perfil_cache = gerar_perfil(respostas, followup_answers)
+        st.session_state.dados_registrados = True
+        return True, "Registro carregado da planilha no modo debug."
+    except Exception as e:
+        return False, str(e)
+
+
+def registrar_no_sheets(dados):
+    try:
+        ws = get_google_sheet_worksheet()
 
         if ws.row_count == 0 or ws.cell(1, 1).value != "data_hora":
             cabecalho = [
@@ -2623,11 +2825,13 @@ with col_title:
             unsafe_allow_html=True
         )
 
+maybe_autosave_progress()
+
 if not st.session_state.modo_selecionado:
     if MODO_TESTE:
         st.markdown("---")
         st.subheader("[MODO TESTE] Como você quer começar?")
-        st.caption("Opção de reutilização disponível apenas no modo teste (?modo=teste na URL).")
+        st.caption("Você pode responder do zero, reutilizar o último teste local ou carregar um usuário já salvo na planilha.")
 
         col_a, col_b = st.columns(2)
         with col_a:
@@ -2645,6 +2849,38 @@ if not st.session_state.modo_selecionado:
                 st.session_state.current_question = 1
                 st.session_state.modo_selecionado = True
                 st.rerun()
+
+        st.markdown("---")
+        st.markdown("**Carregar um usuário já salvo na planilha**")
+        st.caption("Ideal para comparar a versão atual do motor com testes históricos no modo debug.")
+
+        if st.button("Atualizar lista da planilha", key="btn_atualizar_usuarios_planilha"):
+            usuarios, erro = listar_usuarios_sheets_debug(limit=200)
+            st.session_state.debug_sheet_users = usuarios
+            st.session_state.debug_sheet_error = erro
+            st.rerun()
+
+        if st.session_state.debug_sheet_error:
+            st.error("Não foi possível carregar a lista da planilha: " + st.session_state.debug_sheet_error)
+
+        usuarios_debug = st.session_state.get("debug_sheet_users", [])
+        if usuarios_debug:
+            labels_debug = [item["label"] for item in usuarios_debug]
+            escolha_debug = st.selectbox(
+                "Selecione um usuário salvo:",
+                labels_debug,
+                key="debug_sheet_user_select"
+            )
+            if st.button("Carregar usuário selecionado", key="btn_carregar_usuario_planilha", type="primary"):
+                registro = next((item for item in usuarios_debug if item["label"] == escolha_debug), None)
+                ok_load, msg_load = carregar_registro_debug_do_sheets(registro or {})
+                if ok_load:
+                    st.success(msg_load)
+                    st.rerun()
+                else:
+                    st.error(msg_load)
+        else:
+            st.caption("Clique em 'Atualizar lista da planilha' para listar usuários já registrados.")
     else:
         if not st.session_state.user_info_completo:
             st.markdown("---")
@@ -2672,17 +2908,29 @@ if not st.session_state.modo_selecionado:
                     elif not email_input.strip() or "@" not in email_input:
                         st.error("Por favor, informe um email válido.")
                     else:
-                        st.session_state.user_info = {
-                            "nome": nome_input.strip(),
-                            "idade": int(idade_input),
-                            "genero": genero_input,
-                            "email": email_input.strip().lower(),
-                        }
-                        st.session_state.user_info_completo = True
-                        st.session_state.responses = {}
-                        st.session_state.current_question = 1
-                        st.session_state.modo_selecionado = True
-                        st.rerun()
+                        email_normalizado = email_input.strip().lower()
+                        snapshot = load_progress_snapshot(email_normalizado)
+                        if snapshot and snapshot.get("responses"):
+                            restore_progress_snapshot(snapshot)
+                            st.session_state.user_info["nome"] = nome_input.strip()
+                            st.session_state.user_info["idade"] = int(idade_input)
+                            st.session_state.user_info["genero"] = genero_input
+                            st.session_state.user_info["email"] = email_normalizado
+                            st.success("Encontramos um teste em andamento e retomamos do ponto salvo.")
+                            st.rerun()
+                        else:
+                            st.session_state.user_info = {
+                                "nome": nome_input.strip(),
+                                "idade": int(idade_input),
+                                "genero": genero_input,
+                                "email": email_normalizado,
+                            }
+                            st.session_state.user_info_completo = True
+                            st.session_state.responses = {}
+                            st.session_state.current_question = 1
+                            st.session_state.modo_selecionado = True
+                            save_progress_snapshot()
+                            st.rerun()
         else:
             st.session_state.responses = {}
             st.session_state.current_question = 1
@@ -2709,6 +2957,7 @@ elif st.session_state.current_question <= TOTAL:
             valor = int(resposta.split(" - ")[0])
             st.session_state.responses[q_num] = valor
             st.session_state.current_question += 1
+            save_progress_snapshot()
             st.rerun()
         else:
             st.warning("Por favor, selecione uma resposta antes de continuar.")
@@ -2796,6 +3045,7 @@ elif not st.session_state.calibracao_completa:
             st.session_state.perfil_cache = gerar_perfil(respostas_calibradas)
             st.session_state.followup_questions = gerar_followups(st.session_state.perfil_cache)
             st.session_state.calibracao_completa = True
+            save_progress_snapshot()
             st.rerun()
     else:
         st.warning("Por favor, responda todas as afirmações acima para continuar.")
@@ -2840,6 +3090,7 @@ elif not st.session_state.followup_completo:
             salvar_ultimo_teste(respostas_finais)
             st.session_state.perfil_cache = gerar_perfil(respostas_finais, st.session_state.followup_answers)
             st.session_state.followup_completo = True
+            save_progress_snapshot()
             st.rerun()
     else:
         st.warning("Responda todas as perguntas adaptativas para continuar.")
@@ -2929,6 +3180,7 @@ else:
                     )
 
         st.session_state.dados_registrados = True
+        clear_progress_snapshot()
 
     st.markdown("---")
 
@@ -2952,6 +3204,8 @@ else:
     col1, col2 = st.columns(2)
 
     def reset_all(go_to=0):
+        email_atual = (st.session_state.get("user_info", {}) or {}).get("email", "")
+        clear_progress_snapshot(email_atual)
         for key in DEFAULTS:
             if isinstance(DEFAULTS[key], dict):
                 st.session_state[key] = {}
