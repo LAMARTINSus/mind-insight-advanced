@@ -608,10 +608,38 @@ def get_google_sheet_worksheet():
     return sh.sheet1
 
 
+def _sheet_records_tolerantes(ws):
+    valores = ws.get_all_values()
+    if not valores:
+        return []
+
+    headers_raw = list(valores[0])
+    headers = []
+    usados = {}
+    for idx, header in enumerate(headers_raw, start=1):
+        base = str(header or "").strip()
+        if not base:
+            base = f"__col_{idx}"
+        contador = usados.get(base, 0)
+        usados[base] = contador + 1
+        header_final = base if contador == 0 else f"{base}__dup_{contador+1}"
+        headers.append(header_final)
+
+    registros = []
+    for linha in valores[1:]:
+        if not any(str(c or "").strip() for c in linha):
+            continue
+        row = {}
+        for i, header in enumerate(headers):
+            row[header] = linha[i] if i < len(linha) else ""
+        registros.append(row)
+    return registros
+
+
 def listar_usuarios_sheets_debug(limit=200):
     try:
         ws = get_google_sheet_worksheet()
-        registros = ws.get_all_records()
+        registros = _sheet_records_tolerantes(ws)
         usuarios = []
         for row in reversed(registros):
             nome = str(row.get("nome", "") or "").strip()
