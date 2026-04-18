@@ -103,7 +103,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V8.7"
+APP_VERSION = "V8.8"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -221,6 +221,7 @@ DEFAULTS = {
     "followup_questions": [],
     "followup_answers": {},
     "followup_completo": False,
+    "relatorio_sem_filtro": "",
     "debug_sheet_users": [],
     "debug_sheet_error": "",
 }
@@ -555,6 +556,7 @@ def restore_progress_snapshot(snapshot):
     st.session_state.followup_questions = list(snapshot.get("followup_questions", []))
     st.session_state.followup_answers = dict(snapshot.get("followup_answers", {}))
     st.session_state.followup_completo = bool(snapshot.get("followup_completo", False))
+    st.session_state.relatorio_sem_filtro = ""
     st.session_state.perfil_cache = None
     st.session_state.dados_registrados = False
     return True
@@ -2721,6 +2723,81 @@ Texto a reescrever:
         return "Erro ao gerar relatorio:\n\n" + str(e), bloco_forcas, bloco_desafios
 
 
+def gerar_relatorio_sem_filtro(relatorio_oficial, perfil):
+    client = get_openai_client()
+    if client is None:
+        return "Erro: OPENAI_API_KEY nao encontrada em Secrets."
+
+    derived = perfil.get("derived", {})
+    engine_execucao = perfil.get("engine_execucao_decisao", {})
+    engine_relacoes = perfil.get("engine_relacoes_limites", {})
+    engine_valor = perfil.get("engine_valor_oportunidade", {})
+    engine_presenca = perfil.get("engine_presenca_social", {})
+
+    contexto_curto = "\n".join([
+        "EXECUCAO: " + "; ".join(engine_execucao.get("leitura", [])[:3] + engine_execucao.get("riscos", [])[:2]),
+        "PRESENCA: " + "; ".join(engine_presenca.get("leitura", [])[:3] + engine_presenca.get("riscos", [])[:2]),
+        "RELACOES: " + "; ".join(engine_relacoes.get("leitura", [])[:3] + engine_relacoes.get("riscos", [])[:2]),
+        "VALOR: " + "; ".join(engine_valor.get("leitura", [])[:3] + engine_valor.get("riscos", [])[:2]),
+        f"planejamento_pratico={derived.get('planejamento_pratico', 0):.2f}",
+        f"atraso_operacional={derived.get('atraso_operacional', 0):.2f}",
+        f"tolerancia_risco={derived.get('tolerancia_risco', 0):.2f}",
+    ])
+
+    prompt = f"""
+Você vai traduzir o relatório comportamental abaixo para uma versão opcional mais crua, mais direta, mais descontraída e levemente ácida.
+
+Essa saída NÃO é o relatório oficial. Ela é apenas uma releitura do mesmo conteúdo.
+
+REGRAS OBRIGATÓRIAS:
+- Preserve rigorosamente os fatos centrais do relatório oficial. Não invente defeitos, não crie diagnóstico novo e não aumente a gravidade do caso sem base no texto original.
+- Corte eufemismos, abstrações vagas e psicologês.
+- Pode usar humor ácido inteligente e frases memoráveis, mas sem transformar a pessoa em caricatura.
+- Não use humilhação gratuita.
+- Não transforme padrão em identidade fixa. Prefira "você tende a", "você costuma", "na prática, você" e "seu padrão aqui é".
+- Quando a evidência do relatório oficial for forte, nomeie o comportamento pelo nome simples e direto. Ex.: procrastinação, evitar conflito, demorar para se colocar, aparecer tarde, segurar demais, pedir pouco.
+- Se a evidência não for total, descreva o mecanismo em vez de rotular.
+- Use linguagem neutra de gênero.
+- Mantenha estrutura numerada.
+- Cada seção deve ter um título curto, forte e claro.
+- Frases curtas. Ritmo rápido. Linguagem cotidiana.
+- Priorize custo prático, autossabotagem e consequência concreta.
+- Termine com 3 ações práticas curtas e 1 frase final memorável.
+
+CONTEXTO DE APOIO:
+{contexto_curto}
+
+RELATÓRIO OFICIAL A TRADUZIR:
+{relatorio_oficial}
+"""
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Você traduz relatórios comportamentais para uma versão sem filtro, mais crua e memorável, "
+                        "sem perder fidelidade ao conteúdo oficial. Você corta eufemismos, usa humor ácido com controle "
+                        "e preserva linguagem neutra, precisão e reconhecimento do caso."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.5,
+        )
+        texto = response.choices[0].message.content
+        return sanitize_report_output_v81(texto)
+    except AuthenticationError:
+        return "Erro ao gerar a versao sem filtro: falha de autenticacao com a OpenAI."
+    except Exception as e:
+        return "Erro ao gerar a versao sem filtro:\n\n" + str(e)
+
+
 # =============================================================
 # DEBUG
 # =============================================================
@@ -3245,6 +3322,10 @@ else:
     # para evitar re-resumo redundante e reintrodução da mesma tese em formato comprimido.
     relatorio = relatorio_ai
 
+    if st.session_state.get("relatorio_gerado", "") != relatorio:
+        st.session_state.relatorio_gerado = relatorio
+        st.session_state.relatorio_sem_filtro = ""
+
     st.markdown(relatorio)
 
     if MODO_TESTE:
@@ -3303,6 +3384,18 @@ else:
         clear_progress_snapshot()
 
     st.markdown("---")
+    st.subheader("Opção extra")
+    st.caption("Se quiser, você pode ler uma versão mais crua, mais descontraída e mais ácida do mesmo perfil. Ela não substitui o relatório oficial.")
+
+    if st.button("Ler versão sem filtro (mais crua e descontraída)", key="btn_relatorio_sem_filtro"):
+        with st.spinner("Traduzindo seu relatório para a versão sem filtro..."):
+            st.session_state.relatorio_sem_filtro = gerar_relatorio_sem_filtro(relatorio, perfil)
+
+    if st.session_state.get("relatorio_sem_filtro"):
+        st.markdown("### Tradução Crua — versão sem filtro")
+        st.caption("Leitura opcional do mesmo conteúdo oficial, com menos polidez e mais impacto.")
+        st.markdown(st.session_state.relatorio_sem_filtro)
+        st.markdown("---")
 
     if MODO_TESTE:
         respostas_para_download = aplicar_ajustes_calibracao(
