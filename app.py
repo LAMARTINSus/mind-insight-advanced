@@ -103,7 +103,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V8.5"
+APP_VERSION = "V8.7"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -1048,6 +1048,10 @@ def compute_derived_variables(medias, raw, adjusted, followup_answers=None):
     flexibilidade_cognitiva = avg(adjusted.get(2, 3), adjusted.get(5, 3), adjusted.get(7, 3))
     conforto_abstracao = avg(adjusted.get(4, 3), adjusted.get(5, 3), adjusted.get(8, 3))
     planejamento_antecipado = avg(adjusted.get(13, 3), adjusted.get(14, 3), adjusted.get(18, 3), adjusted.get(84, 3))
+    planejamento_pratico = avg(adjusted.get(13, 3), adjusted.get(14, 3), adjusted.get(18, 3))
+    clareza_direcao = avg(adjusted.get(18, 3), adjusted.get(84, 3))
+    atraso_operacional = avg(raw.get(12, 3), raw.get(14, 3), raw.get(16, 3))
+    sustentacao_pos_inicio = avg(adjusted.get(11, 3), raw.get(20, 3), raw.get(82, 3), adjusted.get(17, 3))
     sensibilidade_pressao = avg(adjusted.get(43, 3), adjusted.get(45, 3), adjusted.get(47, 3), adjusted.get(48, 3))
     ruminacao_pos_evento = avg(adjusted.get(42, 3), adjusted.get(46, 3), adjusted.get(50, 3), adjusted.get(52, 3))
     necessidade_previsibilidade = avg(adjusted.get(53, 3), adjusted.get(55, 3), adjusted.get(61, 3), adjusted.get(63, 3))
@@ -1100,6 +1104,10 @@ def compute_derived_variables(medias, raw, adjusted, followup_answers=None):
         "flexibilidade_cognitiva": flexibilidade_cognitiva,
         "conforto_abstracao": conforto_abstracao,
         "planejamento_antecipado": planejamento_antecipado,
+        "planejamento_pratico": planejamento_pratico,
+        "clareza_direcao": clareza_direcao,
+        "atraso_operacional": atraso_operacional,
+        "sustentacao_pos_inicio": sustentacao_pos_inicio,
         "sensibilidade_pressao": sensibilidade_pressao,
         "ruminacao_pos_evento": ruminacao_pos_evento,
         "necessidade_previsibilidade": necessidade_previsibilidade,
@@ -1240,6 +1248,10 @@ def engine_execucao_decisao(medias, derived, raw, followup_answers=None):
     auto_exec = derived["autonomia_execucao"]
     previs = derived.get("necessidade_previsibilidade", 3)
     planejamento = derived.get("planejamento_antecipado", 3)
+    planejamento_pratico = derived.get("planejamento_pratico", planejamento)
+    clareza_direcao = derived.get("clareza_direcao", 3)
+    atraso_operacional = derived.get("atraso_operacional", 3)
+    sustentacao_pos_inicio = derived.get("sustentacao_pos_inicio", 3)
     risco_exp = followup_answers.get("risco_expansao", "")
 
     if consc >= 3.5:
@@ -1250,10 +1262,26 @@ def engine_execucao_decisao(medias, derived, raw, followup_answers=None):
         leitura.append("autonomia_para_executar")
         forcas.append("funciona_melhor_com_liberdade_do_que_com_supervisao")
 
+    if planejamento_pratico >= 3.5:
+        forcas.append("organizacao_antecipada")
+    elif planejamento_pratico <= 2.9 and consc >= 3.5 and sustentacao_pos_inicio >= 3.5:
+        leitura.append("responsabilidade_sem_muito_sistema")
+        ajustes.append("Você pode não depender de muito ritual de planejamento para entregar. Em você, responsabilidade pode sustentar o que o sistema formal nem sempre organiza.")
+
+    if clareza_direcao >= 3.5:
+        forcas.append("direcao_clara_do_que_importa")
+
     if planejamento >= 3.2 and previs >= 3.6:
         leitura.append("preparacao_antes_da_virada")
 
-    if seg >= 3.4 and risco <= 3.0:
+    if atraso_operacional >= 3.7 and planejamento_pratico <= 3.0 and sustentacao_pos_inicio <= 3.2:
+        leitura.append("procrastinacao_operacional")
+        riscos.append("A dificuldade não parece estar só em planejar. Ela pode aparecer em começar tarde, deixar para a última hora e perder consistência no meio do caminho.")
+    elif atraso_operacional >= 3.5:
+        leitura.append("entrada_irregular_por_disposicao")
+        riscos.append("Em alguns momentos, seu começo pode depender demais de clima, energia ou pressão do prazo.")
+
+    if seg >= 3.4 and risco <= 3.0 and atraso_operacional < 3.7:
         leitura.append("entrada_com_base_suficiente")
         riscos.append("Você pode esperar maturidade demais do cenário antes do movimento estratégico.")
 
@@ -1266,8 +1294,11 @@ def engine_execucao_decisao(medias, derived, raw, followup_answers=None):
     elif risco_exp == "Agir se o upside parecer claro":
         forcas.append("acao_condicionada_a_logica_de_ganho")
 
-    if consc >= 3.5 and risco <= 2.9:
+    if consc >= 3.5 and risco <= 2.9 and atraso_operacional < 3.7:
         ajustes.append("Seu risco não é falta de execução. É entrar tarde em oportunidades que premiam movimento antes da certeza total.")
+
+    if planejamento_pratico <= 2.9 and atraso_operacional < 3.4 and sustentacao_pos_inicio >= 3.5:
+        ajustes.append("Ausência de planejamento rígido não significa procrastinação. Em alguns perfis, o sistema é leve, mas a entrega continua firme.")
 
     return {
         "leitura": leitura,
@@ -1357,11 +1388,11 @@ def engine_valor_oportunidade(medias, derived, raw, followup_answers=None):
         leitura.append("pedido_e_cobranca_pedem_autorizacao_alta")
         riscos.append("Pode existir competência real sem autorização interna proporcional para pedir, cobrar ou receber melhor.")
 
-    if risco <= 3.0:
+    if risco <= 2.7 and (merecimento <= 3.2 or comparacao_escassez >= 3.4 or risco_exp == "Esperar informação suficiente antes de agir"):
         leitura.append("ocupacao_de_espaco_passa_por_filtro_de_segurança")
         riscos.append("Você pode exigir garantias demais antes de pedir, propor, cobrar ou ocupar espaço.")
 
-    if impulso_expansao <= 3.0:
+    if impulso_expansao <= 3.0 and merecimento <= 3.2:
         leitura.append("avanco_precisa_de_justificativa_forte")
         riscos.append("Seu movimento de crescimento pode depender de prova demais antes de se tornar ação concreta.")
 
@@ -1386,23 +1417,30 @@ def engine_valor_oportunidade(medias, derived, raw, followup_answers=None):
     elif rec == "Recebo bem e sigo em frente":
         ajustes.append("Você recebe o reconhecimento, mas nem sempre transforma isso em autorização prática para pedir mais, cobrar melhor ou avançar logo.")
 
-    if risco_exp == "Esperar informação suficiente antes de agir":
+    if risco_exp == "Esperar informação suficiente antes de agir" and (merecimento <= 3.2 or comparacao_escassez >= 3.4):
         leitura.append("autorizacao_tardia_para_avanco")
         riscos.append("Você pode tratar expansão como algo que precisa estar completamente sustentado antes de ser ocupado.")
-    elif risco_exp == "Permanecer no que já funciona":
+    elif risco_exp == "Permanecer no que já funciona" and impulso_expansao >= 3.3:
         leitura.append("valor_fica_preso_no_que_ja_provou")
-        riscos.append("Parte da abundância potencial pode ficar presa atrás de prudência excessiva.")
+        riscos.append("Parte da abundância potencial pode ficar presa atrás do apego ao que já provou funcionar.")
     elif risco_exp == "Agir se o upside parecer claro":
         forcas.append("movimento_quando_o_ganho_faz_sentido")
 
     if abund >= 3.4 and merecimento >= 3.1:
         forcas.append("potencial_de_expansao_mais_saudavel")
 
+    if merecimento >= 3.5 and comparacao_escassez <= 3.0:
+        forcas.append("autorizacao_mais_livre_para_cobrar_e_pedir")
+
     if impulso_expansao >= 3.5 and comparacao_escassez <= 3.0:
         forcas.append("expansao_com_menos_contracao_defensiva")
 
+    if abund >= 3.8 and impulso_expansao >= 3.7:
+        forcas.append("apetite_real_por_expansao")
+
     ajustes.append("Seu gargalo pode não estar em gerar valor, e sim em transformar capacidade em pedido, proposta, negociação e avanço concreto.")
     ajustes.append("Nesta versão, a leitura de valor precisa nascer de ocupação, merecimento, negociação e autorização para avançar — não só de prudência geral.")
+    ajustes.append("Baixa tolerância a risco, sozinha, não basta para explicar valor. Só trate cautela como eixo quando ela vier junto com sinais reais de merecimento travado, comparação ou dificuldade de pedir e cobrar.")
 
     return {
         "leitura": leitura,
@@ -2013,6 +2051,10 @@ def build_section_map_v71(perfil):
                 "autonomia_execucao": derived["autonomia_execucao"],
                 "tolerancia_risco": derived["tolerancia_risco"],
                 "planejamento_antecipado": derived.get("planejamento_antecipado", 3),
+                "planejamento_pratico": derived.get("planejamento_pratico", 3),
+                "clareza_direcao": derived.get("clareza_direcao", 3),
+                "atraso_operacional": derived.get("atraso_operacional", 3),
+                "sustentacao_pos_inicio": derived.get("sustentacao_pos_inicio", 3),
                 "necessidade_previsibilidade": derived.get("necessidade_previsibilidade", 3),
             },
         },
@@ -2165,6 +2207,12 @@ def validate_generated_report_v81(texto):
         (r"esse encontro produz", "frase bonita demais e pouco direta"),
         (r"há curiosidade genuína", "abertura descritiva genérica"),
         (r"o ponto mais sensível do processo", "entrada elegante demais para crítica prática"),
+        (r"\bvocê é um\b", "deslize de gênero: uso de masculino genérico"),
+        (r"\bele\b", "deslize de gênero: uso de terceira pessoa masculina"),
+        (r"\bdele\b", "deslize de gênero: uso de posse masculina"),
+        (r"\bnele\b", "deslize de gênero: uso de referência masculina"),
+        (r"\bo usuário\b", "deslize de gênero: referência masculina ao usuário"),
+        (r"\bo cliente\b", "deslize de gênero: referência masculina ao cliente"),
     ]
     texto_limpo = texto.lower()
     for padrao, descricao in verificacoes:
@@ -2180,11 +2228,40 @@ def validate_generated_report_v81(texto):
     return list(dict.fromkeys(problemas))
 
 
+def neutralize_gendered_language_v86(texto):
+    if not texto:
+        return texto
+
+    substituicoes_regex = [
+        (r"\b[Vv]ocê é um\b", "você tende a ser"),
+        (r"\b[Vv]ocê foi descrito como\b", "você aparece como"),
+        (r"\b[Vv]ocê foi visto como\b", "você aparece como"),
+        (r"\b[Ee]le\b", "você"),
+        (r"\b[Dd]ele\b", "seu"),
+        (r"\b[Nn]ele\b", "em você"),
+        (r"\b[Aa]o redor dele\b", "ao seu redor"),
+        (r"\b[Pp]ara ele\b", "para você"),
+        (r"\b[Cc]om ele\b", "com você"),
+        (r"\b[Dd]escrito como\b", "lido como"),
+        (r"\b[Vv]isto como\b", "percebido como"),
+        (r"\bo usuário\b", "a pessoa"),
+        (r"\bo cliente\b", "a pessoa"),
+    ]
+
+    for padrao, substituicao in substituicoes_regex:
+        texto = re.sub(padrao, substituicao, texto)
+
+    texto = re.sub(r"\bvocê tende a ser uma pessoa que\b", "você é uma pessoa que", texto, flags=re.IGNORECASE)
+    texto = re.sub(r"\bvocê tende a ser alguém que\b", "você é alguém que", texto, flags=re.IGNORECASE)
+    return texto
+
+
 def sanitize_report_output_v81(texto):
     if not texto:
         return texto
 
     texto = texto.replace("\r\n", "\n")
+    texto = neutralize_gendered_language_v86(texto)
 
     padroes_linha_proibida = [
         r"^\s*se quiser.*$",
@@ -2232,6 +2309,7 @@ def sanitize_report_output_v81(texto):
 
         texto = texto[:match_secao_9.start()] + ("\n" if not texto[:match_secao_9.start()].endswith("\n") else "") + cabecalho + "\n".join(linhas_validas)
 
+    texto = neutralize_gendered_language_v86(texto)
     texto = re.sub(r"\n{3,}", "\n\n", texto).strip()
     return texto
 
@@ -2347,6 +2425,13 @@ Seu trabalho é produzir um relatório fiel, profundo, multidimensional e psicol
 
 OBJETIVO DA VERSÃO {APP_VERSION}:
 Gerar um relatório comportamental com linguagem direta, profundidade real, cobertura mais ampla do perfil e separação causal consistente entre seções. O texto final deve soar humano, claro e preciso, sem repetir a mesma lógica com vocabulário diferente e sem usar contrastes artificiais para parecer sofisticado.
+
+REGRA DE GÊNERO:
+Todo o relatório deve ser escrito em linguagem neutra de gênero.
+Fale sempre diretamente com a pessoa em segunda pessoa, usando estruturas como "você é uma pessoa que", "você tende a", "seu jeito de" e "na prática, você".
+É proibido presumir masculino, feminino ou qualquer outro gênero com base na ficha.
+É proibido usar "ele", "ela", "dele", "dela", "o usuário", "a usuária", "o cliente" ou "a cliente" para se referir à pessoa avaliada.
+Se uma frase exigir concordância de gênero, reescreva a frase inteira em formato neutro.
 
 REGRA CENTRAL:
 Cada seção deve ter obrigatoriamente uma pergunta principal própria, uma lente explicativa própria, uma fonte principal de dados própria e uma causa principal própria.
@@ -2511,15 +2596,16 @@ ESTRUTURA OBRIGATORIA:
 
 INSTRUÇÕES ESPECÍFICAS POR SEÇÃO:
 - BLOCO 1: diga logo, em português simples, qual é o jeito principal de a pessoa funcionar. Nomeie a força e o custo. Esta seção deve conter pelo menos uma frase que poderia ser repetida para resumir a pessoa sem perder a essência.
-- EXECUÇÃO: diga com clareza como a pessoa decide, onde ela trava, o que faz ela entrar em ação e qual é o custo prático disso. Troque formulações elegantes por algo que a pessoa reconheça na vida real.
+- EXECUÇÃO: diga com clareza como a pessoa decide, onde ela trava, o que faz ela entrar em ação e qual é o custo prático disso. Troque formulações elegantes por algo que a pessoa reconheça na vida real. Não trate ausência de planejamento ritualizado, sozinha, como procrastinação. Só use a ideia de procrastinação quando houver evidência conjunta de atraso, dependência de disposição, última hora e baixa sustentação.
 - PRESENÇA: diga como a pessoa aparece nos ambientes, quando ela se solta, quando ela se segura e o que isso produz nos outros. Não usar invisibilidade ou reconhecimento como explicação principal.
 - MUNDO INTERNO: diga como a pessoa pensa, se cobra, se reconhece e se desgasta por dentro. Troque abstrações como "densidade" e "elaboração" por leitura concreta de vida mental.
 - RELAÇÕES: diga como a pessoa cuida do vínculo, onde ela cede demais, onde ela segura demais e o preço emocional disso. Diferencie relação de presença social.
-- VALOR: diga de forma concreta como a pessoa lida com pedir, cobrar, negociar, ocupar espaço e transformar capacidade em avanço. Esta seção precisa soar prática, não conceitual.
+- VALOR: diga de forma concreta como a pessoa lida com pedir, cobrar, negociar, ocupar espaço e transformar capacidade em avanço. Esta seção precisa soar prática, não conceitual. É proibido usar prudência, necessidade de base ou tolerância a risco como eixo único desta seção. Só use cautela como parte da explicação quando ela vier junto com sinais locais de merecimento, comparação, dificuldade de pedir, cobrança ou autorização para receber.
 - DIREÇÃO PRÁTICA: cada ação deve atacar um mecanismo diferente e ser escrita como orientação simples, executável e sem linguagem de consultoria.
 - FRASE FINAL: deve ser curta, forte e memorável. Precisa soar como verdade direta, não como frase bonita.
 - PRÓXIMOS PASSOS: escreva ações concretas, observáveis e executáveis pela própria pessoa. É proibido usar voz conversacional, convite, oferta de ajuda, primeira pessoa do assistente ou qualquer formulação do tipo "se quiser", "eu posso" ou "posso transformar".
 - QUALQUER BLOCO FINAL DE RESUMO, TRAÇOS, FORTALEZAS OU DESAFIOS: se existir, ele não pode repetir literalmente nem por equivalência as teses centrais já usadas nas seções anteriores. Ele deve acrescentar informação complementar, e não recompactar o relatório em frases curtas.
+- LINGUAGEM NEUTRA OBRIGATÓRIA: em todas as 9 partes, use apenas construções neutras de gênero. Prefira "você é uma pessoa que", "você tende a", "em você isso aparece como" e "seu jeito de". Nunca use masculino genérico.
 
 REGRA DE HUMANIZAÇÃO:
 O texto final precisa falar a língua do povo sem perder precisão.
@@ -2541,7 +2627,9 @@ TESTES FINAIS BLOQUEANTES:
 3. Se duas seções puderem ser resumidas pela mesma tese-mãe, o relatório está errado.
 4. Se duas seções tiverem a mesma causa principal, o relatório está errado.
 5. Se presença e valor falarem de percepção, visibilidade, reconhecimento ou subestimação como eixo, o relatório está errado.
-6. Se uma seção estiver usando como motor causal principal uma fonte que não seja a dela, o relatório está errado.
+6. Se valor estiver sendo explicado só por cautela, prudência, necessidade de base ou baixa tolerância a risco, o relatório está errado.
+7. Se execução chamar de procrastinação alguém que apenas tem pouco ritual de planejamento, mas ainda sustenta entrega, o relatório está errado.
+8. Se uma seção estiver usando como motor causal principal uma fonte que não seja a dela, o relatório está errado.
 7. Se um bloco final de resumo, traços, fortalezas ou desafios recompuser em frases curtas o que o corpo do relatório já disse, o relatório está errado.
 8. Se a frase final resumir a tese do bloco 1, o relatório está errado.
 9. Se aparecer no texto final qualquer lista de causas internas, preparação metodológica ou bastidor do raciocínio, o relatório está errado.
@@ -2566,6 +2654,9 @@ Se qualquer teste falhar, reescreva antes de finalizar.
                         "Você não parafraseia perguntas. Você nomeia mecanismo, força, custo e efeito prático. "
                         "Você deve aplicar exclusividade causal forçada: cada seção precisa nascer de uma causa principal realmente diferente, e não de variações elegantes da mesma tese-mãe. "
                         "Você não deve externalizar o seu planejamento interno, nem usar contrastes negativos artificiais para parecer profundo. "
+                        "Todo o relatório deve ser escrito em linguagem neutra de gênero, sempre em segunda pessoa. "
+                        "Use estruturas como 'você é uma pessoa que', 'você tende a' e 'seu jeito de'. "
+                        "É proibido usar masculino genérico, feminino presumido, pronomes de terceira pessoa ou qualquer referência como 'ele', 'ela', 'dele', 'dela', 'o usuário' ou 'a cliente' para a pessoa avaliada. "
                         "Cada seção precisa responder a uma pergunta diferente, usar sua fonte principal correta, salientar uma área real do perfil que ainda não tenha sido explorada e soar como alguém dizendo uma verdade importante de forma clara, e não como saída de ferramenta."
                     )
                 },
@@ -2594,6 +2685,7 @@ Regras inegociáveis:
 - Cada seção deve dizer claramente o que a pessoa faz, qual é a força disso, qual é o custo disso e como isso aparece na prática.
 - Se uma frase puder ser dita de forma mais simples e mais forte, reescreva.
 - Preserve profundidade e exclusividade causal, mas fale como gente.
+- Reescreva qualquer frase com marca de gênero para formato neutro. Use segunda pessoa com estruturas como "você é uma pessoa que", "você tende a" e "seu jeito de". É proibido usar masculino genérico.
 
 Texto a reescrever:
 {texto_final}
@@ -2604,8 +2696,8 @@ Texto a reescrever:
                     {
                         "role": "system",
                         "content": (
-                            "Você revisa relatórios comportamentais já escritos para remover artificialidade, abstração vazia, voz de assistente e vazamentos metodológicos sem empobrecer o conteúdo. "
-                            "Você mantém a estrutura numerada, aprofunda o que for preciso e troca formulações bonitas demais por frases simples, fortes, humanas e memoráveis."
+                            "Você revisa relatórios comportamentais já escritos para remover artificialidade, abstração vazia, voz de assistente, vazamentos metodológicos e deslizes de gênero sem empobrecer o conteúdo. "
+                            "Você mantém a estrutura numerada, aprofunda o que for preciso, troca formulações bonitas demais por frases simples, fortes, humanas e memoráveis e converte qualquer marca de gênero para linguagem neutra em segunda pessoa."
                         )
                     },
                     {
