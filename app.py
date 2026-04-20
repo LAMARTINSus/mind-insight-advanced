@@ -3,7 +3,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V8.9
+# Version: V9.0
 # Data: 2026-04-16
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
@@ -84,6 +84,12 @@
 #      - Usa apenas o relatório oficial como fonte
 #      - Reduz redundância e risco de deriva interpretativa
 #
+# V9.0 - Centralização da inferência final e redução de recomputações
+#      - Respostas finais passam a ser construídas por função única
+#      - Perfil final passa a usar cache com chave consistente
+#      - Debug, registro e download reaproveitam a mesma inferência
+#      - Reduz recalculo redundante sem alterar lógica do motor
+#
 # V6.0 - Nova engine de inferência comportamental
 #      - Mantém Google Sheets, email, modo teste e debug
 #      - Q75-Q89 permanecem NÃO invertidas
@@ -108,7 +114,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V8.9"
+APP_VERSION = "V9.0"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -223,6 +229,8 @@ DEFAULTS = {
     "calibracao_followup": {},
     "calibracao_ajustes": {},
     "perfil_cache": None,
+    "perfil_cache_key": "",
+    "respostas_finais_cache": {},
     "followup_questions": [],
     "followup_answers": {},
     "followup_completo": False,
@@ -380,6 +388,8 @@ def restore_progress_snapshot(snapshot):
     st.session_state.followup_completo = bool(snapshot.get("followup_completo", False))
     st.session_state.relatorio_sem_filtro = ""
     st.session_state.perfil_cache = None
+    st.session_state.perfil_cache_key = ""
+    st.session_state.respostas_finais_cache = {}
     st.session_state.dados_registrados = False
     return True
 
@@ -2602,7 +2612,10 @@ RELATÓRIO OFICIAL A TRADUZIR:
     except AuthenticationError:
         return "Erro ao gerar a versao sem filtro: falha de autenticacao com a OpenAI."
     except Exception as e:
-       return f"Erro ao gerar a versao sem filtro: {str(e)}"
+        return f"Erro ao gerar a versao sem filtro:
+
+{e}"
+
 
 # =============================================================
 # DEBUG
@@ -2805,6 +2818,41 @@ def aplicar_ajustes_calibracao(respostas_originais, ajustes):
     return novas
 
 
+def construir_respostas_finais(respostas_originais=None, ajustes=None):
+    respostas_base = dict(respostas_originais if respostas_originais is not None else st.session_state.get("responses", {}))
+    ajustes_base = dict(ajustes if ajustes is not None else st.session_state.get("calibracao_ajustes", {}))
+    if ajustes_base:
+        return aplicar_ajustes_calibracao(respostas_base, ajustes_base)
+    return respostas_base
+
+
+def _make_perfil_cache_key(respostas, followup_answers=None):
+    payload = {
+        "respostas": {str(k): v for k, v in sorted((respostas or {}).items())},
+        "followups": dict(sorted((followup_answers or {}).items())),
+    }
+    return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def atualizar_perfil_cache(respostas, followup_answers=None):
+    chave = _make_perfil_cache_key(respostas, followup_answers)
+    if st.session_state.get("perfil_cache") is None or st.session_state.get("perfil_cache_key", "") != chave:
+        st.session_state.perfil_cache = gerar_perfil(respostas, followup_answers)
+        st.session_state.perfil_cache_key = chave
+    return st.session_state.perfil_cache
+
+
+def obter_respostas_finais():
+    respostas_finais = construir_respostas_finais()
+    st.session_state.respostas_finais_cache = dict(respostas_finais)
+    return respostas_finais
+
+
+def obter_perfil_final():
+    respostas_finais = obter_respostas_finais()
+    return atualizar_perfil_cache(respostas_finais, st.session_state.get("followup_answers", {}))
+
+
 # =============================================================
 # INTERFACE
 # =============================================================
@@ -2967,7 +3015,8 @@ elif st.session_state.current_question <= TOTAL:
 
 elif not st.session_state.calibracao_completa:
     if st.session_state.perfil_cache is None:
-        st.session_state.perfil_cache = gerar_perfil(st.session_state.responses)
+        perfil_inicial = construir_respostas_finais(st.session_state.responses, {})
+        st.session_state.perfil_cache = atualizar_perfil_cache(perfil_inicial, {})
     if not st.session_state.calibracao_statements:
         st.session_state.calibracao_statements = gerar_statements_calibracao(st.session_state.perfil_cache)
 
@@ -3041,11 +3090,9 @@ elif not st.session_state.calibracao_completa:
     if todas_respondidas:
         st.session_state.calibracao_ajustes = ajustes_acumulados
         if st.button("Continuar para as perguntas adaptativas", type="primary"):
-            respostas_calibradas = aplicar_ajustes_calibracao(
-                st.session_state.responses, ajustes_acumulados
-            ) if ajustes_acumulados else dict(st.session_state.responses)
-
-            st.session_state.perfil_cache = gerar_perfil(respostas_calibradas)
+            respostas_calibradas = construir_respostas_finais(st.session_state.responses, ajustes_acumulados)
+            st.session_state.respostas_finais_cache = dict(respostas_calibradas)
+            st.session_state.perfil_cache = atualizar_perfil_cache(respostas_calibradas, {})
             st.session_state.followup_questions = gerar_followups(st.session_state.perfil_cache)
             st.session_state.calibracao_completa = True
             save_progress_snapshot()
@@ -3055,7 +3102,8 @@ elif not st.session_state.calibracao_completa:
 
 elif not st.session_state.followup_completo:
     if st.session_state.perfil_cache is None:
-        st.session_state.perfil_cache = gerar_perfil(st.session_state.responses)
+        perfil_base = construir_respostas_finais()
+        st.session_state.perfil_cache = atualizar_perfil_cache(perfil_base, {})
 
     followups = st.session_state.followup_questions
 
@@ -3086,12 +3134,9 @@ elif not st.session_state.followup_completo:
 
     if completas:
         if st.button("Gerar meu relatório completo", type="primary"):
-            respostas_finais = aplicar_ajustes_calibracao(
-                st.session_state.responses, st.session_state.calibracao_ajustes
-            ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
-
+            respostas_finais = obter_respostas_finais()
             salvar_ultimo_teste(respostas_finais)
-            st.session_state.perfil_cache = gerar_perfil(respostas_finais, st.session_state.followup_answers)
+            st.session_state.perfil_cache = atualizar_perfil_cache(respostas_finais, st.session_state.followup_answers)
             st.session_state.followup_completo = True
             save_progress_snapshot()
             st.rerun()
@@ -3106,10 +3151,7 @@ else:
     if st.session_state.perfil_cache is not None:
         perfil = st.session_state.perfil_cache
     else:
-        respostas_finais = aplicar_ajustes_calibracao(
-            st.session_state.responses, st.session_state.calibracao_ajustes
-        ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
-        perfil = gerar_perfil(respostas_finais, st.session_state.followup_answers)
+        perfil = obter_perfil_final()
 
     if st.session_state.calibracao_ajustes:
         st.success(
@@ -3140,9 +3182,7 @@ else:
     if not st.session_state.dados_registrados:
         user_info = st.session_state.get("user_info", {})
         medias_perfil = perfil.get("medias", {})
-        respostas_finais = aplicar_ajustes_calibracao(
-            st.session_state.responses, st.session_state.calibracao_ajustes
-        ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
+        respostas_finais = obter_respostas_finais()
 
         dados_registro = {
             "data_hora": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -3204,9 +3244,7 @@ else:
         st.markdown("---")
 
     if MODO_TESTE:
-        respostas_para_download = aplicar_ajustes_calibracao(
-            st.session_state.responses, st.session_state.calibracao_ajustes
-        ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
+        respostas_para_download = obter_respostas_finais()
         _json_bytes = json.dumps(
             {str(k): v for k, v in respostas_para_download.items()},
             ensure_ascii=False, indent=2
