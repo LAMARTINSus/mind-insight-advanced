@@ -3,8 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V8.9
-# Data: 2026-04-16
+# Version: V9.1
+# Data: 2026-04-20
+# Patch: Linguagem refinada + versão sem filtro otimizada (sem reprocessamento)
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
 # Reestruturado para inferência comportamental profunda com impacto psicológico e amplitude por facetas
