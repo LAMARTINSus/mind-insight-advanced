@@ -79,10 +79,10 @@
 #      - Bloqueia formulação bonita demais, abstração vazia e elegância sem mensagem
 #      - Mantém a estrutura técnica da V8.2, mas muda profundamente a voz do relatório
 #
-# V8.9 - Refatoracao do relatorio sem filtro
-#      - Usa apenas o relatorio oficial como fonte para a versao sem filtro
-#      - Elimina reanalise do perfil na traducao crua
-#      - Mantem a tese do relatorio oficial e muda apenas o tom
+# V8.9 - Versão sem filtro convertida em reescrita do relatório oficial
+#      - Elimina reanálise do perfil na tradução crua
+#      - Usa apenas o relatório oficial como fonte
+#      - Reduz redundância e risco de deriva interpretativa
 #
 # V6.0 - Nova engine de inferência comportamental
 #      - Mantém Google Sheets, email, modo teste e debug
@@ -2602,7 +2602,10 @@ RELATÓRIO OFICIAL A TRADUZIR:
     except AuthenticationError:
         return "Erro ao gerar a versao sem filtro: falha de autenticacao com a OpenAI."
     except Exception as e:
-        return "Erro ao gerar a versao sem filtro:\n\n" + str(e)
+        return f"Erro ao gerar a versao sem filtro:
+
+{e}"
+
 
 # =============================================================
 # DEBUG
