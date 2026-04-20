@@ -3,8 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V9.2
+# Version: V9.3
 # Data: 2026-04-20
+# Patch: Polimento final de exclusividade causal + eixo central mais puro + fechamento mais universal da versao sem filtro
 # Patch: Exclusividade causal reforçada entre blocos + linguagem refinada + versão sem filtro otimizada (sem reprocessamento)
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
@@ -115,7 +116,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V9.2"
+APP_VERSION = "V9.3"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -2363,7 +2364,7 @@ VARIAVEIS DERIVADAS:
 - comparacao_escassez: {derived.get('comparacao_escassez', 3):.2f}
 
 MOTORES CAUSAIS DOMINANTES OBRIGATÓRIOS:
-- EIXO CENTRAL deve ser guiado principalmente por flexibilidade_cognitiva={derived.get('flexibilidade_cognitiva', 3):.2f} e conforto_abstracao={derived.get('conforto_abstracao', 3):.2f}. Esta seção deve falar do jeito de pensar, aprender, conectar assuntos e revisar visão. Não deve usar como motor principal atraso para agir, merecimento, conflito ou visibilidade social.
+- EIXO CENTRAL deve ser guiado principalmente por flexibilidade_cognitiva={derived.get('flexibilidade_cognitiva', 3):.2f} e conforto_abstracao={derived.get('conforto_abstracao', 3):.2f}. Esta seção deve falar do jeito de pensar, aprender, conectar assuntos, sintetizar ideias e revisar visão. Deve ser a seção mais mental e mais curta do relatório: no máximo 3 parágrafos curtos antes da frase-resumo. Não deve usar como motor principal atraso para agir, merecimento, conflito, visibilidade social, constância, compromisso, sustentação, execução ou continuidade. Não descreva essa seção como se fosse comportamento de trabalho; descreva o padrão organizador da mente.
 - EXECUÇÃO deve ser guiada principalmente por tolerancia_risco={derived['tolerancia_risco']:.2f}, necessidade_previsibilidade={derived.get('necessidade_previsibilidade', 3):.2f}, planejamento_pratico={derived.get('planejamento_pratico', 3):.2f} e atraso_operacional={derived.get('atraso_operacional', 3):.2f}. Esta seção deve falar de critério para agir, suficiência de informação, risco percebido e timing de decisão. Não deve explicar o bloco por autoestima, mérito, valor ou sensibilidade relacional.
 - PRESENÇA deve ser guiada principalmente por visibilidade_pessoal={derived['visibilidade_pessoal']:.2f}, assertividade={derived['assertividade']:.2f} e impulso_social={derived['impulso_social']:.2f}. Esta seção deve falar de ritmo de exposição, forma de se posicionar, participação em contexto novo e modo de ganhar presença. Não deve falar de falta de valor, merecimento ou insegurança interna como causa principal.
 - MUNDO INTERNO deve ser guiado principalmente por auto_reconhecimento={derived['auto_reconhecimento']:.2f}, autoexigencia={derived['autoexigencia']:.2f} e ruminacao_pos_evento={derived.get('ruminacao_pos_evento', 3):.2f}. Esta seção deve falar de como o valor assenta por dentro, como o reconhecimento é absorvido e como a pessoa se mede internamente. Não deve virar descrição de decisão, conflito ou negociação.
@@ -2434,14 +2435,14 @@ ESTRUTURA OBRIGATORIA:
 9. PRÓXIMOS PASSOS
 
 INSTRUÇÕES ESPECÍFICAS POR SEÇÃO:
-- BLOCO 1: diga logo, em português simples, qual é o jeito principal de a pessoa funcionar. Nomeie a força e o custo. Esta seção deve conter pelo menos uma frase que poderia ser repetida para resumir a pessoa sem perder a essência.
+- BLOCO 1: diga logo, em português simples, qual é o jeito principal de a mente da pessoa funcionar. Nomeie a força e o custo. Esta seção deve conter pelo menos uma frase que poderia ser repetida para resumir a pessoa sem perder a essência. Evite puxar compromisso, execução, disciplina ou sustentação como eixo do bloco 1; isso pertence mais ao bloco 2.
 - EXECUÇÃO: diga com clareza como a pessoa decide, onde ela trava, o que faz ela entrar em ação e qual é o custo prático disso. Troque formulações elegantes por algo que a pessoa reconheça na vida real. Não trate ausência de planejamento ritualizado, sozinha, como procrastinação. Só use a ideia de procrastinação quando houver evidência conjunta de atraso, dependência de disposição, última hora e baixa sustentação.
 - PRESENÇA: diga como a pessoa aparece nos ambientes, quando ela se solta, quando ela se segura e o que isso produz nos outros. Não usar invisibilidade ou reconhecimento como explicação principal. É proibido usar as palavras "entrada" ou "entrar" como resumo vago do comportamento. Prefira formulações concretas como "você demora um pouco mais para se posicionar até entender o contexto" ou equivalentes específicas.
 - MUNDO INTERNO: diga como a pessoa pensa, se cobra, se reconhece e se desgasta por dentro. Troque abstrações como "densidade" e "elaboração" por leitura concreta de vida mental.
 - RELAÇÕES: diga como a pessoa cuida do vínculo, onde ela cede demais, onde ela segura demais e o preço emocional disso. Diferencie relação de presença social.
 - VALOR: diga de forma concreta como a pessoa lida com pedir, cobrar, negociar, ocupar espaço e transformar capacidade em avanço. Esta seção precisa soar prática, não conceitual. É proibido usar prudência, necessidade de base ou tolerância a risco como eixo único desta seção. Só use cautela como parte da explicação quando ela vier junto com sinais locais de merecimento, comparação, dificuldade de pedir, cobrança ou autorização para receber.
 - DIREÇÃO PRÁTICA: cada ação deve atacar um mecanismo diferente e ser escrita como orientação simples, executável e sem linguagem de consultoria.
-- FRASE FINAL: deve ser curta, forte e memorável. Precisa soar como verdade direta, não como frase bonita.
+- FRASE FINAL: deve ser curta, forte e memorável. Precisa soar como verdade direta, não como frase bonita. Não pode repetir a tese de começar tarde, esperar base, pedir permissão ou mostrar pouco. Feche por um ângulo mais amplo do todo.
 - PRÓXIMOS PASSOS: escreva ações concretas, observáveis e executáveis pela própria pessoa. É proibido usar voz conversacional, convite, oferta de ajuda, primeira pessoa do assistente ou qualquer formulação do tipo "se quiser", "eu posso" ou "posso transformar".
 - QUALQUER BLOCO FINAL DE RESUMO, TRAÇOS, FORTALEZAS OU DESAFIOS: se existir, ele não pode repetir literalmente nem por equivalência as teses centrais já usadas nas seções anteriores. Ele deve acrescentar informação complementar, e não recompactar o relatório em frases curtas.
 - LINGUAGEM NEUTRA OBRIGATÓRIA: em todas as 9 partes, use apenas construções neutras de gênero. Prefira "você é uma pessoa que", "você tende a", "em você isso aparece como" e "seu jeito de". Nunca use masculino genérico.
@@ -2590,6 +2591,8 @@ REGRAS OBRIGATÓRIAS:
 - Frases curtas. Ritmo rápido. Linguagem cotidiana.
 - Priorize custo prático, autossabotagem e consequência concreta.
 - Termine com 3 ações práticas curtas e 1 frase final memorável.
+- A frase final da versão sem filtro deve fechar o conjunto inteiro do relatório, e não apenas o bloco de presença.
+- Evite fechar o texto só com a oposição entre mundo interno forte e expressão externa fraca; o fechamento deve abranger decisão, valor, relações e presença ao mesmo tempo.
 - É proibido usar as palavras "entrada" ou "entrar" como atalho vago. Sempre traduza esse comportamento em ações concretas, como se posicionar, se mostrar, participar, ganhar presença ou se expor depois de entender o contexto.
 
 RELATÓRIO OFICIAL A TRADUZIR:
@@ -2607,7 +2610,8 @@ RELATÓRIO OFICIAL A TRADUZIR:
                         "mais crua e memorável, sem perder fidelidade ao conteúdo oficial. "
                         "Você não recalcula nada, não reinterpreta o perfil e não cria novas teses. "
                         "Você apenas muda o tom, deixando o texto mais direto, claro e impactante. "
-                        "É proibido usar 'entrada' ou 'entrar' como resumo vago de presença social; traduza isso em comportamento observável."
+                        "É proibido usar 'entrada' ou 'entrar' como resumo vago de presença social; traduza isso em comportamento observável. "
+                        "A frase final deve fechar o retrato inteiro da pessoa, e não só um dos blocos."
                     )
                 },
                 {
