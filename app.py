@@ -3,9 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V9.1
+# Version: V9.2
 # Data: 2026-04-20
-# Patch: Linguagem refinada + versão sem filtro otimizada (sem reprocessamento)
+# Patch: Exclusividade causal reforçada entre blocos + linguagem refinada + versão sem filtro otimizada (sem reprocessamento)
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
 # Reestruturado para inferência comportamental profunda com impacto psicológico e amplitude por facetas
@@ -115,7 +115,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V9.1"
+APP_VERSION = "V9.2"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -2362,6 +2362,14 @@ VARIAVEIS DERIVADAS:
 - impulso_expansao: {derived.get('impulso_expansao', 3):.2f}
 - comparacao_escassez: {derived.get('comparacao_escassez', 3):.2f}
 
+MOTORES CAUSAIS DOMINANTES OBRIGATÓRIOS:
+- EIXO CENTRAL deve ser guiado principalmente por flexibilidade_cognitiva={derived.get('flexibilidade_cognitiva', 3):.2f} e conforto_abstracao={derived.get('conforto_abstracao', 3):.2f}. Esta seção deve falar do jeito de pensar, aprender, conectar assuntos e revisar visão. Não deve usar como motor principal atraso para agir, merecimento, conflito ou visibilidade social.
+- EXECUÇÃO deve ser guiada principalmente por tolerancia_risco={derived['tolerancia_risco']:.2f}, necessidade_previsibilidade={derived.get('necessidade_previsibilidade', 3):.2f}, planejamento_pratico={derived.get('planejamento_pratico', 3):.2f} e atraso_operacional={derived.get('atraso_operacional', 3):.2f}. Esta seção deve falar de critério para agir, suficiência de informação, risco percebido e timing de decisão. Não deve explicar o bloco por autoestima, mérito, valor ou sensibilidade relacional.
+- PRESENÇA deve ser guiada principalmente por visibilidade_pessoal={derived['visibilidade_pessoal']:.2f}, assertividade={derived['assertividade']:.2f} e impulso_social={derived['impulso_social']:.2f}. Esta seção deve falar de ritmo de exposição, forma de se posicionar, participação em contexto novo e modo de ganhar presença. Não deve falar de falta de valor, merecimento ou insegurança interna como causa principal.
+- MUNDO INTERNO deve ser guiado principalmente por auto_reconhecimento={derived['auto_reconhecimento']:.2f}, autoexigencia={derived['autoexigencia']:.2f} e ruminacao_pos_evento={derived.get('ruminacao_pos_evento', 3):.2f}. Esta seção deve falar de como o valor assenta por dentro, como o reconhecimento é absorvido e como a pessoa se mede internamente. Não deve virar descrição de decisão, conflito ou negociação.
+- RELAÇÕES deve ser guiada principalmente por evita_conflito={derived['evita_conflito']:.2f}, presenca_relacional={derived['presenca_relacional']:.2f} e sensibilidade_pressao={derived.get('sensibilidade_pressao', 3):.2f}. Esta seção deve falar de custo de tensão interpessoal, manutenção de vínculo, dificuldade de dizer algo difícil e desgaste relacional. Não deve usar dinheiro, valor ou timing estratégico como eixo principal.
+- VALOR deve ser guiado principalmente por merecimento_economico={derived.get('merecimento_economico', 3):.2f}, impulso_expansao={derived.get('impulso_expansao', 3):.2f} e comparacao_escassez={derived.get('comparacao_escassez', 3):.2f}. Esta seção deve falar de pedido, proposta, cobrança, negociação, escopo, preço, influência e ocupação concreta de espaço. Não deve ser explicada principalmente por necessidade de previsibilidade, leitura social do ambiente ou custo de conflito.
+
 PADROES PRIORIZADOS:
 {linhas_padroes}
 
@@ -2469,6 +2477,8 @@ TESTES FINAIS BLOQUEANTES:
 11. Se áreas claramente presentes nos dados continuarem sem ser salientadas porque a mesma tese ocupou espaço demais, o relatório está errado.
 12. Se o texto parecer técnico, frio, ornamental ou com cara de ferramenta, o relatório está errado.
 13. Se a leitura parecer servir para quase qualquer pessoa, o relatório está errado.
+14. Se execução, presença e valor parecerem três versões da mesma trava, o relatório está errado.
+15. Se a frase final repetir a ideia de "você já tem base" ou "você demora para se autorizar", o relatório está errado.
 Se qualquer teste falhar, reescreva antes de finalizar.
 """
 
