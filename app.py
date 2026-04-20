@@ -3,7 +3,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V9.0
+# Version: V8.9
 # Data: 2026-04-16
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
@@ -79,16 +79,16 @@
 #      - Bloqueia formulação bonita demais, abstração vazia e elegância sem mensagem
 #      - Mantém a estrutura técnica da V8.2, mas muda profundamente a voz do relatório
 #
+# V9.1 - Exclusividade causal refinada + sem filtro fiel ao oficial
+#      - Mantém o motor atual intacto
+#      - Reforça a exclusividade causal entre seções do relatório oficial
+#      - Proíbe o uso de "entrada" e "entrar" como atalhos vagos na descrição de presença
+#      - Faz a versão sem filtro atuar como reescrita do relatório oficial, sem reanálise
+#
 # V8.9 - Versão sem filtro convertida em reescrita do relatório oficial
 #      - Elimina reanálise do perfil na tradução crua
 #      - Usa apenas o relatório oficial como fonte
 #      - Reduz redundância e risco de deriva interpretativa
-#
-# V9.0 - Centralização da inferência final e redução de recomputações
-#      - Respostas finais passam a ser construídas por função única
-#      - Perfil final passa a usar cache com chave consistente
-#      - Debug, registro e download reaproveitam a mesma inferência
-#      - Reduz recalculo redundante sem alterar lógica do motor
 #
 # V6.0 - Nova engine de inferência comportamental
 #      - Mantém Google Sheets, email, modo teste e debug
@@ -114,7 +114,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V9.0"
+APP_VERSION = "V9.1"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -229,8 +229,6 @@ DEFAULTS = {
     "calibracao_followup": {},
     "calibracao_ajustes": {},
     "perfil_cache": None,
-    "perfil_cache_key": "",
-    "respostas_finais_cache": {},
     "followup_questions": [],
     "followup_answers": {},
     "followup_completo": False,
@@ -388,8 +386,6 @@ def restore_progress_snapshot(snapshot):
     st.session_state.followup_completo = bool(snapshot.get("followup_completo", False))
     st.session_state.relatorio_sem_filtro = ""
     st.session_state.perfil_cache = None
-    st.session_state.perfil_cache_key = ""
-    st.session_state.respostas_finais_cache = {}
     st.session_state.dados_registrados = False
     return True
 
@@ -2431,7 +2427,7 @@ ESTRUTURA OBRIGATORIA:
 INSTRUÇÕES ESPECÍFICAS POR SEÇÃO:
 - BLOCO 1: diga logo, em português simples, qual é o jeito principal de a pessoa funcionar. Nomeie a força e o custo. Esta seção deve conter pelo menos uma frase que poderia ser repetida para resumir a pessoa sem perder a essência.
 - EXECUÇÃO: diga com clareza como a pessoa decide, onde ela trava, o que faz ela entrar em ação e qual é o custo prático disso. Troque formulações elegantes por algo que a pessoa reconheça na vida real. Não trate ausência de planejamento ritualizado, sozinha, como procrastinação. Só use a ideia de procrastinação quando houver evidência conjunta de atraso, dependência de disposição, última hora e baixa sustentação.
-- PRESENÇA: diga como a pessoa aparece nos ambientes, quando ela se solta, quando ela se segura e o que isso produz nos outros. Não usar invisibilidade ou reconhecimento como explicação principal.
+- PRESENÇA: diga como a pessoa aparece nos ambientes, quando ela se solta, quando ela se segura e o que isso produz nos outros. Não usar invisibilidade ou reconhecimento como explicação principal. É proibido usar as palavras "entrada" ou "entrar" como resumo vago do comportamento. Prefira formulações concretas como "você demora um pouco mais para se posicionar até entender o contexto" ou equivalentes específicas.
 - MUNDO INTERNO: diga como a pessoa pensa, se cobra, se reconhece e se desgasta por dentro. Troque abstrações como "densidade" e "elaboração" por leitura concreta de vida mental.
 - RELAÇÕES: diga como a pessoa cuida do vínculo, onde ela cede demais, onde ela segura demais e o preço emocional disso. Diferencie relação de presença social.
 - VALOR: diga de forma concreta como a pessoa lida com pedir, cobrar, negociar, ocupar espaço e transformar capacidade em avanço. Esta seção precisa soar prática, não conceitual. É proibido usar prudência, necessidade de base ou tolerância a risco como eixo único desta seção. Só use cautela como parte da explicação quando ela vier junto com sinais locais de merecimento, comparação, dificuldade de pedir, cobrança ou autorização para receber.
@@ -2454,6 +2450,7 @@ Evite construções como "não é X, nem Y; é Z", "não porque..., mas porque..
 Cada seção deve ter pelo menos uma frase que poderia ser lembrada depois de horas.
 Não use no texto final palavras como "engine", "modelo", "sistema" ou "eixo".
 Não use linguagem solene demais, acadêmica demais ou elegante demais.
+É proibido usar "entrada" ou "entrar" de forma vaga para explicar presença social. Sempre traduza esse padrão em comportamento observável, como se posicionar, participar, se expor ou ganhar presença depois de entender o contexto.
 
 TESTES FINAIS BLOQUEANTES:
 1. Se a pessoa puder ler uma seção e dizer "falou bonito mas não disse nada", o relatório está errado.
@@ -2582,6 +2579,7 @@ REGRAS OBRIGATÓRIAS:
 - Frases curtas. Ritmo rápido. Linguagem cotidiana.
 - Priorize custo prático, autossabotagem e consequência concreta.
 - Termine com 3 ações práticas curtas e 1 frase final memorável.
+- É proibido usar as palavras "entrada" ou "entrar" como atalho vago. Sempre traduza esse comportamento em ações concretas, como se posicionar, se mostrar, participar, ganhar presença ou se expor depois de entender o contexto.
 
 RELATÓRIO OFICIAL A TRADUZIR:
 {relatorio_oficial}
@@ -2597,7 +2595,8 @@ RELATÓRIO OFICIAL A TRADUZIR:
                         "Você traduz relatórios comportamentais já prontos para uma versão sem filtro, "
                         "mais crua e memorável, sem perder fidelidade ao conteúdo oficial. "
                         "Você não recalcula nada, não reinterpreta o perfil e não cria novas teses. "
-                        "Você apenas muda o tom, deixando o texto mais direto, claro e impactante."
+                        "Você apenas muda o tom, deixando o texto mais direto, claro e impactante. "
+                        "É proibido usar 'entrada' ou 'entrar' como resumo vago de presença social; traduza isso em comportamento observável."
                     )
                 },
                 {
@@ -2612,8 +2611,7 @@ RELATÓRIO OFICIAL A TRADUZIR:
     except AuthenticationError:
         return "Erro ao gerar a versao sem filtro: falha de autenticacao com a OpenAI."
     except Exception as e:
-        return "Erro ao gerar a versao sem filtro: " + str(e)
-
+        return f"Erro ao gerar a versao sem filtro: {e}"
 
 
 # =============================================================
@@ -2817,41 +2815,6 @@ def aplicar_ajustes_calibracao(respostas_originais, ajustes):
     return novas
 
 
-def construir_respostas_finais(respostas_originais=None, ajustes=None):
-    respostas_base = dict(respostas_originais if respostas_originais is not None else st.session_state.get("responses", {}))
-    ajustes_base = dict(ajustes if ajustes is not None else st.session_state.get("calibracao_ajustes", {}))
-    if ajustes_base:
-        return aplicar_ajustes_calibracao(respostas_base, ajustes_base)
-    return respostas_base
-
-
-def _make_perfil_cache_key(respostas, followup_answers=None):
-    payload = {
-        "respostas": {str(k): v for k, v in sorted((respostas or {}).items())},
-        "followups": dict(sorted((followup_answers or {}).items())),
-    }
-    return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
-
-
-def atualizar_perfil_cache(respostas, followup_answers=None):
-    chave = _make_perfil_cache_key(respostas, followup_answers)
-    if st.session_state.get("perfil_cache") is None or st.session_state.get("perfil_cache_key", "") != chave:
-        st.session_state.perfil_cache = gerar_perfil(respostas, followup_answers)
-        st.session_state.perfil_cache_key = chave
-    return st.session_state.perfil_cache
-
-
-def obter_respostas_finais():
-    respostas_finais = construir_respostas_finais()
-    st.session_state.respostas_finais_cache = dict(respostas_finais)
-    return respostas_finais
-
-
-def obter_perfil_final():
-    respostas_finais = obter_respostas_finais()
-    return atualizar_perfil_cache(respostas_finais, st.session_state.get("followup_answers", {}))
-
-
 # =============================================================
 # INTERFACE
 # =============================================================
@@ -3014,8 +2977,7 @@ elif st.session_state.current_question <= TOTAL:
 
 elif not st.session_state.calibracao_completa:
     if st.session_state.perfil_cache is None:
-        perfil_inicial = construir_respostas_finais(st.session_state.responses, {})
-        st.session_state.perfil_cache = atualizar_perfil_cache(perfil_inicial, {})
+        st.session_state.perfil_cache = gerar_perfil(st.session_state.responses)
     if not st.session_state.calibracao_statements:
         st.session_state.calibracao_statements = gerar_statements_calibracao(st.session_state.perfil_cache)
 
@@ -3089,9 +3051,11 @@ elif not st.session_state.calibracao_completa:
     if todas_respondidas:
         st.session_state.calibracao_ajustes = ajustes_acumulados
         if st.button("Continuar para as perguntas adaptativas", type="primary"):
-            respostas_calibradas = construir_respostas_finais(st.session_state.responses, ajustes_acumulados)
-            st.session_state.respostas_finais_cache = dict(respostas_calibradas)
-            st.session_state.perfil_cache = atualizar_perfil_cache(respostas_calibradas, {})
+            respostas_calibradas = aplicar_ajustes_calibracao(
+                st.session_state.responses, ajustes_acumulados
+            ) if ajustes_acumulados else dict(st.session_state.responses)
+
+            st.session_state.perfil_cache = gerar_perfil(respostas_calibradas)
             st.session_state.followup_questions = gerar_followups(st.session_state.perfil_cache)
             st.session_state.calibracao_completa = True
             save_progress_snapshot()
@@ -3101,8 +3065,7 @@ elif not st.session_state.calibracao_completa:
 
 elif not st.session_state.followup_completo:
     if st.session_state.perfil_cache is None:
-        perfil_base = construir_respostas_finais()
-        st.session_state.perfil_cache = atualizar_perfil_cache(perfil_base, {})
+        st.session_state.perfil_cache = gerar_perfil(st.session_state.responses)
 
     followups = st.session_state.followup_questions
 
@@ -3133,9 +3096,12 @@ elif not st.session_state.followup_completo:
 
     if completas:
         if st.button("Gerar meu relatório completo", type="primary"):
-            respostas_finais = obter_respostas_finais()
+            respostas_finais = aplicar_ajustes_calibracao(
+                st.session_state.responses, st.session_state.calibracao_ajustes
+            ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
+
             salvar_ultimo_teste(respostas_finais)
-            st.session_state.perfil_cache = atualizar_perfil_cache(respostas_finais, st.session_state.followup_answers)
+            st.session_state.perfil_cache = gerar_perfil(respostas_finais, st.session_state.followup_answers)
             st.session_state.followup_completo = True
             save_progress_snapshot()
             st.rerun()
@@ -3150,7 +3116,10 @@ else:
     if st.session_state.perfil_cache is not None:
         perfil = st.session_state.perfil_cache
     else:
-        perfil = obter_perfil_final()
+        respostas_finais = aplicar_ajustes_calibracao(
+            st.session_state.responses, st.session_state.calibracao_ajustes
+        ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
+        perfil = gerar_perfil(respostas_finais, st.session_state.followup_answers)
 
     if st.session_state.calibracao_ajustes:
         st.success(
@@ -3181,7 +3150,9 @@ else:
     if not st.session_state.dados_registrados:
         user_info = st.session_state.get("user_info", {})
         medias_perfil = perfil.get("medias", {})
-        respostas_finais = obter_respostas_finais()
+        respostas_finais = aplicar_ajustes_calibracao(
+            st.session_state.responses, st.session_state.calibracao_ajustes
+        ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
 
         dados_registro = {
             "data_hora": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -3243,7 +3214,9 @@ else:
         st.markdown("---")
 
     if MODO_TESTE:
-        respostas_para_download = obter_respostas_finais()
+        respostas_para_download = aplicar_ajustes_calibracao(
+            st.session_state.responses, st.session_state.calibracao_ajustes
+        ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
         _json_bytes = json.dumps(
             {str(k): v for k, v in respostas_para_download.items()},
             ensure_ascii=False, indent=2
