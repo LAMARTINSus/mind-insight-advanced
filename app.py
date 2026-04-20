@@ -2604,9 +2604,6 @@ RELATÓRIO OFICIAL A TRADUZIR:
     except Exception as e:
         return "Erro ao gerar a versao sem filtro:\n\n" + str(e)
 
-" + str(e)
-
-
 # =============================================================
 # DEBUG
 # =============================================================
