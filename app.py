@@ -2602,7 +2602,7 @@ RELATÓRIO OFICIAL A TRADUZIR:
     except AuthenticationError:
         return "Erro ao gerar a versao sem filtro: falha de autenticacao com a OpenAI."
     except Exception as e:
-        return "Erro ao gerar a versao sem filtro:
+        return "Erro ao gerar a versao sem filtro:\n\n" + str(e)
 
 " + str(e)
 
