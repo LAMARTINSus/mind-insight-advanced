@@ -3,9 +3,11 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V9.3
-# Data: 2026-04-20
-# Patch: Polimento final de exclusividade causal + eixo central mais puro + fechamento mais universal da versao sem filtro
+# Version: V9.6
+# Data: 2026-04-24
+# Patch: Google Sheets Research Logging + timestamps/tempo por pergunta gravados para benchmark
+# Patch anterior: Instrumentação científica + navegação com botão Voltar + rastreamento de tempo e mudanças de resposta
+# Patch anterior: Polimento final de exclusividade causal + eixo central mais puro + fechamento mais universal da versao sem filtro
 # Patch: Exclusividade causal reforçada entre blocos + linguagem refinada + versão sem filtro otimizada (sem reprocessamento)
 # Criado com: Claude (Anthropic)
 # Aperfeiçoado por: Manus AI
@@ -112,11 +114,13 @@ import smtplib
 import datetime
 import re
 import hashlib
+import time
+import uuid
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V9.3"
+APP_VERSION = "V9.6"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -237,10 +241,159 @@ DEFAULTS = {
     "relatorio_sem_filtro": "",
     "debug_sheet_users": [],
     "debug_sheet_error": "",
+    # Instrumentação científica V9.5
+    "session_id": "",
+    "question_started_at": 0.0,
+    "question_timer_q": None,
+    "question_time_total": {},
+    "question_time_events": [],
+    "answer_change_count": {},
+    "answer_change_log": [],
+    "response_history": [],
 }
 for k, v in DEFAULTS.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+
+def ensure_research_session_state():
+    """Garante identificador e estruturas de instrumentação científica da sessão."""
+    if not st.session_state.get("session_id"):
+        st.session_state.session_id = str(uuid.uuid4())
+    for key in ["question_time_total", "answer_change_count"]:
+        if key not in st.session_state or not isinstance(st.session_state[key], dict):
+            st.session_state[key] = {}
+    for key in ["question_time_events", "answer_change_log", "response_history"]:
+        if key not in st.session_state or not isinstance(st.session_state[key], list):
+            st.session_state[key] = []
+
+
+def start_question_timer(q_num):
+    """Inicia/reinicia o cronômetro quando a pergunta visível muda."""
+    ensure_research_session_state()
+    if st.session_state.get("question_timer_q") != q_num:
+        st.session_state.question_timer_q = q_num
+        st.session_state.question_started_at = time.time()
+
+
+def record_question_response(q_num, valor, source="next"):
+    """Registra resposta, tempo gasto e mudança de resposta sem alterar o motor de inferência."""
+    ensure_research_session_state()
+    now = time.time()
+    started_at = float(st.session_state.get("question_started_at") or now)
+    elapsed = max(0.0, round(now - started_at, 3))
+
+    q_key = str(q_num)
+    previous = st.session_state.responses.get(q_num)
+    changed = previous is not None and int(previous) != int(valor)
+
+    st.session_state.responses[q_num] = int(valor)
+    st.session_state.question_time_total[q_key] = round(
+        float(st.session_state.question_time_total.get(q_key, 0.0)) + elapsed, 3
+    )
+
+    event = {
+        "session_id": st.session_state.session_id,
+        "q": int(q_num),
+        "answer": int(valor),
+        "previous_answer": int(previous) if previous is not None else None,
+        "changed_answer": bool(changed),
+        "response_time_sec": elapsed,
+        "source": source,
+        "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
+    }
+    st.session_state.question_time_events.append(event)
+    st.session_state.response_history.append(event)
+
+    if changed:
+        st.session_state.answer_change_count[q_key] = int(st.session_state.answer_change_count.get(q_key, 0)) + 1
+        st.session_state.answer_change_log.append(event)
+
+    st.session_state.question_started_at = time.time()
+    return event
+
+
+def build_research_export(respostas_finais=None):
+    """Monta um pacote técnico para análise científica posterior."""
+    respostas_finais = respostas_finais if respostas_finais is not None else dict(st.session_state.get("responses", {}))
+    return {
+        "app_version": APP_VERSION,
+        "session_id": st.session_state.get("session_id", ""),
+        "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        "user_info": dict(st.session_state.get("user_info", {}) or {}),
+        "responses": {str(k): int(v) for k, v in sorted(respostas_finais.items())},
+        "question_time_total": dict(st.session_state.get("question_time_total", {})),
+        "question_time_events": list(st.session_state.get("question_time_events", [])),
+        "answer_change_count": dict(st.session_state.get("answer_change_count", {})),
+        "answer_change_log": list(st.session_state.get("answer_change_log", [])),
+        "response_history": list(st.session_state.get("response_history", [])),
+        "calibracao_ajustes": {str(k): v for k, v in st.session_state.get("calibracao_ajustes", {}).items()},
+        "followup_answers": dict(st.session_state.get("followup_answers", {})),
+    }
+
+
+def _safe_json_for_sheet(obj, max_chars=45000):
+    """Serializa JSON para célula do Google Sheets sem quebrar o append_row."""
+    try:
+        txt = json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
+    except Exception:
+        txt = json.dumps(str(obj), ensure_ascii=False)
+    if len(txt) <= max_chars:
+        return txt
+    return txt[:max_chars - 40] + "...[TRUNCADO_PARA_SHEETS]"
+
+
+def build_research_sheet_fields(respostas_finais=None):
+    """Resume e organiza dados científicos para gravar no Google Sheets.
+
+    Esta função não altera o motor de inferência. Ela apenas pega a instrumentação
+    da sessão e transforma em campos analisáveis para benchmark futuro.
+    """
+    respostas_finais = respostas_finais if respostas_finais is not None else dict(st.session_state.get("responses", {}))
+    export = build_research_export(respostas_finais)
+
+    tempos = {}
+    for k, v in export.get("question_time_total", {}).items():
+        try:
+            tempos[str(k)] = round(float(v), 3)
+        except Exception:
+            continue
+
+    eventos = export.get("question_time_events", []) or []
+    mudancas = export.get("answer_change_count", {}) or {}
+    perguntas_alteradas = sorted([str(k) for k, v in mudancas.items() if int(v or 0) > 0], key=lambda x: int(x))
+    total_tempo = round(sum(tempos.values()), 3) if tempos else 0.0
+    respondidas = len(respostas_finais) if respostas_finais else 0
+    tempo_medio = round(total_tempo / respondidas, 3) if respondidas else 0.0
+    tempo_maximo = round(max(tempos.values()), 3) if tempos else 0.0
+
+    per_question = {}
+    for q, ans in sorted(respostas_finais.items()):
+        q_key = str(q)
+        per_question["Q" + q_key] = {
+            "answer": int(ans),
+            "time_sec": tempos.get(q_key, 0.0),
+            "changed": bool(int(mudancas.get(q_key, 0) or 0) > 0),
+            "change_count": int(mudancas.get(q_key, 0) or 0),
+        }
+
+    return {
+        "session_id": export.get("session_id", ""),
+        "research_created_at": export.get("created_at", ""),
+        "tempo_total_teste": total_tempo,
+        "tempo_medio_por_pergunta": tempo_medio,
+        "tempo_maximo_pergunta": tempo_maximo,
+        "qtd_respostas_alteradas": sum(int(v or 0) for v in mudancas.values()),
+        "perguntas_alteradas": ";".join(["Q" + q for q in perguntas_alteradas]),
+        "tempos_por_pergunta_json": _safe_json_for_sheet({"Q" + k: v for k, v in sorted(tempos.items(), key=lambda x: int(x[0]))}),
+        "mudancas_por_pergunta_json": _safe_json_for_sheet({"Q" + str(k): int(v or 0) for k, v in sorted(mudancas.items(), key=lambda x: int(x[0]))}),
+        "research_events_json": _safe_json_for_sheet(eventos),
+        "research_per_question_json": _safe_json_for_sheet(per_question),
+        "research_meta": _safe_json_for_sheet(export),
+    }
+
+
+ensure_research_session_state()
 
 
 # =============================================================
@@ -335,6 +488,12 @@ def save_progress_snapshot():
         "followup_questions": list(st.session_state.get("followup_questions", [])),
         "followup_answers": dict(st.session_state.get("followup_answers", {})),
         "followup_completo": bool(st.session_state.get("followup_completo", False)),
+        "session_id": st.session_state.get("session_id", ""),
+        "question_time_total": dict(st.session_state.get("question_time_total", {})),
+        "question_time_events": list(st.session_state.get("question_time_events", [])),
+        "answer_change_count": dict(st.session_state.get("answer_change_count", {})),
+        "answer_change_log": list(st.session_state.get("answer_change_log", [])),
+        "response_history": list(st.session_state.get("response_history", [])),
     }
 
     try:
@@ -386,6 +545,14 @@ def restore_progress_snapshot(snapshot):
     st.session_state.followup_questions = list(snapshot.get("followup_questions", []))
     st.session_state.followup_answers = dict(snapshot.get("followup_answers", {}))
     st.session_state.followup_completo = bool(snapshot.get("followup_completo", False))
+    st.session_state.session_id = snapshot.get("session_id", st.session_state.get("session_id", "")) or str(uuid.uuid4())
+    st.session_state.question_time_total = dict(snapshot.get("question_time_total", {}))
+    st.session_state.question_time_events = list(snapshot.get("question_time_events", []))
+    st.session_state.answer_change_count = dict(snapshot.get("answer_change_count", {}))
+    st.session_state.answer_change_log = list(snapshot.get("answer_change_log", []))
+    st.session_state.response_history = list(snapshot.get("response_history", []))
+    st.session_state.question_started_at = time.time()
+    st.session_state.question_timer_q = None
     st.session_state.relatorio_sem_filtro = ""
     st.session_state.perfil_cache = None
     st.session_state.dados_registrados = False
@@ -549,46 +716,89 @@ def registrar_no_sheets(dados):
     try:
         ws = get_google_sheet_worksheet()
 
-        if ws.row_count == 0 or ws.cell(1, 1).value != "data_hora":
-            cabecalho = [
-                "data_hora", "modo_teste", "nome", "idade", "genero", "email",
-                "Abertura", "Conscienciosidade", "Extroversao",
-                "Amabilidade", "Neuroticismo", "Seguranca", "Abundancia",
-                "maior_contraste", "amplitude_pct", "padroes_ativos",
-                "tensoes_ativas", "followups", "ajustes_calibracao", "relatorio"
-            ] + ["Q" + str(i) for i in QUESTION_KEYS]
-            ws.append_row(cabecalho)
+        base_headers = [
+            "data_hora", "modo_teste", "nome", "idade", "genero", "email",
+            "Abertura", "Conscienciosidade", "Extroversao",
+            "Amabilidade", "Neuroticismo", "Seguranca", "Abundancia",
+            "maior_contraste", "amplitude_pct", "padroes_ativos",
+            "tensoes_ativas", "followups", "ajustes_calibracao", "relatorio",
+        ]
 
-        linha = [
-            dados.get("data_hora", ""),
-            dados.get("modo_teste", "NAO"),
-            dados.get("nome", ""),
-            dados.get("idade", ""),
-            dados.get("genero", ""),
-            dados.get("email", ""),
-            dados.get("Abertura", ""),
-            dados.get("Conscienciosidade", ""),
-            dados.get("Extroversao", ""),
-            dados.get("Amabilidade", ""),
-            dados.get("Neuroticismo", ""),
-            dados.get("Seguranca", ""),
-            dados.get("Abundancia", ""),
-            dados.get("maior_contraste", ""),
-            dados.get("amplitude_pct", ""),
-            dados.get("padroes_ativos", ""),
-            dados.get("tensoes_ativas", ""),
-            dados.get("followups", ""),
-            dados.get("ajustes_calibracao", ""),
-            dados.get("relatorio", "")[:5000],
-        ] + [dados.get("respostas", {}).get(i, "") for i in QUESTION_KEYS]
+        research_headers = [
+            "session_id",
+            "research_created_at",
+            "tempo_total_teste",
+            "tempo_medio_por_pergunta",
+            "tempo_maximo_pergunta",
+            "qtd_respostas_alteradas",
+            "perguntas_alteradas",
+            "tempos_por_pergunta_json",
+            "mudancas_por_pergunta_json",
+            "research_events_json",
+            "research_per_question_json",
+            "research_meta",
+        ]
 
+        question_headers = ["Q" + str(i) for i in QUESTION_KEYS]
+        preferred_headers = base_headers + research_headers + question_headers
+
+        valores = ws.get_all_values()
+        if not valores or not any(str(c or "").strip() for c in valores[0]):
+            ws.append_row(preferred_headers)
+            headers = preferred_headers
+        else:
+            headers = list(valores[0])
+            missing = [h for h in preferred_headers if h not in headers]
+            if missing:
+                headers = headers + missing
+                ws.update("1:1", [headers])
+
+        row_map = {
+            "data_hora": dados.get("data_hora", ""),
+            "modo_teste": dados.get("modo_teste", "NAO"),
+            "nome": dados.get("nome", ""),
+            "idade": dados.get("idade", ""),
+            "genero": dados.get("genero", ""),
+            "email": dados.get("email", ""),
+            "Abertura": dados.get("Abertura", ""),
+            "Conscienciosidade": dados.get("Conscienciosidade", ""),
+            "Extroversao": dados.get("Extroversao", ""),
+            "Amabilidade": dados.get("Amabilidade", ""),
+            "Neuroticismo": dados.get("Neuroticismo", ""),
+            "Seguranca": dados.get("Seguranca", ""),
+            "Abundancia": dados.get("Abundancia", ""),
+            "maior_contraste": dados.get("maior_contraste", ""),
+            "amplitude_pct": dados.get("amplitude_pct", ""),
+            "padroes_ativos": dados.get("padroes_ativos", ""),
+            "tensoes_ativas": dados.get("tensoes_ativas", ""),
+            "followups": dados.get("followups", ""),
+            "ajustes_calibracao": dados.get("ajustes_calibracao", ""),
+            "relatorio": dados.get("relatorio", "")[:5000],
+            "session_id": dados.get("session_id", ""),
+            "research_created_at": dados.get("research_created_at", ""),
+            "tempo_total_teste": dados.get("tempo_total_teste", ""),
+            "tempo_medio_por_pergunta": dados.get("tempo_medio_por_pergunta", ""),
+            "tempo_maximo_pergunta": dados.get("tempo_maximo_pergunta", ""),
+            "qtd_respostas_alteradas": dados.get("qtd_respostas_alteradas", ""),
+            "perguntas_alteradas": dados.get("perguntas_alteradas", ""),
+            "tempos_por_pergunta_json": dados.get("tempos_por_pergunta_json", ""),
+            "mudancas_por_pergunta_json": dados.get("mudancas_por_pergunta_json", ""),
+            "research_events_json": dados.get("research_events_json", ""),
+            "research_per_question_json": dados.get("research_per_question_json", ""),
+            "research_meta": dados.get("research_meta", ""),
+        }
+
+        respostas = dados.get("respostas", {}) or {}
+        for i in QUESTION_KEYS:
+            row_map["Q" + str(i)] = respostas.get(i, "")
+
+        linha = [row_map.get(h, "") for h in headers]
         ws.append_row(linha)
         return True, "ok"
     except Exception as e:
         import traceback
         tb = traceback.format_exc().replace("\n", " | ")
         return False, str(e) + " | DETALHE: " + tb
-
 
 def enviar_email(destinatario, nome, relatorio_texto):
     try:
@@ -2968,27 +3178,46 @@ if not st.session_state.modo_selecionado:
 elif st.session_state.current_question <= TOTAL:
     idx = st.session_state.current_question - 1
     q_num = QUESTION_KEYS[idx]
+    start_question_timer(q_num)
     progresso = (st.session_state.current_question - 1) / TOTAL
     st.progress(progresso)
     st.caption(f"Pergunta {st.session_state.current_question} de {TOTAL}  |  Q{q_num}")
     st.markdown("### " + questions_display[q_num])
 
+    resposta_anterior = st.session_state.responses.get(q_num)
+    indice_inicial = None
+    if resposta_anterior in [1, 2, 3, 4, 5]:
+        indice_inicial = int(resposta_anterior) - 1
+
     resposta = st.radio(
         "Sua resposta:",
         scale,
-        index=None,
+        index=indice_inicial,
         key="q_" + str(q_num),
     )
 
-    if st.button("Próxima"):
-        if resposta is not None:
-            valor = int(resposta.split(" - ")[0])
-            st.session_state.responses[q_num] = valor
-            st.session_state.current_question += 1
+    col_voltar, col_proxima = st.columns(2)
+
+    with col_voltar:
+        voltar_disabled = st.session_state.current_question <= 1
+        if st.button("⬅️ Voltar", disabled=voltar_disabled, key="btn_voltar_questionario"):
+            if resposta is not None:
+                valor = int(resposta.split(" - ")[0])
+                record_question_response(q_num, valor, source="back")
+            st.session_state.current_question = max(1, st.session_state.current_question - 1)
             save_progress_snapshot()
             st.rerun()
-        else:
-            st.warning("Por favor, selecione uma resposta antes de continuar.")
+
+    with col_proxima:
+        if st.button("Próxima ➡️", key="btn_proxima_questionario"):
+            if resposta is not None:
+                valor = int(resposta.split(" - ")[0])
+                record_question_response(q_num, valor, source="next")
+                st.session_state.current_question += 1
+                save_progress_snapshot()
+                st.rerun()
+            else:
+                st.warning("Por favor, selecione uma resposta antes de continuar.")
 
 elif not st.session_state.calibracao_completa:
     if st.session_state.perfil_cache is None:
@@ -3192,6 +3421,7 @@ else:
             "relatorio": relatorio,
             "respostas": respostas_finais,
         }
+        dados_registro.update(build_research_sheet_fields(respostas_finais))
 
         ok_sheets, msg_sheets = registrar_no_sheets(dados_registro)
         if MODO_TESTE:
@@ -3244,6 +3474,19 @@ else:
             help="Baixe este arquivo e adicione ao seu repositório GitHub junto com o app.py."
         )
 
+        _research_bytes = json.dumps(
+            build_research_export(respostas_para_download),
+            ensure_ascii=False,
+            indent=2
+        ).encode("utf-8")
+        st.download_button(
+            label="[TESTE] Baixar dados científicos da sessão (research_export.json)",
+            data=_research_bytes,
+            file_name="research_export.json",
+            mime="application/json",
+            help="Inclui tempos por pergunta, mudanças de resposta, histórico de respostas e metadados da sessão."
+        )
+
     st.markdown("---")
     col1, col2 = st.columns(2)
 
@@ -3259,6 +3502,9 @@ else:
                 st.session_state[key] = DEFAULTS[key]
         st.session_state.current_question = go_to
         st.session_state.modo_selecionado = False
+        st.session_state.session_id = str(uuid.uuid4())
+        st.session_state.question_started_at = 0.0
+        st.session_state.question_timer_q = None
 
     with col1:
         if st.button("Refazer o teste"):
