@@ -3,8 +3,10 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V10.1
+# Version: V12
 # Data: 2026-05-02
+# Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
+# Patch: V11 agente A/B fixo com detector de ambiguidade e seleção automática de eixos
 # Patch: V10.1 refina Leitura de Funcionamento Real com cenas concretas, neutralidade natural e ações imediatas
 # Patch: Google Sheets Research Logging + timestamps/tempo por pergunta gravados para benchmark
 # Patch anterior: Instrumentação científica + navegação com botão Voltar + rastreamento de tempo e mudanças de resposta
@@ -121,7 +123,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V11"
+APP_VERSION = "V12"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -244,6 +246,7 @@ DEFAULTS = {
     "agente_ab_answers": {},
     "agente_ab_ajustes": {},
     "agente_ab_motivos": [],
+    "agente_ab_dynamic_log": [],
     "relatorio_sem_filtro": "",
     "debug_sheet_users": [],
     "debug_sheet_error": "",
@@ -338,6 +341,8 @@ def build_research_export(respostas_finais=None):
         "agente_ab_answers": dict(st.session_state.get("agente_ab_answers", {})),
         "agente_ab_ajustes": {str(k): v for k, v in st.session_state.get("agente_ab_ajustes", {}).items()},
         "agente_ab_motivos": list(st.session_state.get("agente_ab_motivos", [])),
+        "agente_ab_questions": list(st.session_state.get("agente_ab_questions", [])),
+        "agente_ab_dynamic_log": list(st.session_state.get("agente_ab_dynamic_log", [])),
     }
 
 
@@ -502,6 +507,7 @@ def save_progress_snapshot():
         "agente_ab_answers": dict(st.session_state.get("agente_ab_answers", {})),
         "agente_ab_ajustes": {str(k): v for k, v in st.session_state.get("agente_ab_ajustes", {}).items()},
         "agente_ab_motivos": list(st.session_state.get("agente_ab_motivos", [])),
+        "agente_ab_dynamic_log": list(st.session_state.get("agente_ab_dynamic_log", [])),
         "session_id": st.session_state.get("session_id", ""),
         "question_time_total": dict(st.session_state.get("question_time_total", {})),
         "question_time_events": list(st.session_state.get("question_time_events", [])),
@@ -564,6 +570,7 @@ def restore_progress_snapshot(snapshot):
     st.session_state.agente_ab_answers = dict(snapshot.get("agente_ab_answers", {}))
     st.session_state.agente_ab_ajustes = _normalize_int_dict(snapshot.get("agente_ab_ajustes", {}))
     st.session_state.agente_ab_motivos = list(snapshot.get("agente_ab_motivos", []))
+    st.session_state.agente_ab_dynamic_log = list(snapshot.get("agente_ab_dynamic_log", []))
     st.session_state.session_id = snapshot.get("session_id", st.session_state.get("session_id", "")) or str(uuid.uuid4())
     st.session_state.question_time_total = dict(snapshot.get("question_time_total", {}))
     st.session_state.question_time_events = list(snapshot.get("question_time_events", []))
@@ -938,8 +945,17 @@ def gerar_followups(perfil):
 
 
 # =============================================================
-# AGENTE V11 - DESEMPATE DE AMBIGUIDADE
+# AGENTE V12 - DESEMPATE DINÂMICO CONTROLADO
 # =============================================================
+
+# A V12 mantém o banco fixo como fallback seguro e adiciona geração dinâmica
+# controlada. A IA nunca escolhe livremente o que perguntar: o sistema define
+# a ambiguidade, as hipóteses, o eixo alvo e os limites. A IA apenas redige a
+# melhor pergunta A/B dentro desse trilho.
+
+AGENTE_AB_MAX_PERGUNTAS = 3
+AGENTE_AB_USAR_DINAMICO = True
+AGENTE_AB_MAX_DELTA_POR_ITEM = 1
 
 BANCO_PERGUNTAS_AB = {
     "Conscienciosidade": [
@@ -950,8 +966,11 @@ BANCO_PERGUNTAS_AB = {
             "pergunta": "Pensando nos últimos 30 dias, qual opção descreve melhor seu comportamento?",
             "A": "Comecei tarefas importantes antes de sentir pressão.",
             "B": "Adiei tarefas importantes até sentir pressão.",
+            "hipotese_A": "A pessoa consegue iniciar movimento sem depender de pressão externa.",
+            "hipotese_B": "A pessoa tende a postergar o início até sentir pressão ou urgência.",
             "ajustes_A": {12: -1, 14: -1, 77: 1, 82: 1},
             "ajustes_B": {12: 1, 14: 1, 77: -1, 82: -1},
+            "fallback": True,
         }
     ],
     "Seguranca": [
@@ -962,8 +981,11 @@ BANCO_PERGUNTAS_AB = {
             "pergunta": "Nas últimas decisões com alguma incerteza, qual opção descreve melhor seu comportamento?",
             "A": "Agi com informação suficiente e ajustei no caminho.",
             "B": "Esperei mais clareza antes de avançar.",
+            "hipotese_A": "A pessoa age com incerteza controlada quando há informação suficiente.",
+            "hipotese_B": "A pessoa espera mais previsibilidade antes de agir.",
             "ajustes_A": {54: 1, 57: 1, 60: 1, 53: -1, 55: -1, 63: -1},
             "ajustes_B": {54: -1, 57: -1, 60: -1, 53: 1, 55: 1, 63: 1},
+            "fallback": True,
         }
     ],
     "Extroversao": [
@@ -974,8 +996,11 @@ BANCO_PERGUNTAS_AB = {
             "pergunta": "Em grupos ou reuniões recentes, qual opção descreve melhor seu comportamento?",
             "A": "Me posicionei cedo quando tinha algo relevante para dizer.",
             "B": "Esperei mais tempo para entender o clima antes de falar.",
+            "hipotese_A": "A pessoa transforma leitura em presença verbal mais cedo.",
+            "hipotese_B": "A pessoa segura a presença até sentir mais leitura do ambiente.",
             "ajustes_A": {22: 1, 24: 1, 30: 1, 88: 1},
             "ajustes_B": {22: -1, 24: -1, 30: -1, 88: -1},
+            "fallback": True,
         }
     ],
     "Amabilidade": [
@@ -986,8 +1011,11 @@ BANCO_PERGUNTAS_AB = {
             "pergunta": "Na última vez em que algo me incomodou em uma relação:",
             "A": "Falei com clareza antes de acumular incômodo.",
             "B": "Segurei para evitar tensão e deixei a conversa para depois.",
+            "hipotese_A": "A pessoa coloca limite antes de acumular desgaste.",
+            "hipotese_B": "A pessoa adia limite para evitar tensão relacional.",
             "ajustes_A": {33: -1, 37: -1, 39: -1, 87: 1},
             "ajustes_B": {33: 1, 37: 1, 39: 1, 87: -1},
+            "fallback": True,
         }
     ],
     "Neuroticismo": [
@@ -998,8 +1026,11 @@ BANCO_PERGUNTAS_AB = {
             "pergunta": "Depois de situações importantes recentes, qual opção descreve melhor seu comportamento?",
             "A": "Fechei o aprendizado e segui sem ficar voltando muito ao assunto.",
             "B": "Continuei revendo detalhes, falas ou decisões por bastante tempo.",
+            "hipotese_A": "A pessoa encerra a revisão interna depois de extrair aprendizado.",
+            "hipotese_B": "A pessoa mantém o evento ativo mentalmente por mais tempo.",
             "ajustes_A": {42: -1, 46: -1, 50: -1, 52: -1},
             "ajustes_B": {42: 1, 46: 1, 50: 1, 52: 1},
+            "fallback": True,
         }
     ],
     "Abundancia": [
@@ -1010,8 +1041,11 @@ BANCO_PERGUNTAS_AB = {
             "pergunta": "Pensando nas últimas oportunidades de crescimento:",
             "A": "Fiz pedido claro, propus algo maior ou negociei melhor.",
             "B": "Esperei mais segurança antes de pedir, propor ou negociar.",
+            "hipotese_A": "A pessoa converte valor em pedido, proposta ou negociação.",
+            "hipotese_B": "A pessoa espera mais segurança antes de ocupar espaço de valor.",
             "ajustes_A": {72: 1, 76: 1, 83: 1, 65: -1, 67: -1, 73: -1},
             "ajustes_B": {72: -1, 76: -1, 83: -1, 65: 1, 67: 1, 73: 1},
+            "fallback": True,
         }
     ],
     "Abertura": [
@@ -1022,8 +1056,11 @@ BANCO_PERGUNTAS_AB = {
             "pergunta": "Quando entendi algo importante recentemente, qual opção descreve melhor meu comportamento?",
             "A": "Transformei a leitura em decisão, fala ou ação concreta.",
             "B": "Continuei explorando possibilidades antes de fechar uma posição.",
+            "hipotese_A": "A pessoa transforma entendimento em fechamento prático.",
+            "hipotese_B": "A pessoa mantém possibilidades abertas antes de fechar posição.",
             "ajustes_A": {2: 1, 7: 1, 5: -1},
             "ajustes_B": {2: -1, 7: -1, 5: 1},
+            "fallback": True,
         }
     ],
 }
@@ -1067,39 +1104,94 @@ def detectar_eixos_proximos(medias, limite=0.25):
     return pares
 
 
+def detectar_contrastes_fortes(medias, limite=1.0):
+    contrastes = []
+    eixos = list(medias.keys())
+    for i in range(len(eixos)):
+        for j in range(i + 1, len(eixos)):
+            e1, e2 = eixos[i], eixos[j]
+            diff = round(float(medias[e1]) - float(medias[e2]), 2)
+            if abs(diff) >= limite:
+                contrastes.append({
+                    "eixo_1": e1,
+                    "eixo_2": e2,
+                    "diferenca": diff,
+                    "forca": abs(diff),
+                })
+    return sorted(contrastes, key=lambda x: x["forca"], reverse=True)
+
+
 def selecionar_eixos_para_agente(respostas, perfil, max_eixos=3):
     medias = perfil.get("medias", {})
     amb_por_eixo = calcular_ambiguidade_por_eixo(respostas, BLOCOS)
     pares_proximos = detectar_eixos_proximos(medias)
+    contrastes_fortes = detectar_contrastes_fortes(medias, limite=1.0)
     candidatos = []
 
     for eixo, dados in amb_por_eixo.items():
         if eixo not in BANCO_PERGUNTAS_AB:
             continue
         score = float(dados["ambiguidade"])
+        motivos = []
         if dados["taxa_media"] >= 0.65:
             score += 0.40
+            motivos.append("zona_media_alta")
         if dados["taxa_extremos"] <= 0.15:
             score += 0.30
+            motivos.append("poucos_extremos")
         for par in pares_proximos:
             if eixo in [par["eixo_1"], par["eixo_2"]]:
                 score += 0.25
+                motivos.append("eixo_proximo")
+        for contraste in contrastes_fortes[:3]:
+            if eixo in [contraste["eixo_1"], contraste["eixo_2"]]:
+                score += 0.20
+                motivos.append("contraste_forte")
         if eixo in ["Conscienciosidade", "Seguranca", "Amabilidade", "Abundancia"]:
             score += 0.15
+            motivos.append("impacto_pratico")
         candidatos.append({
             "eixo": eixo,
             "score": round(score, 3),
             "taxa_media": dados["taxa_media"],
             "taxa_extremos": dados["taxa_extremos"],
+            "motivos": list(dict.fromkeys(motivos)),
         })
 
     candidatos = sorted(candidatos, key=lambda x: x["score"], reverse=True)
-    return candidatos[:max_eixos]
+
+    # Garante que o maior contraste tenha chance de ser refinado, sem ultrapassar o limite.
+    if contrastes_fortes:
+        maior = contrastes_fortes[0]
+        for eixo in [maior["eixo_1"], maior["eixo_2"]]:
+            if eixo in BANCO_PERGUNTAS_AB and not any(c["eixo"] == eixo for c in candidatos[:max_eixos]):
+                dados = amb_por_eixo.get(eixo, {"taxa_media": 0, "taxa_extremos": 0})
+                candidatos.insert(0, {
+                    "eixo": eixo,
+                    "score": round(1.5 + maior["forca"], 3),
+                    "taxa_media": dados.get("taxa_media", 0),
+                    "taxa_extremos": dados.get("taxa_extremos", 0),
+                    "motivos": ["maior_contraste"],
+                })
+                break
+
+    # Remove duplicados preservando ordem.
+    seen = set()
+    final = []
+    for c in candidatos:
+        if c["eixo"] in seen:
+            continue
+        seen.add(c["eixo"])
+        final.append(c)
+        if len(final) >= max_eixos:
+            break
+    return final
 
 
 def agente_deve_ativar(respostas, perfil):
     compressao = calcular_compressao_respostas(respostas)
     eixos_proximos = detectar_eixos_proximos(perfil.get("medias", {}))
+    contrastes_fortes = detectar_contrastes_fortes(perfil.get("medias", {}), limite=1.0)
     motivos = []
     if compressao >= 0.65:
         motivos.append("excesso_zona_media")
@@ -1107,24 +1199,202 @@ def agente_deve_ativar(respostas, perfil):
         motivos.append("eixos_muito_proximos")
     if perfil.get("alerta_amplitude"):
         motivos.append("amplitude_comprimida")
+    if contrastes_fortes:
+        motivos.append("contraste_dominante")
     return bool(motivos), motivos
 
 
-def gerar_perguntas_agente_ab(respostas, perfil, max_eixos=3):
+def _extrair_json_objeto(texto):
+    if not texto:
+        return None
+    texto = texto.strip()
+    try:
+        return json.loads(texto)
+    except Exception:
+        pass
+    match = re.search(r"\{.*\}", texto, flags=re.DOTALL)
+    if not match:
+        return None
+    try:
+        return json.loads(match.group(0))
+    except Exception:
+        return None
+
+
+def validar_pergunta_dinamica(q):
+    campos = ["id", "pergunta", "A", "B", "hipotese_A", "hipotese_B", "eixo_alvo", "peso_sugerido"]
+    for campo in campos:
+        if campo not in q or not str(q[campo]).strip():
+            return False, "campo_ausente_" + campo
+
+    texto = (str(q.get("pergunta", "")) + " " + str(q.get("A", "")) + " " + str(q.get("B", ""))).lower()
+    proibidos = [
+        "depende", "às vezes", "as vezes", "talvez", "não sei", "nao sei",
+        "ansiedade", "neuroticismo", "extroversão", "extroversao", "amabilidade",
+        "conscienciosidade", "segurança", "seguranca", "abundância", "abundancia",
+        "traço", "traco", "perfil", "diagnóstico", "diagnostico", "personalidade",
+    ]
+    for termo in proibidos:
+        if termo in texto:
+            return False, "termo_proibido_" + termo
+
+    if " ou " in str(q.get("pergunta", "")).lower():
+        return False, "pergunta_com_ou"
+    if len(str(q.get("A", "")).split()) < 5 or len(str(q.get("B", "")).split()) < 5:
+        return False, "opcoes_curtas"
+    if abs(len(str(q.get("A", ""))) - len(str(q.get("B", "")))) > 110:
+        return False, "opcoes_desequilibradas"
+
+    try:
+        peso = float(q.get("peso_sugerido", 0.3))
+        if peso <= 0 or peso > 0.5:
+            return False, "peso_fora_limite"
+    except Exception:
+        return False, "peso_invalido"
+    return True, "ok"
+
+
+def construir_contexto_ambiguidade(perfil, eixo):
+    medias = perfil.get("medias", {})
+    derived = perfil.get("derived", {})
+    contrastes = detectar_contrastes_fortes(medias, limite=0.8)
+    rel = [c for c in contrastes if eixo in [c["eixo_1"], c["eixo_2"]]][:2]
+    return {
+        "eixo_alvo": eixo,
+        "media_eixo": medias.get(eixo),
+        "ranking_eixos": perfil.get("ranking_eixos", []),
+        "maior_contraste_key": perfil.get("maior_contraste_key", ""),
+        "maior_contraste_val": perfil.get("maior_contraste_val", ""),
+        "contrastes_relevantes": rel,
+        "derived": {
+            "auto_reconhecimento": derived.get("auto_reconhecimento"),
+            "assertividade": derived.get("assertividade"),
+            "tolerancia_risco": derived.get("tolerancia_risco"),
+            "visibilidade_pessoal": derived.get("visibilidade_pessoal"),
+            "evita_conflito": derived.get("evita_conflito"),
+            "necessidade_previsibilidade": derived.get("necessidade_previsibilidade"),
+            "merecimento_economico": derived.get("merecimento_economico"),
+            "impulso_expansao": derived.get("impulso_expansao"),
+            "ruminacao_pos_evento": derived.get("ruminacao_pos_evento"),
+        },
+    }
+
+
+def gerar_pergunta_dinamica_controlada(eixo, pergunta_fallback, perfil, metadados=None):
+    metadados = metadados or {}
+    pergunta_segura = dict(pergunta_fallback)
+    pergunta_segura["fonte"] = "fixa"
+    pergunta_segura["validacao_dinamica"] = "nao_tentada"
+
+    if not AGENTE_AB_USAR_DINAMICO:
+        return pergunta_segura, {"eixo": eixo, "usou_dinamica": False, "motivo": "dinamico_desativado"}
+
+    client = get_openai_client()
+    if client is None:
+        pergunta_segura["validacao_dinamica"] = "sem_openai_client"
+        return pergunta_segura, {"eixo": eixo, "usou_dinamica": False, "motivo": "sem_openai_client"}
+
+    contexto = construir_contexto_ambiguidade(perfil, eixo)
+    prompt = f"""
+Gere UMA pergunta A/B de desempate comportamental para o Mind Insight.
+
+O sistema já calculou o perfil. Você NÃO deve diagnosticar. Você deve apenas redigir uma pergunta para resolver a ambiguidade abaixo.
+
+EIXO ALVO: {eixo}
+CONTEXTO TÉCNICO JSON:
+{json.dumps(contexto, ensure_ascii=False)}
+
+Pergunta fixa de fallback, para entender o tipo de contraste permitido:
+{json.dumps({k: pergunta_fallback.get(k) for k in ['pergunta','A','B','hipotese_A','hipotese_B']}, ensure_ascii=False)}
+
+REGRAS INEGOCIÁVEIS:
+- Retorne apenas JSON válido.
+- Não use escala.
+- Não use opção neutra.
+- Não use "depende", "às vezes", "talvez" ou "não sei".
+- Não use o termo "ou" no enunciado da pergunta.
+- Não use nomes de eixos psicológicos no texto exibido ao usuário.
+- A pergunta deve se referir a comportamento recente: últimos 30 dias, última vez, reuniões recentes ou situações recentes.
+- Cada opção deve ser uma afirmação comportamental completa.
+- As duas opções precisam ser plausíveis, sem moralizar uma como certa e outra como errada.
+- Uma pergunta deve resolver apenas uma ambiguidade.
+- Linguagem simples, concreta, brasileira e observável.
+
+FORMATO EXATO:
+{{
+  "id": "id_curto_sem_espacos",
+  "pergunta": "...",
+  "A": "...",
+  "B": "...",
+  "hipotese_A": "...",
+  "hipotese_B": "...",
+  "eixo_alvo": "{eixo}",
+  "peso_sugerido": 0.35
+}}
+"""
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": "Você gera perguntas A/B comportamentais em JSON válido. Você obedece regras rígidas e não faz diagnóstico."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.15,
+        )
+        bruto = response.choices[0].message.content
+        gerada = _extrair_json_objeto(bruto)
+        ok, motivo = validar_pergunta_dinamica(gerada or {})
+        if not ok:
+            pergunta_segura["validacao_dinamica"] = motivo
+            return pergunta_segura, {"eixo": eixo, "usou_dinamica": False, "motivo": motivo, "bruto": bruto[:1000] if bruto else ""}
+
+        pergunta_final = dict(pergunta_fallback)
+        pergunta_final.update({
+            "id": "dyn_" + str(gerada["id"]),
+            "pergunta": gerada["pergunta"].strip(),
+            "A": gerada["A"].strip(),
+            "B": gerada["B"].strip(),
+            "hipotese_A": gerada["hipotese_A"].strip(),
+            "hipotese_B": gerada["hipotese_B"].strip(),
+            "fonte": "dinamica_controlada",
+            "peso_sugerido": float(gerada.get("peso_sugerido", 0.35)),
+            "validacao_dinamica": "ok",
+            "contexto_ambiguidade": contexto,
+            "metadados_selecao": metadados,
+        })
+        return pergunta_final, {"eixo": eixo, "usou_dinamica": True, "motivo": "ok", "pergunta": pergunta_final}
+    except Exception as e:
+        pergunta_segura["validacao_dinamica"] = "erro_geracao"
+        return pergunta_segura, {"eixo": eixo, "usou_dinamica": False, "motivo": "erro_geracao", "erro": str(e)}
+
+
+def gerar_perguntas_agente_ab(respostas, perfil, max_eixos=AGENTE_AB_MAX_PERGUNTAS):
     ativar, motivos = agente_deve_ativar(respostas, perfil)
     if not ativar:
         return [], motivos
     eixos = selecionar_eixos_para_agente(respostas, perfil, max_eixos=max_eixos)
     perguntas = []
+    logs = []
     for item in eixos:
         eixo = item["eixo"]
         banco = BANCO_PERGUNTAS_AB.get(eixo, [])
         if banco:
-            pergunta = dict(banco[0])
+            fallback = dict(banco[0])
+            fallback["score_ambiguidade"] = item["score"]
+            fallback["taxa_media"] = item["taxa_media"]
+            fallback["taxa_extremos"] = item["taxa_extremos"]
+            pergunta, log = gerar_pergunta_dinamica_controlada(eixo, fallback, perfil, metadados=item)
             pergunta["score_ambiguidade"] = item["score"]
             pergunta["taxa_media"] = item["taxa_media"]
             pergunta["taxa_extremos"] = item["taxa_extremos"]
             perguntas.append(pergunta)
+            logs.append(log)
+
+    # Guarda o log técnico no session_state quando disponível.
+    try:
+        st.session_state.agente_ab_dynamic_log = list(st.session_state.get("agente_ab_dynamic_log", [])) + logs
+    except Exception:
+        pass
     return perguntas, motivos
 
 
@@ -1140,7 +1410,8 @@ def aplicar_respostas_agente_ab(perguntas, respostas_agente):
         else:
             mapa = {}
         for q_num, delta in mapa.items():
-            ajustes[int(q_num)] = ajustes.get(int(q_num), 0) + int(delta)
+            delta_seguro = max(-AGENTE_AB_MAX_DELTA_POR_ITEM, min(AGENTE_AB_MAX_DELTA_POR_ITEM, int(delta)))
+            ajustes[int(q_num)] = ajustes.get(int(q_num), 0) + delta_seguro
     return ajustes
 
 
@@ -3997,6 +4268,7 @@ else:
         st.session_state.agente_ab_answers = {}
         st.session_state.agente_ab_ajustes = {}
         st.session_state.agente_ab_motivos = []
+        st.session_state.agente_ab_dynamic_log = []
 
     with col1:
         if st.button("Refazer o teste"):
