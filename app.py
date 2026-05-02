@@ -3,9 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V10
+# Version: V10.1
 # Data: 2026-05-02
-# Patch: Leitura de Funcionamento Real substitui a antiga versão sem filtro
+# Patch: V10.1 refina Leitura de Funcionamento Real com cenas concretas, neutralidade natural e ações imediatas
 # Patch: Google Sheets Research Logging + timestamps/tempo por pergunta gravados para benchmark
 # Patch anterior: Instrumentação científica + navegação com botão Voltar + rastreamento de tempo e mudanças de resposta
 # Patch anterior: Polimento final de exclusividade causal + eixo central mais puro + fechamento mais universal da versao sem filtro
@@ -121,7 +121,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V10"
+APP_VERSION = "V10.1"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -2814,31 +2814,37 @@ Cada uma das 6 seções principais deve seguir exatamente esta estrutura:
 - Diga a força real da pessoa com clareza.
 - Não use “mas”, “porém”, “só que”, “no entanto” ou qualquer contraponto nesse bloco.
 - Não transforme força em problema.
-- Termine esse bloco com a força preservada.
+- Não termine com alerta, ressalva ou crítica.
+- Termine esse bloco preservando a fortaleza como fortaleza.
 
 2. COMO ISSO APARECE
-- Mostre vários fatos do cotidiano típicos desse traço.
+- Mostre 5 a 7 fatos do cotidiano típicos desse traço.
 - Use microcenas concretas, reconhecíveis e práticas.
 - Inclua exemplos em trabalho, conversa, decisão, rotina, relações ou oportunidade quando fizer sentido.
-- Não use apenas um exemplo; use vários sinais observáveis.
+- Prefira cenas específicas a frases amplas.
+- Escreva como se tivesse observado a pessoa no dia a dia.
+- Evite fórmulas genéricas como “isso aparece em relações estáveis” sem mostrar a cena.
 
 3. PADRÃO QUE TRAVA
 - Mostre o comportamento que trava resultado.
 - Esse padrão precisa estar presente no relatório oficial.
 - Não invente comportamento.
 - Não diga que a força “causa” o problema.
-- Seja direto, sem linguagem corporativa.
+- Seja direto, concreto e sem linguagem corporativa.
+- Use frases como “seu padrão trava quando...” ou “o ponto que trava é...”, mas sem suavizar.
 
 4. CONSEQUÊNCIA
 - Mostre o preço prático do padrão.
 - Fale de tempo, energia, dinheiro, influência, relação, posicionamento, oportunidade ou execução.
-- Sem consolo no final.
+- Termine no impacto prático, sem consolo.
+- A consequência deve ser específica ao perfil, não genérica.
 
 5. ALAVANCA
 - Mostre como a pessoa pode usar uma força real dela para destravar o ponto.
 - Frases curtas.
 - Direção prática.
 - Não transforme em palestra motivacional.
+- A alavanca deve ligar uma fortaleza real a uma ação concreta.
 
 SEÇÕES OBRIGATÓRIAS:
 1. EIXO CENTRAL
@@ -2856,16 +2862,27 @@ Cada gatilho deve conter:
 - Gatilho: o comportamento observável no momento em que acontece
 - Ação: uma resposta imediata, curta e executável
 
+REGRAS DO BLOCO 7:
+- As ações precisam ser imediatas de verdade.
+- Evite prazos longos como “em até 48 horas”, “em até 72 horas” ou “durante a semana”.
+- Use prazos como: agora, na próxima pausa, em até 2 minutos, em até 10 minutos, antes de encerrar a conversa, antes de fechar a tela.
+- Se a ação precisar de prazo maior, divida em uma primeira ação imediata.
+
 Exemplo de formato:
 ### 1. Início travado
 Gatilho: preparação excessiva antes do primeiro passo
-Ação: começar em até 2 minutos
+Ação: abrir o arquivo e escrever a primeira versão em até 2 minutos
 
 REGRAS DE LINGUAGEM:
 - Use linguagem neutra de gênero sempre.
 - Use “você é uma pessoa que”, “você tende a”, “seu padrão”, “seu jeito de”.
 - Não use masculino genérico.
+- Não use feminino presumido.
 - Não use “ele”, “ela”, “dele”, “dela”, “o usuário”, “a usuária”, “o cliente” ou “a cliente” para se referir à pessoa.
+- Não use formas artificiais como “lembrade”, “preparade”, “calade”, “cansade”, “travade” ou qualquer palavra terminada em “e” como tentativa de neutralidade.
+- Para neutralizar gênero, reescreva a frase inteira.
+- Exemplo correto: “as pessoas podem lembrar da sua abertura”.
+- Exemplo incorreto: “você pode ser lembrade”.
 - Não use termos como “ponto sensível”, “custo”, “desafio”, “oportunidade de melhoria”, “preservar a convivência”, “tempo de maturação”.
 - Evite linguagem terapêutica vaga e linguagem corporativa.
 - Escreva como alguém que observa comportamento real.
@@ -2874,8 +2891,8 @@ REGRA CONTRA ORAÇÕES COMPARATIVAS:
 É proibido usar estruturas como:
 - “Você não é X, você é Y”
 - “Não é falta de X, é Y”
-- “Não é porque..., mas porque...”
-- “Não se trata de..., trata-se de...”
+- “Não é porque..., mas porque... ”
+- “Não se trata de..., trata-se de... ”
 Vá direto ao que a pessoa é e faz.
 Afirme. Não explique por contraste.
 
@@ -2906,8 +2923,22 @@ Os padrões que travam devem ser claros, diretos e concretos.
 Eles não precisam humilhar.
 Eles precisam mostrar a verdade sem verniz.
 
+REGRA DE COTIDIANO:
+Cada seção precisa ter pelo menos 5 exemplos observáveis no bloco “COMO ISSO APARECE”.
+Não liste exemplos genéricos; use situações concretas.
+Exemplos bons:
+- “você abre a conversa, entende o clima e ajusta a fala antes de marcar posição”
+- “você termina uma conversa e ainda repassa o tom da resposta no caminho para casa”
+- “você entrega bem, mas deixa para depois o pedido que daria forma ao valor entregue”
+Exemplos ruins:
+- “isso aparece em boa convivência”
+- “isso aparece em relações estáveis”
+- “isso aparece em autoconhecimento”
+
 TOM:
 Direto, humano, preciso, firme.
+Menos polido que um relatório corporativo.
+Mais concreto que um texto terapêutico.
 Sem bajulação.
 Sem agressividade gratuita.
 Sem coaching barato.
@@ -2934,8 +2965,10 @@ RELATÓRIO OFICIAL A TRANSFORMAR:
                         "Você preserva fidelidade ao relatório oficial, não reanalisa, não inventa traços e não aumenta gravidade sem base. "
                         "Sua escrita é direta, concreta, humana e neutra em gênero. "
                         "Você separa fortalezas de padrões que travam: fortalezas devem ser fechadas como fortalezas, sem virar acusação. "
-                        "Você usa cenas do cotidiano e microcomportamentos para tornar o texto específico. "
-                        "Você evita orações comparativas do tipo 'não é X, é Y' e afirma diretamente o funcionamento da pessoa."
+                        "Você usa muitas cenas do cotidiano e microcomportamentos para tornar o texto específico. "
+                        "Você evita orações comparativas do tipo 'não é X, é Y' e afirma diretamente o funcionamento da pessoa. "
+                        "Você nunca usa neutralidade artificial como 'lembrade'; reescreve a frase em linguagem neutra natural. "
+                        "No bloco de correção em tempo real, as ações devem ser imediatas, nunca prazos longos."
                     )
                 },
                 {
@@ -2943,7 +2976,7 @@ RELATÓRIO OFICIAL A TRANSFORMAR:
                     "content": prompt
                 }
             ],
-            temperature=0.36,
+            temperature=0.32,
         )
         texto = response.choices[0].message.content
         return sanitize_report_output_v81(texto)
@@ -2953,7 +2986,6 @@ RELATÓRIO OFICIAL A TRANSFORMAR:
         return f"Erro ao gerar a Leitura de Funcionamento Real: {e}"
 
 
-# Compatibilidade temporária com o nome antigo usado em versões anteriores.
 def gerar_relatorio_sem_filtro(relatorio_oficial):
     return gerar_leitura_funcionamento_real(relatorio_oficial)
 
