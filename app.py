@@ -3,8 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V9.6
-# Data: 2026-04-24
+# Version: V10
+# Data: 2026-05-02
+# Patch: Leitura de Funcionamento Real substitui a antiga versão sem filtro
 # Patch: Google Sheets Research Logging + timestamps/tempo por pergunta gravados para benchmark
 # Patch anterior: Instrumentação científica + navegação com botão Voltar + rastreamento de tempo e mudanças de resposta
 # Patch anterior: Polimento final de exclusividade causal + eixo central mais puro + fechamento mais universal da versao sem filtro
@@ -120,7 +121,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V9.6"
+APP_VERSION = "V10"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -2774,38 +2775,151 @@ Texto a reescrever:
         return "Erro ao gerar relatorio:\n\n" + str(e), bloco_forcas, bloco_desafios
 
 
-def gerar_relatorio_sem_filtro(relatorio_oficial):
+def gerar_leitura_funcionamento_real(relatorio_oficial):
     client = get_openai_client()
     if client is None:
         return "Erro: OPENAI_API_KEY nao encontrada em Secrets."
 
     prompt = f"""
-Você vai reescrever o relatório comportamental abaixo para uma versão opcional mais crua, mais direta, mais descontraída e levemente ácida.
+Você vai transformar o relatório oficial abaixo em uma LEITURA DE FUNCIONAMENTO REAL.
 
 Essa saída NÃO é um novo diagnóstico.
 Ela NÃO pode reinterpretar o perfil.
-Ela NÃO pode criar novas conclusões.
-Ela deve apenas traduzir o mesmo conteúdo oficial para uma linguagem mais afiada.
+Ela NÃO pode criar traços novos.
+Ela deve usar apenas o conteúdo do relatório oficial como fonte e reorganizar esse conteúdo em uma leitura mais clara, direta, concreta e acionável.
 
-REGRAS OBRIGATÓRIAS:
-- Preserve rigorosamente os fatos centrais do relatório oficial.
-- Não invente defeitos, não crie diagnóstico novo e não aumente a gravidade do caso sem base no texto original.
-- Não adicione nenhuma leitura que não esteja claramente presente no relatório oficial.
-- Corte eufemismos, abstrações vagas e psicologês.
-- Pode usar humor ácido inteligente e frases memoráveis, mas sem transformar a pessoa em caricatura.
-- Não use humilhação gratuita.
-- Não transforme padrão em identidade fixa. Prefira "você tende a", "você costuma", "na prática, você" e "seu padrão aqui é".
-- Use linguagem neutra de gênero.
-- Mantenha estrutura numerada.
-- Cada seção deve ter um título curto, forte e claro.
-- Frases curtas. Ritmo rápido. Linguagem cotidiana.
-- Priorize custo prático, autossabotagem e consequência concreta.
-- Termine com 3 ações práticas curtas e 1 frase final memorável.
-- A frase final da versão sem filtro deve fechar o conjunto inteiro do relatório, e não apenas o bloco de presença.
-- Evite fechar o texto só com a oposição entre mundo interno forte e expressão externa fraca; o fechamento deve abranger decisão, valor, relações e presença ao mesmo tempo.
-- É proibido usar as palavras "entrada" ou "entrar" como atalho vago. Sempre traduza esse comportamento em ações concretas, como se posicionar, se mostrar, participar, ganhar presença ou se expor depois de entender o contexto.
+NOME DA SAÍDA:
+Leitura de Funcionamento Real
 
-RELATÓRIO OFICIAL A TRADUZIR:
+OBJETIVO:
+Mostrar com precisão:
+- as fortalezas reais da pessoa
+- como essas fortalezas aparecem no cotidiano
+- quais padrões travam resultado
+- quais consequências práticas esses padrões geram
+- qual alavanca pode ser usada para mudar comportamento
+- quais gatilhos em tempo real ajudam a corrigir o padrão
+
+REGRA MAIS IMPORTANTE:
+Fortaleza não pode virar acusação.
+Não escreva como se tudo que a pessoa tem de bom depusesse contra ela.
+Primeiro reconheça e feche a fortaleza como fortaleza.
+Depois trate o padrão que trava como um mecanismo separado.
+Depois mostre como a fortaleza pode virar alavanca para corrigir o padrão.
+
+ESTRUTURA OBRIGATÓRIA PARA CADA EIXO:
+Cada uma das 6 seções principais deve seguir exatamente esta estrutura:
+
+1. FORTALEZA
+- Diga a força real da pessoa com clareza.
+- Não use “mas”, “porém”, “só que”, “no entanto” ou qualquer contraponto nesse bloco.
+- Não transforme força em problema.
+- Termine esse bloco com a força preservada.
+
+2. COMO ISSO APARECE
+- Mostre vários fatos do cotidiano típicos desse traço.
+- Use microcenas concretas, reconhecíveis e práticas.
+- Inclua exemplos em trabalho, conversa, decisão, rotina, relações ou oportunidade quando fizer sentido.
+- Não use apenas um exemplo; use vários sinais observáveis.
+
+3. PADRÃO QUE TRAVA
+- Mostre o comportamento que trava resultado.
+- Esse padrão precisa estar presente no relatório oficial.
+- Não invente comportamento.
+- Não diga que a força “causa” o problema.
+- Seja direto, sem linguagem corporativa.
+
+4. CONSEQUÊNCIA
+- Mostre o preço prático do padrão.
+- Fale de tempo, energia, dinheiro, influência, relação, posicionamento, oportunidade ou execução.
+- Sem consolo no final.
+
+5. ALAVANCA
+- Mostre como a pessoa pode usar uma força real dela para destravar o ponto.
+- Frases curtas.
+- Direção prática.
+- Não transforme em palestra motivacional.
+
+SEÇÕES OBRIGATÓRIAS:
+1. EIXO CENTRAL
+2. EXECUÇÃO
+3. PRESENÇA SOCIAL
+4. MUNDO INTERNO
+5. RELAÇÕES
+6. VALOR
+7. CORREÇÃO EM TEMPO REAL
+8. FRASE FINAL
+
+BLOCO 7 — CORREÇÃO EM TEMPO REAL:
+Depois das 6 seções, crie um bloco operacional curto com 5 ou 6 gatilhos.
+Cada gatilho deve conter:
+- Gatilho: o comportamento observável no momento em que acontece
+- Ação: uma resposta imediata, curta e executável
+
+Exemplo de formato:
+### 1. Início travado
+Gatilho: preparação excessiva antes do primeiro passo
+Ação: começar em até 2 minutos
+
+REGRAS DE LINGUAGEM:
+- Use linguagem neutra de gênero sempre.
+- Use “você é uma pessoa que”, “você tende a”, “seu padrão”, “seu jeito de”.
+- Não use masculino genérico.
+- Não use “ele”, “ela”, “dele”, “dela”, “o usuário”, “a usuária”, “o cliente” ou “a cliente” para se referir à pessoa.
+- Não use termos como “ponto sensível”, “custo”, “desafio”, “oportunidade de melhoria”, “preservar a convivência”, “tempo de maturação”.
+- Evite linguagem terapêutica vaga e linguagem corporativa.
+- Escreva como alguém que observa comportamento real.
+
+REGRA CONTRA ORAÇÕES COMPARATIVAS:
+É proibido usar estruturas como:
+- “Você não é X, você é Y”
+- “Não é falta de X, é Y”
+- “Não é porque..., mas porque...”
+- “Não se trata de..., trata-se de...”
+Vá direto ao que a pessoa é e faz.
+Afirme. Não explique por contraste.
+
+REGRA DE FIDELIDADE:
+- Não invente características que não estão no relatório oficial.
+- Não aumente a gravidade sem base.
+- Não transforme traços moderados em extremos.
+- Não use procrastinação se o relatório oficial não indicar atraso operacional, início tardio, adiamento ou dependência de pressão.
+- Se o perfil for expansivo, fale de expansão.
+- Se o perfil for cauteloso, fale de cautela.
+- Se o perfil for confrontador, fale de confronto.
+- Se o perfil for evitativo, fale de evitação.
+
+REGRA DE DIFERENCIAÇÃO:
+Antes de escrever, identifique silenciosamente o contraste dominante do perfil.
+O texto precisa deixar claro qual é a assinatura comportamental específica da pessoa.
+Evite frases que serviriam para quase qualquer perfil.
+Se dois perfis parecidos receberiam a mesma frase, reescreva com mais especificidade.
+
+REGRA SOBRE AS FORTALEZAS:
+As fortalezas devem ser apresentadas como fortalezas verdadeiras.
+Não feche um bloco de fortaleza com alerta.
+Não use a fortaleza como gancho imediato para crítica.
+A pessoa precisa sentir que foi vista com precisão também no que tem de forte.
+
+REGRA SOBRE OS PROBLEMAS:
+Os padrões que travam devem ser claros, diretos e concretos.
+Eles não precisam humilhar.
+Eles precisam mostrar a verdade sem verniz.
+
+TOM:
+Direto, humano, preciso, firme.
+Sem bajulação.
+Sem agressividade gratuita.
+Sem coaching barato.
+Sem frases de efeito vazias.
+
+FRASE FINAL:
+A frase final deve resumir a assinatura do funcionamento da pessoa.
+Precisa ser memorável, concreta e verdadeira.
+Não use tom motivacional.
+Não diga “você consegue”.
+
+RELATÓRIO OFICIAL A TRANSFORMAR:
 {relatorio_oficial}
 """
 
@@ -2816,12 +2930,12 @@ RELATÓRIO OFICIAL A TRADUZIR:
                 {
                     "role": "system",
                     "content": (
-                        "Você traduz relatórios comportamentais já prontos para uma versão sem filtro, "
-                        "mais crua e memorável, sem perder fidelidade ao conteúdo oficial. "
-                        "Você não recalcula nada, não reinterpreta o perfil e não cria novas teses. "
-                        "Você apenas muda o tom, deixando o texto mais direto, claro e impactante. "
-                        "É proibido usar 'entrada' ou 'entrar' como resumo vago de presença social; traduza isso em comportamento observável. "
-                        "A frase final deve fechar o retrato inteiro da pessoa, e não só um dos blocos."
+                        "Você transforma relatórios comportamentais oficiais em uma Leitura de Funcionamento Real. "
+                        "Você preserva fidelidade ao relatório oficial, não reanalisa, não inventa traços e não aumenta gravidade sem base. "
+                        "Sua escrita é direta, concreta, humana e neutra em gênero. "
+                        "Você separa fortalezas de padrões que travam: fortalezas devem ser fechadas como fortalezas, sem virar acusação. "
+                        "Você usa cenas do cotidiano e microcomportamentos para tornar o texto específico. "
+                        "Você evita orações comparativas do tipo 'não é X, é Y' e afirma diretamente o funcionamento da pessoa."
                     )
                 },
                 {
@@ -2829,14 +2943,19 @@ RELATÓRIO OFICIAL A TRADUZIR:
                     "content": prompt
                 }
             ],
-            temperature=0.45,
+            temperature=0.36,
         )
         texto = response.choices[0].message.content
         return sanitize_report_output_v81(texto)
     except AuthenticationError:
-        return "Erro ao gerar a versao sem filtro: falha de autenticacao com a OpenAI."
+        return "Erro ao gerar a Leitura de Funcionamento Real: falha de autenticacao com a OpenAI."
     except Exception as e:
-        return f"Erro ao gerar a versao sem filtro: {e}"
+        return f"Erro ao gerar a Leitura de Funcionamento Real: {e}"
+
+
+# Compatibilidade temporária com o nome antigo usado em versões anteriores.
+def gerar_relatorio_sem_filtro(relatorio_oficial):
+    return gerar_leitura_funcionamento_real(relatorio_oficial)
 
 
 # =============================================================
@@ -3445,16 +3564,16 @@ else:
         clear_progress_snapshot()
 
     st.markdown("---")
-    st.subheader("Opção extra")
-    st.caption("Se quiser, você pode ler uma versão mais crua, mais descontraída e mais ácida do mesmo perfil. Ela não substitui o relatório oficial.")
+    st.subheader("Leitura complementar")
+    st.caption("Uma leitura complementar do mesmo perfil, com fortalezas, padrões que travam, consequências práticas e alavancas de ação. Ela não substitui o relatório oficial.")
 
-    if st.button("Ler versão sem filtro (mais crua e descontraída)", key="btn_relatorio_sem_filtro"):
-        with st.spinner("Traduzindo seu relatório para a versão sem filtro..."):
-            st.session_state.relatorio_sem_filtro = gerar_relatorio_sem_filtro(relatorio)
+    if st.button("Ler Leitura de Funcionamento Real", key="btn_relatorio_sem_filtro"):
+        with st.spinner("Gerando a Leitura de Funcionamento Real..."):
+            st.session_state.relatorio_sem_filtro = gerar_leitura_funcionamento_real(relatorio)
 
     if st.session_state.get("relatorio_sem_filtro"):
-        st.markdown("### Tradução Crua — versão sem filtro")
-        st.caption("Leitura opcional do mesmo conteúdo oficial, com menos polidez e mais impacto.")
+        st.markdown("### Leitura de Funcionamento Real")
+        st.caption("Leitura opcional do mesmo conteúdo oficial, organizada em fortalezas, padrões que travam, consequências e alavancas.")
         st.markdown(st.session_state.relatorio_sem_filtro)
         st.markdown("---")
 
