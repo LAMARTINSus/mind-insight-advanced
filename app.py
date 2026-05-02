@@ -121,7 +121,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V10.1"
+APP_VERSION = "V11"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -239,6 +239,11 @@ DEFAULTS = {
     "followup_questions": [],
     "followup_answers": {},
     "followup_completo": False,
+    "agente_ab_completo": False,
+    "agente_ab_questions": [],
+    "agente_ab_answers": {},
+    "agente_ab_ajustes": {},
+    "agente_ab_motivos": [],
     "relatorio_sem_filtro": "",
     "debug_sheet_users": [],
     "debug_sheet_error": "",
@@ -330,6 +335,9 @@ def build_research_export(respostas_finais=None):
         "response_history": list(st.session_state.get("response_history", [])),
         "calibracao_ajustes": {str(k): v for k, v in st.session_state.get("calibracao_ajustes", {}).items()},
         "followup_answers": dict(st.session_state.get("followup_answers", {})),
+        "agente_ab_answers": dict(st.session_state.get("agente_ab_answers", {})),
+        "agente_ab_ajustes": {str(k): v for k, v in st.session_state.get("agente_ab_ajustes", {}).items()},
+        "agente_ab_motivos": list(st.session_state.get("agente_ab_motivos", [])),
     }
 
 
@@ -489,6 +497,11 @@ def save_progress_snapshot():
         "followup_questions": list(st.session_state.get("followup_questions", [])),
         "followup_answers": dict(st.session_state.get("followup_answers", {})),
         "followup_completo": bool(st.session_state.get("followup_completo", False)),
+        "agente_ab_completo": bool(st.session_state.get("agente_ab_completo", False)),
+        "agente_ab_questions": list(st.session_state.get("agente_ab_questions", [])),
+        "agente_ab_answers": dict(st.session_state.get("agente_ab_answers", {})),
+        "agente_ab_ajustes": {str(k): v for k, v in st.session_state.get("agente_ab_ajustes", {}).items()},
+        "agente_ab_motivos": list(st.session_state.get("agente_ab_motivos", [])),
         "session_id": st.session_state.get("session_id", ""),
         "question_time_total": dict(st.session_state.get("question_time_total", {})),
         "question_time_events": list(st.session_state.get("question_time_events", [])),
@@ -546,6 +559,11 @@ def restore_progress_snapshot(snapshot):
     st.session_state.followup_questions = list(snapshot.get("followup_questions", []))
     st.session_state.followup_answers = dict(snapshot.get("followup_answers", {}))
     st.session_state.followup_completo = bool(snapshot.get("followup_completo", False))
+    st.session_state.agente_ab_completo = bool(snapshot.get("agente_ab_completo", False))
+    st.session_state.agente_ab_questions = list(snapshot.get("agente_ab_questions", []))
+    st.session_state.agente_ab_answers = dict(snapshot.get("agente_ab_answers", {}))
+    st.session_state.agente_ab_ajustes = _normalize_int_dict(snapshot.get("agente_ab_ajustes", {}))
+    st.session_state.agente_ab_motivos = list(snapshot.get("agente_ab_motivos", []))
     st.session_state.session_id = snapshot.get("session_id", st.session_state.get("session_id", "")) or str(uuid.uuid4())
     st.session_state.question_time_total = dict(snapshot.get("question_time_total", {}))
     st.session_state.question_time_events = list(snapshot.get("question_time_events", []))
@@ -722,7 +740,8 @@ def registrar_no_sheets(dados):
             "Abertura", "Conscienciosidade", "Extroversao",
             "Amabilidade", "Neuroticismo", "Seguranca", "Abundancia",
             "maior_contraste", "amplitude_pct", "padroes_ativos",
-            "tensoes_ativas", "followups", "ajustes_calibracao", "relatorio",
+            "tensoes_ativas", "followups", "ajustes_calibracao",
+            "agente_ab_answers", "agente_ab_ajustes", "agente_ab_motivos", "relatorio",
         ]
 
         research_headers = [
@@ -774,6 +793,9 @@ def registrar_no_sheets(dados):
             "tensoes_ativas": dados.get("tensoes_ativas", ""),
             "followups": dados.get("followups", ""),
             "ajustes_calibracao": dados.get("ajustes_calibracao", ""),
+            "agente_ab_answers": dados.get("agente_ab_answers", ""),
+            "agente_ab_ajustes": dados.get("agente_ab_ajustes", ""),
+            "agente_ab_motivos": dados.get("agente_ab_motivos", ""),
             "relatorio": dados.get("relatorio", "")[:5000],
             "session_id": dados.get("session_id", ""),
             "research_created_at": dados.get("research_created_at", ""),
@@ -913,6 +935,222 @@ def gerar_followups(perfil):
 
     return perguntas[:3]
 
+
+
+# =============================================================
+# AGENTE V11 - DESEMPATE DE AMBIGUIDADE
+# =============================================================
+
+BANCO_PERGUNTAS_AB = {
+    "Conscienciosidade": [
+        {
+            "id": "execucao_inicio",
+            "eixo": "Conscienciosidade",
+            "titulo": "Execução e começo",
+            "pergunta": "Pensando nos últimos 30 dias, qual opção descreve melhor seu comportamento?",
+            "A": "Comecei tarefas importantes antes de sentir pressão.",
+            "B": "Adiei tarefas importantes até sentir pressão.",
+            "ajustes_A": {12: -1, 14: -1, 77: 1, 82: 1},
+            "ajustes_B": {12: 1, 14: 1, 77: -1, 82: -1},
+        }
+    ],
+    "Seguranca": [
+        {
+            "id": "seguranca_risco",
+            "eixo": "Seguranca",
+            "titulo": "Segurança e risco",
+            "pergunta": "Nas últimas decisões com alguma incerteza, qual opção descreve melhor seu comportamento?",
+            "A": "Agi com informação suficiente e ajustei no caminho.",
+            "B": "Esperei mais clareza antes de avançar.",
+            "ajustes_A": {54: 1, 57: 1, 60: 1, 53: -1, 55: -1, 63: -1},
+            "ajustes_B": {54: -1, 57: -1, 60: -1, 53: 1, 55: 1, 63: 1},
+        }
+    ],
+    "Extroversao": [
+        {
+            "id": "presenca_posicionamento",
+            "eixo": "Extroversao",
+            "titulo": "Presença e posicionamento",
+            "pergunta": "Em grupos ou reuniões recentes, qual opção descreve melhor seu comportamento?",
+            "A": "Me posicionei cedo quando tinha algo relevante para dizer.",
+            "B": "Esperei mais tempo para entender o clima antes de falar.",
+            "ajustes_A": {22: 1, 24: 1, 30: 1, 88: 1},
+            "ajustes_B": {22: -1, 24: -1, 30: -1, 88: -1},
+        }
+    ],
+    "Amabilidade": [
+        {
+            "id": "limite_conflito",
+            "eixo": "Amabilidade",
+            "titulo": "Relações e limites",
+            "pergunta": "Na última vez em que algo me incomodou em uma relação:",
+            "A": "Falei com clareza antes de acumular incômodo.",
+            "B": "Segurei para evitar tensão e deixei a conversa para depois.",
+            "ajustes_A": {33: -1, 37: -1, 39: -1, 87: 1},
+            "ajustes_B": {33: 1, 37: 1, 39: 1, 87: -1},
+        }
+    ],
+    "Neuroticismo": [
+        {
+            "id": "revisao_interna",
+            "eixo": "Neuroticismo",
+            "titulo": "Revisão interna",
+            "pergunta": "Depois de situações importantes recentes, qual opção descreve melhor seu comportamento?",
+            "A": "Fechei o aprendizado e segui sem ficar voltando muito ao assunto.",
+            "B": "Continuei revendo detalhes, falas ou decisões por bastante tempo.",
+            "ajustes_A": {42: -1, 46: -1, 50: -1, 52: -1},
+            "ajustes_B": {42: 1, 46: 1, 50: 1, 52: 1},
+        }
+    ],
+    "Abundancia": [
+        {
+            "id": "valor_pedido",
+            "eixo": "Abundancia",
+            "titulo": "Valor e crescimento",
+            "pergunta": "Pensando nas últimas oportunidades de crescimento:",
+            "A": "Fiz pedido claro, propus algo maior ou negociei melhor.",
+            "B": "Esperei mais segurança antes de pedir, propor ou negociar.",
+            "ajustes_A": {72: 1, 76: 1, 83: 1, 65: -1, 67: -1, 73: -1},
+            "ajustes_B": {72: -1, 76: -1, 83: -1, 65: 1, 67: 1, 73: 1},
+        }
+    ],
+    "Abertura": [
+        {
+            "id": "abertura_fechamento",
+            "eixo": "Abertura",
+            "titulo": "Abertura e fechamento",
+            "pergunta": "Quando entendi algo importante recentemente, qual opção descreve melhor meu comportamento?",
+            "A": "Transformei a leitura em decisão, fala ou ação concreta.",
+            "B": "Continuei explorando possibilidades antes de fechar uma posição.",
+            "ajustes_A": {2: 1, 7: 1, 5: -1},
+            "ajustes_B": {2: -1, 7: -1, 5: 1},
+        }
+    ],
+}
+
+
+def calcular_compressao_respostas(respostas):
+    total = len(respostas)
+    if total == 0:
+        return 0.0
+    zona_media = sum(1 for v in respostas.values() if int(v) in [2, 3, 4])
+    return round(zona_media / total, 3)
+
+
+def calcular_ambiguidade_por_eixo(respostas, blocos):
+    resultado = {}
+    for eixo, perguntas in blocos.items():
+        valores = [int(respostas.get(q)) for q in perguntas if q in respostas]
+        if not valores:
+            continue
+        zona_media = sum(1 for v in valores if v in [2, 3, 4])
+        extremos = sum(1 for v in valores if v in [1, 5])
+        taxa_media = zona_media / len(valores)
+        taxa_extremos = extremos / len(valores)
+        resultado[eixo] = {
+            "taxa_media": round(taxa_media, 3),
+            "taxa_extremos": round(taxa_extremos, 3),
+            "ambiguidade": round(taxa_media - taxa_extremos, 3),
+        }
+    return resultado
+
+
+def detectar_eixos_proximos(medias, limite=0.25):
+    pares = []
+    eixos = list(medias.keys())
+    for i in range(len(eixos)):
+        for j in range(i + 1, len(eixos)):
+            e1, e2 = eixos[i], eixos[j]
+            diff = abs(float(medias[e1]) - float(medias[e2]))
+            if diff <= limite:
+                pares.append({"eixo_1": e1, "eixo_2": e2, "diferenca": round(diff, 2)})
+    return pares
+
+
+def selecionar_eixos_para_agente(respostas, perfil, max_eixos=3):
+    medias = perfil.get("medias", {})
+    amb_por_eixo = calcular_ambiguidade_por_eixo(respostas, BLOCOS)
+    pares_proximos = detectar_eixos_proximos(medias)
+    candidatos = []
+
+    for eixo, dados in amb_por_eixo.items():
+        if eixo not in BANCO_PERGUNTAS_AB:
+            continue
+        score = float(dados["ambiguidade"])
+        if dados["taxa_media"] >= 0.65:
+            score += 0.40
+        if dados["taxa_extremos"] <= 0.15:
+            score += 0.30
+        for par in pares_proximos:
+            if eixo in [par["eixo_1"], par["eixo_2"]]:
+                score += 0.25
+        if eixo in ["Conscienciosidade", "Seguranca", "Amabilidade", "Abundancia"]:
+            score += 0.15
+        candidatos.append({
+            "eixo": eixo,
+            "score": round(score, 3),
+            "taxa_media": dados["taxa_media"],
+            "taxa_extremos": dados["taxa_extremos"],
+        })
+
+    candidatos = sorted(candidatos, key=lambda x: x["score"], reverse=True)
+    return candidatos[:max_eixos]
+
+
+def agente_deve_ativar(respostas, perfil):
+    compressao = calcular_compressao_respostas(respostas)
+    eixos_proximos = detectar_eixos_proximos(perfil.get("medias", {}))
+    motivos = []
+    if compressao >= 0.65:
+        motivos.append("excesso_zona_media")
+    if len(eixos_proximos) >= 2:
+        motivos.append("eixos_muito_proximos")
+    if perfil.get("alerta_amplitude"):
+        motivos.append("amplitude_comprimida")
+    return bool(motivos), motivos
+
+
+def gerar_perguntas_agente_ab(respostas, perfil, max_eixos=3):
+    ativar, motivos = agente_deve_ativar(respostas, perfil)
+    if not ativar:
+        return [], motivos
+    eixos = selecionar_eixos_para_agente(respostas, perfil, max_eixos=max_eixos)
+    perguntas = []
+    for item in eixos:
+        eixo = item["eixo"]
+        banco = BANCO_PERGUNTAS_AB.get(eixo, [])
+        if banco:
+            pergunta = dict(banco[0])
+            pergunta["score_ambiguidade"] = item["score"]
+            pergunta["taxa_media"] = item["taxa_media"]
+            pergunta["taxa_extremos"] = item["taxa_extremos"]
+            perguntas.append(pergunta)
+    return perguntas, motivos
+
+
+def aplicar_respostas_agente_ab(perguntas, respostas_agente):
+    ajustes = {}
+    for pergunta in perguntas:
+        qid = pergunta["id"]
+        escolha = respostas_agente.get(qid)
+        if escolha == "A":
+            mapa = pergunta.get("ajustes_A", {})
+        elif escolha == "B":
+            mapa = pergunta.get("ajustes_B", {})
+        else:
+            mapa = {}
+        for q_num, delta in mapa.items():
+            ajustes[int(q_num)] = ajustes.get(int(q_num), 0) + int(delta)
+    return ajustes
+
+
+def obter_respostas_finais_com_ajustes():
+    respostas_finais = dict(st.session_state.responses)
+    if st.session_state.get("calibracao_ajustes"):
+        respostas_finais = aplicar_ajustes_calibracao(respostas_finais, st.session_state.calibracao_ajustes)
+    if st.session_state.get("agente_ab_ajustes"):
+        respostas_finais = aplicar_ajustes_calibracao(respostas_finais, st.session_state.agente_ab_ajustes)
+    return respostas_finais
 
 # =============================================================
 # ENGINE DE CÁLCULO
@@ -3496,12 +3734,107 @@ elif not st.session_state.followup_completo:
             ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
 
             salvar_ultimo_teste(respostas_finais)
-            st.session_state.perfil_cache = gerar_perfil(respostas_finais, st.session_state.followup_answers)
+
+            perfil_base = gerar_perfil(respostas_finais, st.session_state.followup_answers)
+            perguntas_agente, motivos_agente = gerar_perguntas_agente_ab(
+                respostas_finais,
+                perfil_base,
+                max_eixos=3
+            )
+
+            st.session_state.perfil_cache = perfil_base
+            st.session_state.agente_ab_questions = perguntas_agente
+            st.session_state.agente_ab_motivos = motivos_agente
             st.session_state.followup_completo = True
+
+            if not perguntas_agente:
+                st.session_state.agente_ab_completo = True
+
             save_progress_snapshot()
             st.rerun()
     else:
         st.warning("Responda todas as perguntas adaptativas para continuar.")
+
+elif not st.session_state.agente_ab_completo:
+    respostas_base = aplicar_ajustes_calibracao(
+        st.session_state.responses, st.session_state.calibracao_ajustes
+    ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
+
+    if not st.session_state.get("agente_ab_questions"):
+        perfil_base = gerar_perfil(respostas_base, st.session_state.followup_answers)
+        perguntas_agente, motivos_agente = gerar_perguntas_agente_ab(
+            respostas_base,
+            perfil_base,
+            max_eixos=3
+        )
+        st.session_state.agente_ab_questions = perguntas_agente
+        st.session_state.agente_ab_motivos = motivos_agente
+
+    perguntas_agente = st.session_state.get("agente_ab_questions", [])
+
+    if not perguntas_agente:
+        st.session_state.agente_ab_completo = True
+        st.session_state.perfil_cache = gerar_perfil(respostas_base, st.session_state.followup_answers)
+        save_progress_snapshot()
+        st.rerun()
+
+    st.title("Refinamento rápido de precisão")
+    st.markdown(
+        "Algumas respostas ficaram em zona intermediária. "
+        "Para aumentar a precisão do perfil, responda estas perguntas rápidas com base no seu comportamento recente."
+    )
+    st.markdown("---")
+
+    if MODO_TESTE and st.session_state.get("agente_ab_motivos"):
+        st.caption("[DEBUG] Motivos do agente: " + ", ".join(st.session_state.agente_ab_motivos))
+
+    completas = True
+
+    for pergunta in perguntas_agente:
+        st.markdown(f"**{pergunta.get('titulo', pergunta['eixo'])}**")
+        st.caption(pergunta["pergunta"])
+
+        escolha = st.radio(
+            "Escolha a opção que mais se aproxima do seu comportamento recente:",
+            [
+                "A) " + pergunta["A"],
+                "B) " + pergunta["B"],
+            ],
+            index=None,
+            key="agente_ab_" + pergunta["id"]
+        )
+
+        if escolha is None:
+            completas = False
+        else:
+            st.session_state.agente_ab_answers[pergunta["id"]] = "A" if escolha.startswith("A)") else "B"
+
+        st.markdown("---")
+
+    if completas:
+        if st.button("Gerar relatório com refinamento", type="primary"):
+            ajustes_agente = aplicar_respostas_agente_ab(
+                perguntas_agente,
+                st.session_state.agente_ab_answers
+            )
+
+            st.session_state.agente_ab_ajustes = ajustes_agente
+
+            respostas_refinadas = aplicar_ajustes_calibracao(
+                respostas_base,
+                ajustes_agente
+            ) if ajustes_agente else dict(respostas_base)
+
+            salvar_ultimo_teste(respostas_refinadas)
+            st.session_state.perfil_cache = gerar_perfil(
+                respostas_refinadas,
+                st.session_state.followup_answers
+            )
+            st.session_state.agente_ab_completo = True
+            save_progress_snapshot()
+            st.rerun()
+    else:
+        st.warning("Responda todas as perguntas rápidas para continuar.")
 
 else:
     st.title("Seu Relatório de Perfil")
@@ -3511,9 +3844,7 @@ else:
     if st.session_state.perfil_cache is not None:
         perfil = st.session_state.perfil_cache
     else:
-        respostas_finais = aplicar_ajustes_calibracao(
-            st.session_state.responses, st.session_state.calibracao_ajustes
-        ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
+        respostas_finais = obter_respostas_finais_com_ajustes()
         perfil = gerar_perfil(respostas_finais, st.session_state.followup_answers)
 
     if st.session_state.calibracao_ajustes:
@@ -3524,6 +3855,12 @@ else:
     if st.session_state.followup_answers:
         st.success(
             "Perguntas adaptativas aplicadas para resolver ambiguidades específicas do perfil."
+        )
+    if st.session_state.get("agente_ab_ajustes"):
+        st.success(
+            "Refinamento V11 aplicado com "
+            + str(len(st.session_state.get("agente_ab_ajustes", {})))
+            + " ajuste(s) de desempate."
         )
 
     with st.spinner("Gerando sua análise profunda..."):
@@ -3545,9 +3882,7 @@ else:
     if not st.session_state.dados_registrados:
         user_info = st.session_state.get("user_info", {})
         medias_perfil = perfil.get("medias", {})
-        respostas_finais = aplicar_ajustes_calibracao(
-            st.session_state.responses, st.session_state.calibracao_ajustes
-        ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
+        respostas_finais = obter_respostas_finais_com_ajustes()
 
         dados_registro = {
             "data_hora": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -3569,6 +3904,9 @@ else:
             "tensoes_ativas": "; ".join(perfil.get("tensoes", [])),
             "followups": json.dumps(st.session_state.followup_answers, ensure_ascii=False),
             "ajustes_calibracao": str(len(st.session_state.get("calibracao_ajustes", {}))),
+            "agente_ab_answers": json.dumps(st.session_state.get("agente_ab_answers", {}), ensure_ascii=False),
+            "agente_ab_ajustes": json.dumps(st.session_state.get("agente_ab_ajustes", {}), ensure_ascii=False),
+            "agente_ab_motivos": "; ".join(st.session_state.get("agente_ab_motivos", [])),
             "relatorio": relatorio,
             "respostas": respostas_finais,
         }
@@ -3610,9 +3948,7 @@ else:
         st.markdown("---")
 
     if MODO_TESTE:
-        respostas_para_download = aplicar_ajustes_calibracao(
-            st.session_state.responses, st.session_state.calibracao_ajustes
-        ) if st.session_state.calibracao_ajustes else dict(st.session_state.responses)
+        respostas_para_download = obter_respostas_finais_com_ajustes()
         _json_bytes = json.dumps(
             {str(k): v for k, v in respostas_para_download.items()},
             ensure_ascii=False, indent=2
@@ -3656,6 +3992,11 @@ else:
         st.session_state.session_id = str(uuid.uuid4())
         st.session_state.question_started_at = 0.0
         st.session_state.question_timer_q = None
+        st.session_state.agente_ab_completo = False
+        st.session_state.agente_ab_questions = []
+        st.session_state.agente_ab_answers = {}
+        st.session_state.agente_ab_ajustes = {}
+        st.session_state.agente_ab_motivos = []
 
     with col1:
         if st.button("Refazer o teste"):
