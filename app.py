@@ -3,8 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V15.1
+# Version: V15.2
 # Data: 2026-05-03
+# Patch: V15.2 corrige helpers de memória do agente e bloqueio de repetição sem quebrar o fluxo
 # Patch: V15.1 evita repetição de perguntas do agente, mostra versão nas duas modalidades e envia Leitura de Funcionamento Real por email
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
 # Patch: V11 agente A/B fixo com detector de ambiguidade e seleção automática de eixos
@@ -124,7 +125,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V15.1"
+APP_VERSION = "V15.2"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -1373,6 +1374,73 @@ FORMATO EXATO:
         pergunta_segura["validacao_dinamica"] = "erro_geracao"
         return pergunta_segura, {"eixo": eixo, "usou_dinamica": False, "motivo": "erro_geracao", "erro": str(e)}
 
+
+
+def _normalizar_familia_pergunta(pergunta):
+    """Retorna uma família estável para bloquear repetição sem alterar IDs do código."""
+    if not isinstance(pergunta, dict):
+        return ""
+    familia = str(pergunta.get("familia", "") or "").strip()
+    if familia:
+        return familia
+    titulo = str(pergunta.get("titulo", "") or "").strip()
+    eixo = str(pergunta.get("eixo", pergunta.get("eixo_alvo", "")) or "").strip()
+    if titulo and eixo:
+        return eixo + "::" + titulo
+    if titulo:
+        return titulo
+    qid = str(pergunta.get("id", "") or "").strip()
+    return qid
+
+
+def _perguntas_usadas_agente_v14():
+    """IDs de perguntas já usadas pelo agente nesta sessão.
+
+    V15.2: esta função estava sendo chamada pela V15.1, mas não existia no arquivo,
+    causando NameError logo após a primeira bateria de perguntas do agente.
+    """
+    try:
+        usadas = st.session_state.get("agente_memoria_perguntas", [])
+        if not isinstance(usadas, list):
+            usadas = list(usadas) if usadas else []
+        return set(str(x) for x in usadas if str(x).strip())
+    except Exception:
+        return set()
+
+
+def _familias_usadas_agente_v14():
+    """Famílias de perguntas já usadas pelo agente nesta sessão."""
+    try:
+        usadas = st.session_state.get("agente_memoria_familias", [])
+        if not isinstance(usadas, list):
+            usadas = list(usadas) if usadas else []
+        return set(str(x) for x in usadas if str(x).strip())
+    except Exception:
+        return set()
+
+
+def registrar_pergunta_usada_v14(pergunta):
+    """Registra ID e família da pergunta para evitar repetição no pente fino."""
+    try:
+        qid = str((pergunta or {}).get("id", "") or "").strip()
+        familia = _normalizar_familia_pergunta(pergunta or {})
+
+        perguntas = st.session_state.get("agente_memoria_perguntas", [])
+        familias = st.session_state.get("agente_memoria_familias", [])
+        if not isinstance(perguntas, list):
+            perguntas = list(perguntas) if perguntas else []
+        if not isinstance(familias, list):
+            familias = list(familias) if familias else []
+
+        if qid and qid not in perguntas:
+            perguntas.append(qid)
+        if familia and familia not in familias:
+            familias.append(familia)
+
+        st.session_state.agente_memoria_perguntas = perguntas
+        st.session_state.agente_memoria_familias = familias
+    except Exception:
+        pass
 
 
 def selecionar_fallback_nao_repetido(eixo):
