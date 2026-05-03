@@ -3,11 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V14.3
-# Data: 2026-05-03
-# Patch: V14.3 revisa acentuação/ortografia das perguntas exibidas, corrige neutralidade artificial e refina nuance de execução
-# Patch: V14.1 corrige cache do relatório e evita retorno ao início ao abrir a Leitura de Funcionamento Real
-# Patch: V14 adiciona motor de precisão adaptativa avançada, memória do agente, risco separado e abundância em duas camadas
+# Version: V15
+# Data: 2026-05-02
+# Patch: V15 adiciona Confidence Gate real, anti-perfil artificial e loop intensivo do agente antes de liberar relatório
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
 # Patch: V11 agente A/B fixo com detector de ambiguidade e seleção automática de eixos
 # Patch: V10.1 refina Leitura de Funcionamento Real com cenas concretas, neutralidade natural e ações imediatas
@@ -126,7 +124,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V14.3"
+APP_VERSION = "V15"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -250,8 +248,11 @@ DEFAULTS = {
     "agente_ab_ajustes": {},
     "agente_ab_motivos": [],
     "agente_ab_dynamic_log": [],
+    "agente_ab_questions_history": [],
+    "agente_v15_status": {},
+    "agente_v15_rounds": 0,
+    "agente_v15_bloqueado": False,
     "relatorio_sem_filtro": "",
-    "relatorio_extra_enviado": False,
     "debug_sheet_users": [],
     "debug_sheet_error": "",
     # Instrumentação científica V9.5
@@ -347,6 +348,10 @@ def build_research_export(respostas_finais=None):
         "agente_ab_motivos": list(st.session_state.get("agente_ab_motivos", [])),
         "agente_ab_questions": list(st.session_state.get("agente_ab_questions", [])),
         "agente_ab_dynamic_log": list(st.session_state.get("agente_ab_dynamic_log", [])),
+        "agente_ab_questions_history": list(st.session_state.get("agente_ab_questions_history", [])),
+        "agente_v15_status": dict(st.session_state.get("agente_v15_status", {})),
+        "agente_v15_rounds": int(st.session_state.get("agente_v15_rounds", 0) or 0),
+        "agente_v15_bloqueado": bool(st.session_state.get("agente_v15_bloqueado", False)),
     }
 
 
@@ -427,109 +432,6 @@ from questions import (
     PERGUNTAS_INVERTIDAS,
     aplicar_inversao,
 )
-
-
-# Correções textuais seguras para perguntas exibidas ao usuário.
-# Importante: esta camada altera apenas strings de apresentação das perguntas.
-# Não altera IDs, nomes de variáveis, chaves internas, pesos, inversões ou lógica do teste.
-def aplicar_correcoes_textuais_perguntas():
-    substituicoes = [
-        ("Voce", "Você"), ("voce", "você"),
-        ("Nao", "Não"), ("nao", "não"),
-        ("Tambem", "Também"), ("tambem", "também"),
-        ("Possivel", "Possível"), ("possivel", "possível"),
-        ("Impossivel", "Impossível"), ("impossivel", "impossível"),
-        ("Pratica", "Prática"), ("pratica", "prática"),
-        ("Pratico", "Prático"), ("pratico", "prático"),
-        ("Automatico", "Automático"), ("automatico", "automático"),
-        ("Automaticamente", "Automaticamente"), ("automaticamente", "automaticamente"),
-        ("Ultimos", "Últimos"), ("ultimos", "últimos"),
-        ("Ultimas", "Últimas"), ("ultimas", "últimas"),
-        ("Facil", "Fácil"), ("facil", "fácil"),
-        ("Dificil", "Difícil"), ("dificil", "difícil"),
-        ("Rapido", "Rápido"), ("rapido", "rápido"),
-        ("Rapida", "Rápida"), ("rapida", "rápida"),
-        ("Horario", "Horário"), ("horario", "horário"),
-        ("Proximo", "Próximo"), ("proximo", "próximo"),
-        ("Proxima", "Próxima"), ("proxima", "próxima"),
-        ("Conexao", "Conexão"), ("conexao", "conexão"),
-        ("Conexoes", "Conexões"), ("conexoes", "conexões"),
-        ("Informacao", "Informação"), ("informacao", "informação"),
-        ("Informacoes", "Informações"), ("informacoes", "informações"),
-        ("Situacao", "Situação"), ("situacao", "situação"),
-        ("Situacoes", "Situações"), ("situacoes", "situações"),
-        ("Decisao", "Decisão"), ("decisao", "decisão"),
-        ("Decisoes", "Decisões"), ("decisoes", "decisões"),
-        ("Acao", "Ação"), ("acao", "ação"),
-        ("Acoes", "Ações"), ("acoes", "ações"),
-        ("Relacao", "Relação"), ("relacao", "relação"),
-        ("Relacoes", "Relações"), ("relacoes", "relações"),
-        ("Emocao", "Emoção"), ("emocao", "emoção"),
-        ("Emocoes", "Emoções"), ("emocoes", "emoções"),
-        ("Reacao", "Reação"), ("reacao", "reação"),
-        ("Reacoes", "Reações"), ("reacoes", "reações"),
-        ("Percepcao", "Percepção"), ("percepcao", "percepção"),
-        ("Percepcoes", "Percepções"), ("percepcoes", "percepções"),
-        ("Atencao", "Atenção"), ("atencao", "atenção"),
-        ("Intencao", "Intenção"), ("intencao", "intenção"),
-        ("Intencoes", "Intenções"), ("intencoes", "intenções"),
-        ("Opiniao", "Opinião"), ("opiniao", "opinião"),
-        ("Opinioes", "Opiniões"), ("opinioes", "opiniões"),
-        ("Posicao", "Posição"), ("posicao", "posição"),
-        ("Posicoes", "Posições"), ("posicoes", "posições"),
-        ("Exposicao", "Exposição"), ("exposicao", "exposição"),
-        ("Avaliacao", "Avaliação"), ("avaliacao", "avaliação"),
-        ("Avaliacoes", "Avaliações"), ("avaliacoes", "avaliações"),
-        ("Organizacao", "Organização"), ("organizacao", "organização"),
-        ("Planejamento", "Planejamento"),
-        ("Execucao", "Execução"), ("execucao", "execução"),
-        ("Consciencia", "Consciência"), ("consciencia", "consciência"),
-        ("Responsavel", "Responsável"), ("responsavel", "responsável"),
-        ("Coerencia", "Coerência"), ("coerencia", "coerência"),
-        ("Consequencia", "Consequência"), ("consequencia", "consequência"),
-        ("Contrario", "Contrário"), ("contrario", "contrário"),
-        ("Necessario", "Necessário"), ("necessario", "necessário"),
-        ("Necessaria", "Necessária"), ("necessaria", "necessária"),
-        ("Proprio", "Próprio"), ("proprio", "próprio"),
-        ("Propria", "Própria"), ("propria", "própria"),
-        ("Nivel", "Nível"), ("nivel", "nível"),
-        ("Ate", "Até"), (" ate ", " até "),
-        ("Apos", "Após"), ("apos", "após"),
-        ("Ja ", "Já "), (" ja ", " já "),
-        ("Inclui-las", "Incluí-las"), ("inclui-las", "incluí-las"),
-        ("Inclui-los", "Incluí-los"), ("inclui-los", "incluí-los"),
-        ("Inclui-la", "Incluí-la"), ("inclui-la", "incluí-la"),
-        ("Inclui-lo", "Incluí-lo"), ("inclui-lo", "incluí-lo"),
-        ("incluí-lás", "incluí-las"), ("incluí-lós", "incluí-los"),
-        ("inclui-lás", "incluí-las"), ("inclui-lós", "incluí-los"),
-    ]
-
-    def corrigir(texto):
-        if not isinstance(texto, str):
-            return texto
-        for antigo, novo in substituicoes:
-            # Evita alterar partes internas de outras palavras.
-            # Ex.: não transformar "Praticamente" em "Práticamente".
-            if antigo.strip() != antigo:
-                texto = texto.replace(antigo, novo)
-            else:
-                texto = re.sub(r"(?<!\w)" + re.escape(antigo) + r"(?!\w)", novo, texto)
-        return texto
-
-    try:
-        for q_num, texto in list(questions_display.items()):
-            questions_display[q_num] = corrigir(texto)
-    except Exception:
-        pass
-
-    try:
-        for q_num, texto in list(questions.items()):
-            questions[q_num] = corrigir(texto)
-    except Exception:
-        pass
-
-
-aplicar_correcoes_textuais_perguntas()
 
 
 # =============================================================
@@ -615,6 +517,10 @@ def save_progress_snapshot():
         "agente_ab_ajustes": {str(k): v for k, v in st.session_state.get("agente_ab_ajustes", {}).items()},
         "agente_ab_motivos": list(st.session_state.get("agente_ab_motivos", [])),
         "agente_ab_dynamic_log": list(st.session_state.get("agente_ab_dynamic_log", [])),
+        "agente_ab_questions_history": list(st.session_state.get("agente_ab_questions_history", [])),
+        "agente_v15_status": dict(st.session_state.get("agente_v15_status", {})),
+        "agente_v15_rounds": int(st.session_state.get("agente_v15_rounds", 0) or 0),
+        "agente_v15_bloqueado": bool(st.session_state.get("agente_v15_bloqueado", False)),
         "session_id": st.session_state.get("session_id", ""),
         "question_time_total": dict(st.session_state.get("question_time_total", {})),
         "question_time_events": list(st.session_state.get("question_time_events", [])),
@@ -678,6 +584,10 @@ def restore_progress_snapshot(snapshot):
     st.session_state.agente_ab_ajustes = _normalize_int_dict(snapshot.get("agente_ab_ajustes", {}))
     st.session_state.agente_ab_motivos = list(snapshot.get("agente_ab_motivos", []))
     st.session_state.agente_ab_dynamic_log = list(snapshot.get("agente_ab_dynamic_log", []))
+    st.session_state.agente_ab_questions_history = list(snapshot.get("agente_ab_questions_history", []))
+    st.session_state.agente_v15_status = dict(snapshot.get("agente_v15_status", {}))
+    st.session_state.agente_v15_rounds = int(snapshot.get("agente_v15_rounds", 0) or 0)
+    st.session_state.agente_v15_bloqueado = bool(snapshot.get("agente_v15_bloqueado", False))
     st.session_state.session_id = snapshot.get("session_id", st.session_state.get("session_id", "")) or str(uuid.uuid4())
     st.session_state.question_time_total = dict(snapshot.get("question_time_total", {}))
     st.session_state.question_time_events = list(snapshot.get("question_time_events", []))
@@ -1063,6 +973,19 @@ def gerar_followups(perfil):
 AGENTE_AB_MAX_PERGUNTAS = 3
 AGENTE_AB_USAR_DINAMICO = True
 AGENTE_AB_MAX_DELTA_POR_ITEM = 1
+
+# V15 - Confidence Gate real: o relatório só deve ser liberado quando
+# houver sinal interpretativo suficiente. Em perfis artificiais ou muito
+# comprimidos, o agente entra em modo intensivo antes de liberar qualquer relatório.
+AGENTE_V15_MAX_PERGUNTAS_TOTAL = 10
+AGENTE_V15_MAX_RODADAS = 4
+AGENTE_V15_MIN_PERGUNTAS_ARTIFICIAL = 8
+AGENTE_V15_STD_MINIMO = 0.65
+AGENTE_V15_AMPLITUDE_MINIMA = 2
+AGENTE_V15_PCT_3_4_MAXIMO = 0.85
+AGENTE_V15_PCT_3_MAXIMO = 0.70
+AGENTE_V15_MEDIA_EXTREMA_BAIXA = 1.80
+AGENTE_V15_MEDIA_EXTREMA_ALTA = 4.20
 
 BANCO_PERGUNTAS_AB = {
     "Conscienciosidade": [
@@ -1504,6 +1427,214 @@ def gerar_perguntas_agente_ab(respostas, perfil, max_eixos=AGENTE_AB_MAX_PERGUNT
         pass
     return perguntas, motivos
 
+
+
+
+def _stats_respostas_v15(respostas):
+    vals = [int(v) for v in (respostas or {}).values() if v is not None]
+    if not vals:
+        return {
+            "total": 0, "media": 0.0, "desvio_padrao": 0.0, "amplitude": 0,
+            "pct_3": 0.0, "pct_3_4": 0.0, "pct_extremos": 0.0,
+        }
+    media = sum(vals) / len(vals)
+    variancia = sum((v - media) ** 2 for v in vals) / len(vals)
+    desvio = variancia ** 0.5
+    return {
+        "total": len(vals),
+        "media": round(media, 3),
+        "desvio_padrao": round(desvio, 3),
+        "amplitude": int(max(vals) - min(vals)),
+        "pct_3": round(sum(1 for v in vals if v == 3) / len(vals), 3),
+        "pct_3_4": round(sum(1 for v in vals if v in [2, 3, 4]) / len(vals), 3),
+        "pct_extremos": round(sum(1 for v in vals if v in [1, 5]) / len(vals), 3),
+    }
+
+
+def detectar_resposta_artificial_v15(respostas):
+    stats = _stats_respostas_v15(respostas)
+    motivos = []
+    if stats["pct_3"] >= AGENTE_V15_PCT_3_MAXIMO:
+        motivos.append("excesso_de_respostas_3")
+    if stats["pct_3_4"] >= AGENTE_V15_PCT_3_4_MAXIMO:
+        motivos.append("compressao_extrema_2_3_4")
+    if stats["desvio_padrao"] < AGENTE_V15_STD_MINIMO:
+        motivos.append("baixo_desvio_padrao")
+    if stats["amplitude"] < AGENTE_V15_AMPLITUDE_MINIMA:
+        motivos.append("baixa_amplitude")
+    if stats["media"] <= AGENTE_V15_MEDIA_EXTREMA_BAIXA:
+        motivos.append("polarizacao_baixa")
+    if stats["media"] >= AGENTE_V15_MEDIA_EXTREMA_ALTA:
+        motivos.append("polarizacao_alta")
+    return bool(motivos), motivos, stats
+
+
+def _contar_perguntas_por_eixo_v15(perguntas):
+    contagem = {}
+    for p in perguntas or []:
+        eixo = p.get("eixo")
+        if eixo:
+            contagem[eixo] = contagem.get(eixo, 0) + 1
+    return contagem
+
+
+def _ids_perguntas_v15(perguntas):
+    return {p.get("id") for p in (perguntas or []) if p.get("id")}
+
+
+def _normalizar_id_unico_v15(pergunta, existentes):
+    base = str(pergunta.get("id", "agente_v15")).strip() or "agente_v15"
+    if base not in existentes:
+        pergunta["id"] = base
+        return pergunta
+    i = 2
+    novo = f"{base}_v{i}"
+    while novo in existentes:
+        i += 1
+        novo = f"{base}_v{i}"
+    pergunta["id"] = novo
+    return pergunta
+
+
+def selecionar_eixos_para_agente_v15(respostas, perfil, perguntas_existentes=None, max_eixos=AGENTE_AB_MAX_PERGUNTAS):
+    perguntas_existentes = perguntas_existentes or []
+    contagem = _contar_perguntas_por_eixo_v15(perguntas_existentes)
+    medias = perfil.get("medias", {})
+    amb_por_eixo = calcular_ambiguidade_por_eixo(respostas, BLOCOS)
+    pares_proximos = detectar_eixos_proximos(medias)
+    contrastes_fortes = detectar_contrastes_fortes(medias, limite=0.8)
+    artificial, motivos_artificial, _ = detectar_resposta_artificial_v15(respostas)
+    candidatos = []
+
+    for eixo, dados in amb_por_eixo.items():
+        if eixo not in BANCO_PERGUNTAS_AB:
+            continue
+        usadas = contagem.get(eixo, 0)
+        if usadas >= 2:
+            continue
+        score = float(dados.get("ambiguidade", 0))
+        motivos = []
+        if dados.get("taxa_media", 0) >= 0.65:
+            score += 0.60
+            motivos.append("zona_media_alta")
+        if dados.get("taxa_extremos", 0) <= 0.15:
+            score += 0.45
+            motivos.append("poucos_extremos")
+        for par in pares_proximos:
+            if eixo in [par["eixo_1"], par["eixo_2"]]:
+                score += 0.30
+                motivos.append("eixo_proximo")
+        for contraste in contrastes_fortes[:4]:
+            if eixo in [contraste["eixo_1"], contraste["eixo_2"]]:
+                score += 0.25
+                motivos.append("contraste_forte")
+        if eixo in ["Conscienciosidade", "Seguranca", "Amabilidade", "Abundancia", "Extroversao"]:
+            score += 0.20
+            motivos.append("impacto_pratico")
+        if artificial and usadas == 0:
+            score += 0.75
+            motivos.append("modo_intensivo_sem_pergunta_no_eixo")
+        elif artificial and usadas == 1:
+            score += 0.20
+            motivos.append("modo_intensivo_reforco")
+        score -= usadas * 0.35
+        candidatos.append({
+            "eixo": eixo,
+            "score": round(score, 3),
+            "taxa_media": dados.get("taxa_media", 0),
+            "taxa_extremos": dados.get("taxa_extremos", 0),
+            "motivos": list(dict.fromkeys(motivos + motivos_artificial)),
+        })
+
+    candidatos = sorted(candidatos, key=lambda x: x["score"], reverse=True)
+    final = []
+    seen = set()
+    for c in candidatos:
+        if c["eixo"] in seen:
+            continue
+        seen.add(c["eixo"])
+        final.append(c)
+        if len(final) >= max_eixos:
+            break
+    return final
+
+
+def gerar_perguntas_agente_ab_v15(respostas, perfil, perguntas_existentes=None, max_eixos=AGENTE_AB_MAX_PERGUNTAS):
+    perguntas_existentes = perguntas_existentes or []
+    eixos = selecionar_eixos_para_agente_v15(respostas, perfil, perguntas_existentes, max_eixos=max_eixos)
+    ids_existentes = _ids_perguntas_v15(perguntas_existentes)
+    perguntas = []
+    logs = []
+    artificial, motivos_artificial, stats_artificial = detectar_resposta_artificial_v15(respostas)
+    for item in eixos:
+        eixo = item["eixo"]
+        banco = BANCO_PERGUNTAS_AB.get(eixo, [])
+        if not banco:
+            continue
+        fallback = dict(banco[0])
+        fallback["score_ambiguidade"] = item["score"]
+        fallback["taxa_media"] = item["taxa_media"]
+        fallback["taxa_extremos"] = item["taxa_extremos"]
+        fallback["modo_v15"] = "intensivo" if artificial else "normal"
+        fallback["motivos_v15"] = item.get("motivos", [])
+        pergunta, log = gerar_pergunta_dinamica_controlada(eixo, fallback, perfil, metadados=item)
+        pergunta["score_ambiguidade"] = item["score"]
+        pergunta["taxa_media"] = item["taxa_media"]
+        pergunta["taxa_extremos"] = item["taxa_extremos"]
+        pergunta["modo_v15"] = "intensivo" if artificial else "normal"
+        pergunta["motivos_v15"] = item.get("motivos", [])
+        pergunta = _normalizar_id_unico_v15(pergunta, ids_existentes)
+        ids_existentes.add(pergunta["id"])
+        perguntas.append(pergunta)
+        logs.append(log)
+    try:
+        st.session_state.agente_ab_dynamic_log = list(st.session_state.get("agente_ab_dynamic_log", [])) + logs
+    except Exception:
+        pass
+    return perguntas, list(dict.fromkeys((motivos_artificial if artificial else []) + ["confidence_gate_v15"])), stats_artificial
+
+
+def avaliar_prontidao_relatorio_v15(respostas_base, respostas_refinadas, perfil_refinado, perguntas_historico=None):
+    perguntas_historico = perguntas_historico or []
+    stats_base = _stats_respostas_v15(respostas_base)
+    stats_ref = _stats_respostas_v15(respostas_refinadas)
+    artificial_base, motivos_base, _ = detectar_resposta_artificial_v15(respostas_base)
+    artificial_ref, motivos_ref, _ = detectar_resposta_artificial_v15(respostas_refinadas)
+    total_perguntas = len(perguntas_historico)
+    motivos_bloqueio = []
+
+    if artificial_base and total_perguntas < AGENTE_V15_MIN_PERGUNTAS_ARTIFICIAL:
+        motivos_bloqueio.append("padrao_artificial_exige_mais_perguntas")
+    if stats_ref["desvio_padrao"] < AGENTE_V15_STD_MINIMO and total_perguntas < AGENTE_V15_MAX_PERGUNTAS_TOTAL:
+        motivos_bloqueio.append("desvio_padrao_ainda_baixo")
+    if stats_ref["amplitude"] < AGENTE_V15_AMPLITUDE_MINIMA and total_perguntas < AGENTE_V15_MAX_PERGUNTAS_TOTAL:
+        motivos_bloqueio.append("amplitude_ainda_baixa")
+    if stats_ref["pct_3_4"] >= AGENTE_V15_PCT_3_4_MAXIMO and total_perguntas < AGENTE_V15_MAX_PERGUNTAS_TOTAL:
+        motivos_bloqueio.append("compressao_ainda_alta")
+
+    limite_atingido = total_perguntas >= AGENTE_V15_MAX_PERGUNTAS_TOTAL or int(st.session_state.get("agente_v15_rounds", 0) or 0) >= AGENTE_V15_MAX_RODADAS
+    pronto = not motivos_bloqueio and not (artificial_ref and not limite_atingido)
+    bloqueado_final = bool(limite_atingido and (motivos_bloqueio or artificial_ref))
+    status = {
+        "pronto": bool(pronto),
+        "bloqueado_final": bool(bloqueado_final),
+        "limite_atingido": bool(limite_atingido),
+        "total_perguntas_agente": total_perguntas,
+        "rodadas": int(st.session_state.get("agente_v15_rounds", 0) or 0),
+        "stats_base": stats_base,
+        "stats_refinado": stats_ref,
+        "artificial_base": bool(artificial_base),
+        "artificial_refinado": bool(artificial_ref),
+        "motivos_base": motivos_base,
+        "motivos_refinado": motivos_ref,
+        "motivos_bloqueio": list(dict.fromkeys(motivos_bloqueio)),
+        "tipo_resposta_refinado": perfil_refinado.get("tipo_resposta", ""),
+        "confiabilidade_refinada": perfil_refinado.get("confiabilidade", ""),
+        "pct_3_4_perfil_refinado": perfil_refinado.get("pct_3_4", ""),
+        "desvio_padrao_perfil_refinado": perfil_refinado.get("desvio_padrao", ""),
+        "amplitude_perfil_refinado": perfil_refinado.get("amplitude", ""),
+    }
+    return bool(pronto), status
 
 def aplicar_respostas_agente_ab(perguntas, respostas_agente):
     ajustes = {}
@@ -2921,20 +3052,6 @@ def sanitize_report_output_v81(texto):
 
     texto = texto.replace("\r\n", "\n")
     texto = neutralize_gendered_language_v86(texto)
-    # Corrige tentativas artificiais de neutralidade e pequenos deslizes comuns em saídas geradas.
-    # Mantém linguagem neutra natural sem recorrer a terminações artificiais.
-    correcoes_geradas = {
-        "lembrade": "lembrado pela sua postura",
-        "preparade": "com preparo",
-        "calade": "em silêncio",
-        "cansade": "com cansaço",
-        "travade": "com travamento",
-        "contide": "com postura mais reservada",
-        "mais contide": "com postura mais reservada",
-        "preparad@": "com preparo",
-    }
-    for antigo, novo in correcoes_geradas.items():
-        texto = re.sub(r"\b" + re.escape(antigo) + r"\b", novo, texto, flags=re.IGNORECASE)
 
     padroes_linha_proibida = [
         r"^\s*se quiser.*$",
@@ -3277,11 +3394,11 @@ ESTRUTURA OBRIGATORIA:
 
 INSTRUÇÕES ESPECÍFICAS POR SEÇÃO:
 - BLOCO 1: diga logo, em português simples, qual é o jeito principal de a mente da pessoa funcionar. Nomeie a força e o custo. Esta seção deve conter pelo menos uma frase que poderia ser repetida para resumir a pessoa sem perder a essência. Evite puxar compromisso, execução, disciplina ou sustentação como eixo do bloco 1; isso pertence mais ao bloco 2.
-- EXECUÇÃO: diga com clareza como a pessoa decide, onde ela trava, o que faz ela entrar em ação e qual é o custo prático disso. Troque formulações elegantes por algo que a pessoa reconheça na vida real. Não trate ausência de planejamento ritualizado, sozinha, como procrastinação. Só use a ideia de procrastinação quando houver evidência conjunta de atraso, dependência de disposição, última hora e baixa sustentação. Se o agente de desempate indicar organização/priorização na execução, não descreva a pessoa como desorganizada; descreva que ela executa melhor com prioridade clara e que o ponto frágil está em cenário nebuloso, clareza insuficiente ou acionamento do primeiro passo.
+- EXECUÇÃO: diga com clareza como a pessoa decide, onde ela trava, o que faz ela entrar em ação e qual é o custo prático disso. Troque formulações elegantes por algo que a pessoa reconheça na vida real. Não trate ausência de planejamento ritualizado, sozinha, como procrastinação. Só use a ideia de procrastinação quando houver evidência conjunta de atraso, dependência de disposição, última hora e baixa sustentação.
 - PRESENÇA: diga como a pessoa aparece nos ambientes, quando ela se solta, quando ela se segura e o que isso produz nos outros. Não usar invisibilidade ou reconhecimento como explicação principal. É proibido usar as palavras "entrada" ou "entrar" como resumo vago do comportamento. Prefira formulações concretas como "você demora um pouco mais para se posicionar até entender o contexto" ou equivalentes específicas.
 - MUNDO INTERNO: diga como a pessoa pensa, se cobra, se reconhece e se desgasta por dentro. Troque abstrações como "densidade" e "elaboração" por leitura concreta de vida mental.
 - RELAÇÕES: diga como a pessoa cuida do vínculo, onde ela cede demais, onde ela segura demais e o preço emocional disso. Diferencie relação de presença social.
-- VALOR: diga de forma concreta como a pessoa lida com pedir, cobrar, negociar, ocupar espaço e transformar capacidade em avanço. Esta seção precisa soar prática, não conceitual. É proibido usar prudência, necessidade de base ou tolerância a risco como eixo único desta seção. Só use cautela como parte da explicação quando ela vier junto com sinais locais de merecimento, comparação, dificuldade de pedir, cobrança ou autorização para receber. Nunca confunda resistência durante a execução com gosto por risco; se houver Segurança alta ou necessidade de previsibilidade alta, descreva cautela na largada e não coragem impulsiva.
+- VALOR: diga de forma concreta como a pessoa lida com pedir, cobrar, negociar, ocupar espaço e transformar capacidade em avanço. Esta seção precisa soar prática, não conceitual. É proibido usar prudência, necessidade de base ou tolerância a risco como eixo único desta seção. Só use cautela como parte da explicação quando ela vier junto com sinais locais de merecimento, comparação, dificuldade de pedir, cobrança ou autorização para receber.
 - DIREÇÃO PRÁTICA: cada ação deve atacar um mecanismo diferente e ser escrita como orientação simples, executável e sem linguagem de consultoria.
 - FRASE FINAL: deve ser curta, forte e memorável. Precisa soar como verdade direta, não como frase bonita. Não pode repetir a tese de começar tarde, esperar base, pedir permissão ou mostrar pouco. Feche por um ângulo mais amplo do todo.
 - PRÓXIMOS PASSOS: escreva ações concretas, observáveis e executáveis pela própria pessoa. É proibido usar voz conversacional, convite, oferta de ajuda, primeira pessoa do assistente ou qualquer formulação do tipo "se quiser", "eu posso" ou "posso transformar".
@@ -3840,7 +3957,7 @@ with col_title:
         )
     else:
         st.markdown(
-            f'<div class="manus-badge">{APP_VERSION} | Análise comportamental potencializada por psicologia científica e inteligência artificial avançada</div>',
+            '<div class="manus-badge">Análise comportamental potencializada por psicologia científica e inteligência artificial avançada</div>',
             unsafe_allow_html=True
         )
 
@@ -3904,7 +4021,6 @@ if not st.session_state.modo_selecionado:
         if not st.session_state.user_info_completo:
             st.markdown("---")
             st.subheader("Antes de começar")
-            st.caption(f"Versão do teste: {APP_VERSION}")
             st.markdown("Preencha os dados abaixo para personalizar seu relatório. Ao final, você também receberá uma cópia por email.")
             st.markdown("---")
 
@@ -3963,7 +4079,7 @@ elif st.session_state.current_question <= TOTAL:
     start_question_timer(q_num)
     progresso = (st.session_state.current_question - 1) / TOTAL
     st.progress(progresso)
-    st.caption(f"Versão: {APP_VERSION}  |  Pergunta {st.session_state.current_question} de {TOTAL}  |  Q{q_num}")
+    st.caption(f"Pergunta {st.session_state.current_question} de {TOTAL}  |  Q{q_num}")
     st.markdown("### " + questions_display[q_num])
 
     resposta_anterior = st.session_state.responses.get(q_num)
@@ -4129,15 +4245,20 @@ elif not st.session_state.followup_completo:
             salvar_ultimo_teste(respostas_finais)
 
             perfil_base = gerar_perfil(respostas_finais, st.session_state.followup_answers)
-            perguntas_agente, motivos_agente = gerar_perguntas_agente_ab(
+            perguntas_agente, motivos_agente, stats_v15 = gerar_perguntas_agente_ab_v15(
                 respostas_finais,
                 perfil_base,
-                max_eixos=3
+                perguntas_existentes=[],
+                max_eixos=AGENTE_AB_MAX_PERGUNTAS
             )
 
             st.session_state.perfil_cache = perfil_base
             st.session_state.agente_ab_questions = perguntas_agente
+            st.session_state.agente_ab_questions_history = []
             st.session_state.agente_ab_motivos = motivos_agente
+            st.session_state.agente_v15_status = {"stats_iniciais": stats_v15, "motivos": motivos_agente}
+            st.session_state.agente_v15_rounds = 1 if perguntas_agente else 0
+            st.session_state.agente_v15_bloqueado = False
             st.session_state.followup_completo = True
 
             if not perguntas_agente:
@@ -4155,15 +4276,47 @@ elif not st.session_state.agente_ab_completo:
 
     if not st.session_state.get("agente_ab_questions"):
         perfil_base = gerar_perfil(respostas_base, st.session_state.followup_answers)
-        perguntas_agente, motivos_agente = gerar_perguntas_agente_ab(
+        historico = list(st.session_state.get("agente_ab_questions_history", []))
+        perguntas_agente, motivos_agente, stats_v15 = gerar_perguntas_agente_ab_v15(
             respostas_base,
             perfil_base,
-            max_eixos=3
+            perguntas_existentes=historico,
+            max_eixos=AGENTE_AB_MAX_PERGUNTAS
         )
         st.session_state.agente_ab_questions = perguntas_agente
         st.session_state.agente_ab_motivos = motivos_agente
+        st.session_state.agente_v15_status = {"stats_iniciais": stats_v15, "motivos": motivos_agente}
+        st.session_state.agente_v15_rounds = max(1, int(st.session_state.get("agente_v15_rounds", 0) or 0)) if perguntas_agente else int(st.session_state.get("agente_v15_rounds", 0) or 0)
 
     perguntas_agente = st.session_state.get("agente_ab_questions", [])
+
+    if st.session_state.get("agente_v15_bloqueado"):
+        st.title("Ainda não há contraste suficiente")
+        st.warning(
+            "O padrão de respostas ainda não permite gerar um relatório confiável. "
+            "Isso acontece quando muitas respostas ficam neutras ou iguais, mesmo depois do refinamento."
+        )
+        status_v15 = st.session_state.get("agente_v15_status", {}) or {}
+        if MODO_TESTE:
+            st.markdown("### Debug V15")
+            st.json(status_v15)
+        st.markdown(
+            "Para obter uma leitura realmente precisa, refaça o teste escolhendo respostas que diferenciem melhor seu comportamento real. "
+            "Use neutro apenas quando a frase realmente estiver no meio termo."
+        )
+        if st.button("Refazer o teste", type="primary", key="btn_refazer_v15_bloqueado"):
+            for key in DEFAULTS:
+                if isinstance(DEFAULTS[key], dict):
+                    st.session_state[key] = {}
+                elif isinstance(DEFAULTS[key], list):
+                    st.session_state[key] = []
+                else:
+                    st.session_state[key] = DEFAULTS[key]
+            st.session_state.current_question = 1
+            st.session_state.modo_selecionado = True
+            st.session_state.session_id = str(uuid.uuid4())
+            st.rerun()
+        st.stop()
 
     if not perguntas_agente:
         st.session_state.agente_ab_completo = True
@@ -4171,11 +4324,18 @@ elif not st.session_state.agente_ab_completo:
         save_progress_snapshot()
         st.rerun()
 
-    st.title("Refinamento rápido de precisão")
-    st.markdown(
-        "Algumas respostas ficaram em zona intermediária. "
-        "Para aumentar a precisão do perfil, responda estas perguntas rápidas com base no seu comportamento recente."
-    )
+    st.title("Refinamento de precisão")
+    status_v15_atual = st.session_state.get("agente_v15_status", {}) or {}
+    if status_v15_atual.get("motivos"):
+        st.markdown(
+            "O sistema ainda não tem contraste suficiente para liberar um relatório confiável. "
+            "Responda estas perguntas de desempate com base no seu comportamento recente."
+        )
+    else:
+        st.markdown(
+            "Algumas respostas ficaram em zona intermediária. "
+            "Para aumentar a precisão do perfil, responda estas perguntas rápidas com base no seu comportamento recente."
+        )
     st.markdown("---")
 
     if MODO_TESTE and st.session_state.get("agente_ab_motivos"):
@@ -4206,8 +4366,16 @@ elif not st.session_state.agente_ab_completo:
 
     if completas:
         if st.button("Gerar relatório com refinamento", type="primary"):
+            historico = list(st.session_state.get("agente_ab_questions_history", []))
+            ids_historico = _ids_perguntas_v15(historico)
+            for p in perguntas_agente:
+                if p.get("id") not in ids_historico:
+                    historico.append(p)
+                    ids_historico.add(p.get("id"))
+            st.session_state.agente_ab_questions_history = historico
+
             ajustes_agente = aplicar_respostas_agente_ab(
-                perguntas_agente,
+                historico,
                 st.session_state.agente_ab_answers
             )
 
@@ -4218,14 +4386,47 @@ elif not st.session_state.agente_ab_completo:
                 ajustes_agente
             ) if ajustes_agente else dict(respostas_base)
 
-            salvar_ultimo_teste(respostas_refinadas)
-            st.session_state.perfil_cache = gerar_perfil(
+            perfil_refinado = gerar_perfil(
                 respostas_refinadas,
                 st.session_state.followup_answers
             )
-            st.session_state.agente_ab_completo = True
-            save_progress_snapshot()
-            st.rerun()
+            pronto_v15, status_v15 = avaliar_prontidao_relatorio_v15(
+                respostas_base,
+                respostas_refinadas,
+                perfil_refinado,
+                perguntas_historico=historico
+            )
+            st.session_state.agente_v15_status = status_v15
+            salvar_ultimo_teste(respostas_refinadas)
+
+            if pronto_v15:
+                st.session_state.perfil_cache = perfil_refinado
+                st.session_state.agente_ab_completo = True
+                st.session_state.agente_v15_bloqueado = False
+                save_progress_snapshot()
+                st.rerun()
+            elif status_v15.get("bloqueado_final"):
+                st.session_state.perfil_cache = perfil_refinado
+                st.session_state.agente_v15_bloqueado = True
+                st.session_state.agente_ab_completo = False
+                st.session_state.agente_ab_questions = []
+                save_progress_snapshot()
+                st.rerun()
+            else:
+                st.session_state.agente_v15_rounds = int(st.session_state.get("agente_v15_rounds", 0) or 0) + 1
+                novas_perguntas, novos_motivos, _stats_v15 = gerar_perguntas_agente_ab_v15(
+                    respostas_refinadas,
+                    perfil_refinado,
+                    perguntas_existentes=historico,
+                    max_eixos=AGENTE_AB_MAX_PERGUNTAS
+                )
+                st.session_state.perfil_cache = perfil_refinado
+                st.session_state.agente_ab_questions = novas_perguntas
+                st.session_state.agente_ab_motivos = novos_motivos
+                if not novas_perguntas:
+                    st.session_state.agente_v15_bloqueado = True
+                save_progress_snapshot()
+                st.rerun()
     else:
         st.warning("Responda todas as perguntas rápidas para continuar.")
 
@@ -4251,24 +4452,22 @@ else:
         )
     if st.session_state.get("agente_ab_ajustes"):
         st.success(
-            "Refinamento V14 aplicado com "
+            "Refinamento V15 aplicado com "
             + str(len(st.session_state.get("agente_ab_ajustes", {})))
             + " ajuste(s) de desempate."
         )
 
-    # V14.1: não regenerar o relatório principal em todo rerun.
-    # Isso evita que o clique no botão da Leitura de Funcionamento Real reinicie o fluxo
-    # ou substitua o relatório oficial antes de gerar a leitura complementar.
-    if not st.session_state.get("relatorio_gerado"):
-        with st.spinner("Gerando sua análise profunda..."):
-            relatorio_ai, tracos_forcas_exib, tracos_desafios_exib = gerar_relatorio(perfil)
+    with st.spinner("Gerando sua análise profunda..."):
+        relatorio_ai, tracos_forcas_exib, tracos_desafios_exib = gerar_relatorio(perfil)
 
-        # V7.9: o relatório principal não recebe mais um bloco automático de traços no final,
-        # para evitar re-resumo redundante e reintrodução da mesma tese em formato comprimido.
-        st.session_state.relatorio_gerado = relatorio_ai
+    # V7.9: o relatório principal não recebe mais um bloco automático de traços no final,
+    # para evitar re-resumo redundante e reintrodução da mesma tese em formato comprimido.
+    relatorio = relatorio_ai
+
+    if st.session_state.get("relatorio_gerado", "") != relatorio:
+        st.session_state.relatorio_gerado = relatorio
         st.session_state.relatorio_sem_filtro = ""
 
-    relatorio = st.session_state.get("relatorio_gerado", "")
     st.markdown(relatorio)
 
     if MODO_TESTE:
@@ -4326,10 +4525,7 @@ else:
                     )
 
         st.session_state.dados_registrados = True
-        # V14.1: não limpar o snapshot automaticamente aqui.
-        # Em produção, o usuário ainda pode clicar na leitura complementar; se a sessão reiniciar,
-        # o snapshot permite restaurar o estado em vez de voltar para a tela inicial.
-        # O snapshot será limpo pelos botões de reset/refazer teste.
+        clear_progress_snapshot()
 
     st.markdown("---")
     st.subheader("Leitura complementar")
@@ -4338,27 +4534,6 @@ else:
     if st.button("Ler Leitura de Funcionamento Real", key="btn_relatorio_sem_filtro"):
         with st.spinner("Gerando a Leitura de Funcionamento Real..."):
             st.session_state.relatorio_sem_filtro = gerar_leitura_funcionamento_real(relatorio)
-
-        # V14.2: no modo normal, enviar também a Leitura de Funcionamento Real por email
-        # assim que ela for gerada. O relatório principal continua sendo enviado automaticamente
-        # quando o relatório oficial é registrado.
-        if not MODO_TESTE and not st.session_state.get("relatorio_extra_enviado"):
-            user_info_extra = st.session_state.get("user_info", {}) or {}
-            nome_usuario_extra = user_info_extra.get("nome", "")
-            email_usuario_extra = user_info_extra.get("email", "")
-            if email_usuario_extra and st.session_state.get("relatorio_sem_filtro"):
-                corpo_email_extra = (
-                    relatorio                    + "\n\n---\n\nLEITURA DE FUNCIONAMENTO REAL\n\n"
-                    + st.session_state.relatorio_sem_filtro
-                )
-                ok_email_extra, _ = enviar_email(email_usuario_extra, nome_usuario_extra, corpo_email_extra)
-                if ok_email_extra:
-                    st.session_state.relatorio_extra_enviado = True
-                    st.success(
-                        "A Leitura de Funcionamento Real também foi enviada para **"
-                        + email_usuario_extra
-                        + "**."
-                    )
 
     if st.session_state.get("relatorio_sem_filtro"):
         st.markdown("### Leitura de Funcionamento Real")
@@ -4417,6 +4592,10 @@ else:
         st.session_state.agente_ab_ajustes = {}
         st.session_state.agente_ab_motivos = []
         st.session_state.agente_ab_dynamic_log = []
+        st.session_state.agente_ab_questions_history = []
+        st.session_state.agente_v15_status = {}
+        st.session_state.agente_v15_rounds = 0
+        st.session_state.agente_v15_bloqueado = False
 
     with col1:
         if st.button("Refazer o teste"):
