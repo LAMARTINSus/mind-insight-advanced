@@ -3,9 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V14.2
+# Version: V14.3
 # Data: 2026-05-03
-# Patch: V14.2 exibe versão nas telas iniciais/perguntas e envia a Leitura de Funcionamento Real por email quando gerada
+# Patch: V14.3 revisa acentuação/ortografia das perguntas exibidas, corrige neutralidade artificial e refina nuance de execução
 # Patch: V14.1 corrige cache do relatório e evita retorno ao início ao abrir a Leitura de Funcionamento Real
 # Patch: V14 adiciona motor de precisão adaptativa avançada, memória do agente, risco separado e abundância em duas camadas
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
@@ -126,7 +126,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V14.2"
+APP_VERSION = "V14.3"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -427,6 +427,109 @@ from questions import (
     PERGUNTAS_INVERTIDAS,
     aplicar_inversao,
 )
+
+
+# Correções textuais seguras para perguntas exibidas ao usuário.
+# Importante: esta camada altera apenas strings de apresentação das perguntas.
+# Não altera IDs, nomes de variáveis, chaves internas, pesos, inversões ou lógica do teste.
+def aplicar_correcoes_textuais_perguntas():
+    substituicoes = [
+        ("Voce", "Você"), ("voce", "você"),
+        ("Nao", "Não"), ("nao", "não"),
+        ("Tambem", "Também"), ("tambem", "também"),
+        ("Possivel", "Possível"), ("possivel", "possível"),
+        ("Impossivel", "Impossível"), ("impossivel", "impossível"),
+        ("Pratica", "Prática"), ("pratica", "prática"),
+        ("Pratico", "Prático"), ("pratico", "prático"),
+        ("Automatico", "Automático"), ("automatico", "automático"),
+        ("Automaticamente", "Automaticamente"), ("automaticamente", "automaticamente"),
+        ("Ultimos", "Últimos"), ("ultimos", "últimos"),
+        ("Ultimas", "Últimas"), ("ultimas", "últimas"),
+        ("Facil", "Fácil"), ("facil", "fácil"),
+        ("Dificil", "Difícil"), ("dificil", "difícil"),
+        ("Rapido", "Rápido"), ("rapido", "rápido"),
+        ("Rapida", "Rápida"), ("rapida", "rápida"),
+        ("Horario", "Horário"), ("horario", "horário"),
+        ("Proximo", "Próximo"), ("proximo", "próximo"),
+        ("Proxima", "Próxima"), ("proxima", "próxima"),
+        ("Conexao", "Conexão"), ("conexao", "conexão"),
+        ("Conexoes", "Conexões"), ("conexoes", "conexões"),
+        ("Informacao", "Informação"), ("informacao", "informação"),
+        ("Informacoes", "Informações"), ("informacoes", "informações"),
+        ("Situacao", "Situação"), ("situacao", "situação"),
+        ("Situacoes", "Situações"), ("situacoes", "situações"),
+        ("Decisao", "Decisão"), ("decisao", "decisão"),
+        ("Decisoes", "Decisões"), ("decisoes", "decisões"),
+        ("Acao", "Ação"), ("acao", "ação"),
+        ("Acoes", "Ações"), ("acoes", "ações"),
+        ("Relacao", "Relação"), ("relacao", "relação"),
+        ("Relacoes", "Relações"), ("relacoes", "relações"),
+        ("Emocao", "Emoção"), ("emocao", "emoção"),
+        ("Emocoes", "Emoções"), ("emocoes", "emoções"),
+        ("Reacao", "Reação"), ("reacao", "reação"),
+        ("Reacoes", "Reações"), ("reacoes", "reações"),
+        ("Percepcao", "Percepção"), ("percepcao", "percepção"),
+        ("Percepcoes", "Percepções"), ("percepcoes", "percepções"),
+        ("Atencao", "Atenção"), ("atencao", "atenção"),
+        ("Intencao", "Intenção"), ("intencao", "intenção"),
+        ("Intencoes", "Intenções"), ("intencoes", "intenções"),
+        ("Opiniao", "Opinião"), ("opiniao", "opinião"),
+        ("Opinioes", "Opiniões"), ("opinioes", "opiniões"),
+        ("Posicao", "Posição"), ("posicao", "posição"),
+        ("Posicoes", "Posições"), ("posicoes", "posições"),
+        ("Exposicao", "Exposição"), ("exposicao", "exposição"),
+        ("Avaliacao", "Avaliação"), ("avaliacao", "avaliação"),
+        ("Avaliacoes", "Avaliações"), ("avaliacoes", "avaliações"),
+        ("Organizacao", "Organização"), ("organizacao", "organização"),
+        ("Planejamento", "Planejamento"),
+        ("Execucao", "Execução"), ("execucao", "execução"),
+        ("Consciencia", "Consciência"), ("consciencia", "consciência"),
+        ("Responsavel", "Responsável"), ("responsavel", "responsável"),
+        ("Coerencia", "Coerência"), ("coerencia", "coerência"),
+        ("Consequencia", "Consequência"), ("consequencia", "consequência"),
+        ("Contrario", "Contrário"), ("contrario", "contrário"),
+        ("Necessario", "Necessário"), ("necessario", "necessário"),
+        ("Necessaria", "Necessária"), ("necessaria", "necessária"),
+        ("Proprio", "Próprio"), ("proprio", "próprio"),
+        ("Propria", "Própria"), ("propria", "própria"),
+        ("Nivel", "Nível"), ("nivel", "nível"),
+        ("Ate", "Até"), (" ate ", " até "),
+        ("Apos", "Após"), ("apos", "após"),
+        ("Ja ", "Já "), (" ja ", " já "),
+        ("Inclui-las", "Incluí-las"), ("inclui-las", "incluí-las"),
+        ("Inclui-los", "Incluí-los"), ("inclui-los", "incluí-los"),
+        ("Inclui-la", "Incluí-la"), ("inclui-la", "incluí-la"),
+        ("Inclui-lo", "Incluí-lo"), ("inclui-lo", "incluí-lo"),
+        ("incluí-lás", "incluí-las"), ("incluí-lós", "incluí-los"),
+        ("inclui-lás", "incluí-las"), ("inclui-lós", "incluí-los"),
+    ]
+
+    def corrigir(texto):
+        if not isinstance(texto, str):
+            return texto
+        for antigo, novo in substituicoes:
+            # Evita alterar partes internas de outras palavras.
+            # Ex.: não transformar "Praticamente" em "Práticamente".
+            if antigo.strip() != antigo:
+                texto = texto.replace(antigo, novo)
+            else:
+                texto = re.sub(r"(?<!\w)" + re.escape(antigo) + r"(?!\w)", novo, texto)
+        return texto
+
+    try:
+        for q_num, texto in list(questions_display.items()):
+            questions_display[q_num] = corrigir(texto)
+    except Exception:
+        pass
+
+    try:
+        for q_num, texto in list(questions.items()):
+            questions[q_num] = corrigir(texto)
+    except Exception:
+        pass
+
+
+aplicar_correcoes_textuais_perguntas()
 
 
 # =============================================================
@@ -2818,6 +2921,20 @@ def sanitize_report_output_v81(texto):
 
     texto = texto.replace("\r\n", "\n")
     texto = neutralize_gendered_language_v86(texto)
+    # Corrige tentativas artificiais de neutralidade e pequenos deslizes comuns em saídas geradas.
+    # Mantém linguagem neutra natural sem recorrer a terminações artificiais.
+    correcoes_geradas = {
+        "lembrade": "lembrado pela sua postura",
+        "preparade": "com preparo",
+        "calade": "em silêncio",
+        "cansade": "com cansaço",
+        "travade": "com travamento",
+        "contide": "com postura mais reservada",
+        "mais contide": "com postura mais reservada",
+        "preparad@": "com preparo",
+    }
+    for antigo, novo in correcoes_geradas.items():
+        texto = re.sub(r"\b" + re.escape(antigo) + r"\b", novo, texto, flags=re.IGNORECASE)
 
     padroes_linha_proibida = [
         r"^\s*se quiser.*$",
@@ -3160,11 +3277,11 @@ ESTRUTURA OBRIGATORIA:
 
 INSTRUÇÕES ESPECÍFICAS POR SEÇÃO:
 - BLOCO 1: diga logo, em português simples, qual é o jeito principal de a mente da pessoa funcionar. Nomeie a força e o custo. Esta seção deve conter pelo menos uma frase que poderia ser repetida para resumir a pessoa sem perder a essência. Evite puxar compromisso, execução, disciplina ou sustentação como eixo do bloco 1; isso pertence mais ao bloco 2.
-- EXECUÇÃO: diga com clareza como a pessoa decide, onde ela trava, o que faz ela entrar em ação e qual é o custo prático disso. Troque formulações elegantes por algo que a pessoa reconheça na vida real. Não trate ausência de planejamento ritualizado, sozinha, como procrastinação. Só use a ideia de procrastinação quando houver evidência conjunta de atraso, dependência de disposição, última hora e baixa sustentação.
+- EXECUÇÃO: diga com clareza como a pessoa decide, onde ela trava, o que faz ela entrar em ação e qual é o custo prático disso. Troque formulações elegantes por algo que a pessoa reconheça na vida real. Não trate ausência de planejamento ritualizado, sozinha, como procrastinação. Só use a ideia de procrastinação quando houver evidência conjunta de atraso, dependência de disposição, última hora e baixa sustentação. Se o agente de desempate indicar organização/priorização na execução, não descreva a pessoa como desorganizada; descreva que ela executa melhor com prioridade clara e que o ponto frágil está em cenário nebuloso, clareza insuficiente ou acionamento do primeiro passo.
 - PRESENÇA: diga como a pessoa aparece nos ambientes, quando ela se solta, quando ela se segura e o que isso produz nos outros. Não usar invisibilidade ou reconhecimento como explicação principal. É proibido usar as palavras "entrada" ou "entrar" como resumo vago do comportamento. Prefira formulações concretas como "você demora um pouco mais para se posicionar até entender o contexto" ou equivalentes específicas.
 - MUNDO INTERNO: diga como a pessoa pensa, se cobra, se reconhece e se desgasta por dentro. Troque abstrações como "densidade" e "elaboração" por leitura concreta de vida mental.
 - RELAÇÕES: diga como a pessoa cuida do vínculo, onde ela cede demais, onde ela segura demais e o preço emocional disso. Diferencie relação de presença social.
-- VALOR: diga de forma concreta como a pessoa lida com pedir, cobrar, negociar, ocupar espaço e transformar capacidade em avanço. Esta seção precisa soar prática, não conceitual. É proibido usar prudência, necessidade de base ou tolerância a risco como eixo único desta seção. Só use cautela como parte da explicação quando ela vier junto com sinais locais de merecimento, comparação, dificuldade de pedir, cobrança ou autorização para receber.
+- VALOR: diga de forma concreta como a pessoa lida com pedir, cobrar, negociar, ocupar espaço e transformar capacidade em avanço. Esta seção precisa soar prática, não conceitual. É proibido usar prudência, necessidade de base ou tolerância a risco como eixo único desta seção. Só use cautela como parte da explicação quando ela vier junto com sinais locais de merecimento, comparação, dificuldade de pedir, cobrança ou autorização para receber. Nunca confunda resistência durante a execução com gosto por risco; se houver Segurança alta ou necessidade de previsibilidade alta, descreva cautela na largada e não coragem impulsiva.
 - DIREÇÃO PRÁTICA: cada ação deve atacar um mecanismo diferente e ser escrita como orientação simples, executável e sem linguagem de consultoria.
 - FRASE FINAL: deve ser curta, forte e memorável. Precisa soar como verdade direta, não como frase bonita. Não pode repetir a tese de começar tarde, esperar base, pedir permissão ou mostrar pouco. Feche por um ângulo mais amplo do todo.
 - PRÓXIMOS PASSOS: escreva ações concretas, observáveis e executáveis pela própria pessoa. É proibido usar voz conversacional, convite, oferta de ajuda, primeira pessoa do assistente ou qualquer formulação do tipo "se quiser", "eu posso" ou "posso transformar".
