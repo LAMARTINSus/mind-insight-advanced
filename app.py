@@ -3,10 +3,11 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V14
+# Version: V14.2
 # Data: 2026-05-03
-# Patch: V14 Motor de Precisão Adaptativa Avançada: confiança mais exigente, memória do agente, risco separado, abundância em duas camadas e leitura complementar no modo normal
-# Patch: V13 Motor de Confiança Adaptativa antes da liberação do relatório
+# Patch: V14.2 exibe versão nas telas iniciais/perguntas e envia a Leitura de Funcionamento Real por email quando gerada
+# Patch: V14.1 corrige cache do relatório e evita retorno ao início ao abrir a Leitura de Funcionamento Real
+# Patch: V14 adiciona motor de precisão adaptativa avançada, memória do agente, risco separado e abundância em duas camadas
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
 # Patch: V11 agente A/B fixo com detector de ambiguidade e seleção automática de eixos
 # Patch: V10.1 refina Leitura de Funcionamento Real com cenas concretas, neutralidade natural e ações imediatas
@@ -125,7 +126,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V14"
+APP_VERSION = "V14.2"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -249,14 +250,8 @@ DEFAULTS = {
     "agente_ab_ajustes": {},
     "agente_ab_motivos": [],
     "agente_ab_dynamic_log": [],
-    "agente_memoria_perguntas": [],
-    "agente_memoria_familias": [],
-    "agente_v13_confiancas": {},
-    "agente_v13_rodada": 0,
-    "agente_v13_pronto": False,
-    "agente_v13_status": {},
-    "agente_v13_history": [],
     "relatorio_sem_filtro": "",
+    "relatorio_extra_enviado": False,
     "debug_sheet_users": [],
     "debug_sheet_error": "",
     # Instrumentação científica V9.5
@@ -352,13 +347,6 @@ def build_research_export(respostas_finais=None):
         "agente_ab_motivos": list(st.session_state.get("agente_ab_motivos", [])),
         "agente_ab_questions": list(st.session_state.get("agente_ab_questions", [])),
         "agente_ab_dynamic_log": list(st.session_state.get("agente_ab_dynamic_log", [])),
-        "agente_memoria_perguntas": list(st.session_state.get("agente_memoria_perguntas", [])),
-        "agente_memoria_familias": list(st.session_state.get("agente_memoria_familias", [])),
-        "agente_v13_confiancas": dict(st.session_state.get("agente_v13_confiancas", {})),
-        "agente_v13_rodada": int(st.session_state.get("agente_v13_rodada", 0) or 0),
-        "agente_v13_pronto": bool(st.session_state.get("agente_v13_pronto", False)),
-        "agente_v13_status": dict(st.session_state.get("agente_v13_status", {})),
-        "agente_v13_history": list(st.session_state.get("agente_v13_history", [])),
     }
 
 
@@ -456,18 +444,6 @@ def salvar_ultimo_teste(respostas):
     except Exception:
         return False
 
-RESEARCH_EXPORT_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "research_export.json")
-
-def salvar_research_export(respostas_finais=None):
-    """Gera o pacote técnico completo mesmo no modo normal, mas sem exibir ao usuário comum."""
-    try:
-        payload = build_research_export(respostas_finais)
-        with open(RESEARCH_EXPORT_JSON, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception:
-        return False
-
 def carregar_ultimo_teste():
     if os.path.exists(ULTIMO_TESTE_JSON):
         try:
@@ -536,13 +512,6 @@ def save_progress_snapshot():
         "agente_ab_ajustes": {str(k): v for k, v in st.session_state.get("agente_ab_ajustes", {}).items()},
         "agente_ab_motivos": list(st.session_state.get("agente_ab_motivos", [])),
         "agente_ab_dynamic_log": list(st.session_state.get("agente_ab_dynamic_log", [])),
-        "agente_memoria_perguntas": list(st.session_state.get("agente_memoria_perguntas", [])),
-        "agente_memoria_familias": list(st.session_state.get("agente_memoria_familias", [])),
-        "agente_v13_confiancas": dict(st.session_state.get("agente_v13_confiancas", {})),
-        "agente_v13_rodada": int(st.session_state.get("agente_v13_rodada", 0) or 0),
-        "agente_v13_pronto": bool(st.session_state.get("agente_v13_pronto", False)),
-        "agente_v13_status": dict(st.session_state.get("agente_v13_status", {})),
-        "agente_v13_history": list(st.session_state.get("agente_v13_history", [])),
         "session_id": st.session_state.get("session_id", ""),
         "question_time_total": dict(st.session_state.get("question_time_total", {})),
         "question_time_events": list(st.session_state.get("question_time_events", [])),
@@ -606,13 +575,6 @@ def restore_progress_snapshot(snapshot):
     st.session_state.agente_ab_ajustes = _normalize_int_dict(snapshot.get("agente_ab_ajustes", {}))
     st.session_state.agente_ab_motivos = list(snapshot.get("agente_ab_motivos", []))
     st.session_state.agente_ab_dynamic_log = list(snapshot.get("agente_ab_dynamic_log", []))
-    st.session_state.agente_memoria_perguntas = list(snapshot.get("agente_memoria_perguntas", []))
-    st.session_state.agente_memoria_familias = list(snapshot.get("agente_memoria_familias", []))
-    st.session_state.agente_v13_confiancas = dict(snapshot.get("agente_v13_confiancas", {}))
-    st.session_state.agente_v13_rodada = int(snapshot.get("agente_v13_rodada", 0) or 0)
-    st.session_state.agente_v13_pronto = bool(snapshot.get("agente_v13_pronto", False))
-    st.session_state.agente_v13_status = dict(snapshot.get("agente_v13_status", {}))
-    st.session_state.agente_v13_history = list(snapshot.get("agente_v13_history", []))
     st.session_state.session_id = snapshot.get("session_id", st.session_state.get("session_id", "")) or str(uuid.uuid4())
     st.session_state.question_time_total = dict(snapshot.get("question_time_total", {}))
     st.session_state.question_time_events = list(snapshot.get("question_time_events", []))
@@ -987,25 +949,17 @@ def gerar_followups(perfil):
 
 
 # =============================================================
-# AGENTE V13 - CONFIANÇA ADAPTATIVA + DESEMPATE DINÂMICO CONTROLADO
+# AGENTE V12 - DESEMPATE DINÂMICO CONTROLADO
 # =============================================================
 
-# A V13 preserva a V12, mas adiciona um motor de confiança adaptativa.
-# O relatório só é liberado quando os eixos críticos atingem uma margem mínima
-# de segurança interpretativa, ou quando o sistema alcança limites seguros de
-# rodadas/perguntas para evitar fadiga do usuário.
+# A V12 mantém o banco fixo como fallback seguro e adiciona geração dinâmica
+# controlada. A IA nunca escolhe livremente o que perguntar: o sistema define
+# a ambiguidade, as hipóteses, o eixo alvo e os limites. A IA apenas redige a
+# melhor pergunta A/B dentro desse trilho.
 
 AGENTE_AB_MAX_PERGUNTAS = 3
 AGENTE_AB_USAR_DINAMICO = True
 AGENTE_AB_MAX_DELTA_POR_ITEM = 1
-
-# V13 - margens de segurança interpretativa
-AGENTE_V13_MARGEM_MEDIA = 0.78
-AGENTE_V13_MARGEM_EIXO_CRITICO = 0.72
-AGENTE_V13_MARGEM_MINIMA_EIXO = 0.62
-AGENTE_V13_MAX_RODADAS = 3
-AGENTE_V13_MAX_PERGUNTAS_TOTAL = 10
-AGENTE_V13_MAX_PERGUNTAS_POR_RODADA = 2
 
 BANCO_PERGUNTAS_AB = {
     "Conscienciosidade": [
@@ -1114,12 +1068,6 @@ BANCO_PERGUNTAS_AB = {
         }
     ],
 }
-
-# V14: cada pergunta tem uma família. Isso permite evitar repetição da mesma pergunta
-# ou do mesmo tipo de pergunta em rodadas/retestes próximos.
-for _eixo_v14, _lista_v14 in BANCO_PERGUNTAS_AB.items():
-    for _idx_v14, _pergunta_v14 in enumerate(_lista_v14):
-        _pergunta_v14.setdefault("familia", f"{_eixo_v14.lower()}_{_pergunta_v14.get('titulo', _pergunta_v14.get('id', _idx_v14)).lower().replace(' ', '_')}")
 
 
 def calcular_compressao_respostas(respostas):
@@ -1277,36 +1225,6 @@ def _extrair_json_objeto(texto):
         return None
 
 
-def _familias_usadas_agente_v14():
-    usadas = set(st.session_state.get("agente_memoria_familias", []) or [])
-    for pergunta in st.session_state.get("agente_ab_questions", []) or []:
-        fam = pergunta.get("familia") or pergunta.get("titulo") or pergunta.get("id")
-        if fam:
-            usadas.add(str(fam))
-    return usadas
-
-def _perguntas_usadas_agente_v14():
-    usadas = set(st.session_state.get("agente_memoria_perguntas", []) or [])
-    for pergunta in st.session_state.get("agente_ab_questions", []) or []:
-        qid = pergunta.get("id")
-        if qid:
-            usadas.add(str(qid))
-    return usadas
-
-def registrar_pergunta_usada_v14(pergunta):
-    qid = str(pergunta.get("id", "")).strip()
-    familia = str(pergunta.get("familia", pergunta.get("titulo", ""))).strip()
-    if qid:
-        atuais = list(st.session_state.get("agente_memoria_perguntas", []))
-        if qid not in atuais:
-            atuais.append(qid)
-        st.session_state.agente_memoria_perguntas = atuais[-50:]
-    if familia:
-        atuais = list(st.session_state.get("agente_memoria_familias", []))
-        if familia not in atuais:
-            atuais.append(familia)
-        st.session_state.agente_memoria_familias = atuais[-50:]
-
 def validar_pergunta_dinamica(q):
     campos = ["id", "pergunta", "A", "B", "hipotese_A", "hipotese_B", "eixo_alvo", "peso_sugerido"]
     for campo in campos:
@@ -1337,13 +1255,6 @@ def validar_pergunta_dinamica(q):
             return False, "peso_fora_limite"
     except Exception:
         return False, "peso_invalido"
-
-    qid = str(q.get("id", "")).strip()
-    familia = str(q.get("familia", q.get("id", ""))).strip()
-    if qid and ("dyn_" + qid) in _perguntas_usadas_agente_v14():
-        return False, "pergunta_repetida"
-    if familia and familia in _familias_usadas_agente_v14():
-        return False, "familia_repetida"
     return True, "ok"
 
 
@@ -1363,15 +1274,11 @@ def construir_contexto_ambiguidade(perfil, eixo):
             "auto_reconhecimento": derived.get("auto_reconhecimento"),
             "assertividade": derived.get("assertividade"),
             "tolerancia_risco": derived.get("tolerancia_risco"),
-            "risco_na_largada": derived.get("risco_na_largada"),
-            "resistencia_na_execucao": derived.get("resistencia_na_execucao"),
             "visibilidade_pessoal": derived.get("visibilidade_pessoal"),
             "evita_conflito": derived.get("evita_conflito"),
             "necessidade_previsibilidade": derived.get("necessidade_previsibilidade"),
             "merecimento_economico": derived.get("merecimento_economico"),
             "impulso_expansao": derived.get("impulso_expansao"),
-            "percepcao_de_oportunidade": derived.get("percepcao_de_oportunidade"),
-            "acao_de_expansao": derived.get("acao_de_expansao"),
             "ruminacao_pos_evento": derived.get("ruminacao_pos_evento"),
         },
     }
@@ -1417,15 +1324,9 @@ REGRAS INEGOCIÁVEIS:
 - Uma pergunta deve resolver apenas uma ambiguidade.
 - Linguagem simples, concreta, brasileira e observável.
 
-FAMÍLIAS JÁ USADAS NESTA SESSÃO/RETESTE:
-{json.dumps(list(_familias_usadas_agente_v14()), ensure_ascii=False)}
-
-NÃO gere pergunta da mesma família das já usadas. Varie o cenário comportamental se o eixo já apareceu antes.
-
 FORMATO EXATO:
 {{
   "id": "id_curto_sem_espacos",
-  "familia": "familia_curta_sem_espacos",
   "pergunta": "...",
   "A": "...",
   "B": "...",
@@ -1454,7 +1355,6 @@ FORMATO EXATO:
         pergunta_final = dict(pergunta_fallback)
         pergunta_final.update({
             "id": "dyn_" + str(gerada["id"]),
-            "familia": str(gerada.get("familia", gerada.get("id"))).strip(),
             "pergunta": gerada["pergunta"].strip(),
             "A": gerada["A"].strip(),
             "B": gerada["B"].strip(),
@@ -1491,7 +1391,6 @@ def gerar_perguntas_agente_ab(respostas, perfil, max_eixos=AGENTE_AB_MAX_PERGUNT
             pergunta["score_ambiguidade"] = item["score"]
             pergunta["taxa_media"] = item["taxa_media"]
             pergunta["taxa_extremos"] = item["taxa_extremos"]
-            registrar_pergunta_usada_v14(pergunta)
             perguntas.append(pergunta)
             logs.append(log)
 
@@ -1527,241 +1426,6 @@ def obter_respostas_finais_com_ajustes():
     if st.session_state.get("agente_ab_ajustes"):
         respostas_finais = aplicar_ajustes_calibracao(respostas_finais, st.session_state.agente_ab_ajustes)
     return respostas_finais
-
-
-# =============================================================
-# MOTOR V13 - CONFIANÇA ADAPTATIVA
-# =============================================================
-
-def _media_lista_v13(valores, default=0.0):
-    valores = [float(v) for v in valores if v is not None]
-    return round(sum(valores) / len(valores), 3) if valores else default
-
-
-def _clamp_v13(valor, minimo=0.0, maximo=1.0):
-    try:
-        valor = float(valor)
-    except Exception:
-        valor = minimo
-    return round(max(minimo, min(maximo, valor)), 3)
-
-
-def _contar_respostas_agente_por_eixo_v13(perguntas=None, respostas_agente=None):
-    perguntas = perguntas if perguntas is not None else st.session_state.get("agente_ab_questions", [])
-    respostas_agente = respostas_agente if respostas_agente is not None else st.session_state.get("agente_ab_answers", {})
-    contagem = {}
-    for pergunta in perguntas or []:
-        qid = pergunta.get("id")
-        eixo = pergunta.get("eixo")
-        if qid and eixo and qid in respostas_agente:
-            contagem[eixo] = contagem.get(eixo, 0) + 1
-    return contagem
-
-
-def calcular_confianca_eixo_v13(eixo, respostas, perfil=None, perguntas_agente=None, respostas_agente=None):
-    """Calcula confiança interpretativa por eixo antes de liberar relatório.
-
-    A pontuação não mede se o traço é alto ou baixo. Mede se os sinais estão
-    definidos o bastante para sustentar uma leitura confiável.
-    """
-    valores = [int(v) for v in respostas if v is not None]
-    if not valores:
-        return {"confianca": 0.0, "nivel": "baixa", "motivos": ["sem_respostas"]}
-
-    total = len(valores)
-    zona_media = sum(1 for v in valores if v in [2, 3, 4]) / total
-    extremos = sum(1 for v in valores if v in [1, 5]) / total
-    amplitude = (max(valores) - min(valores)) / 4 if total else 0
-
-    score = 0.52
-    score += extremos * 0.26
-    score += amplitude * 0.14
-    score -= max(0, zona_media - 0.55) * 0.34
-
-    # Respostas do agente aumentam confiança porque resolvem desempate recente.
-    contagem_agente = _contar_respostas_agente_por_eixo_v13(perguntas_agente, respostas_agente)
-    qtd_agente = contagem_agente.get(eixo, 0)
-    if qtd_agente == 1:
-        score += 0.12
-    elif qtd_agente >= 2:
-        score += 0.18
-
-    # Contrastes fortes pedem um pouco mais de evidência.
-    motivos = []
-    if perfil:
-        medias = perfil.get("medias", {})
-        contrastes = detectar_contrastes_fortes(medias, limite=1.0) if medias else []
-        if any(eixo in [c.get("eixo_1"), c.get("eixo_2")] for c in contrastes[:3]):
-            score -= 0.04
-            motivos.append("contraste_forte")
-        if any(eixo in [p.get("eixo_1"), p.get("eixo_2")] for p in detectar_eixos_proximos(medias)):
-            score -= 0.05
-            motivos.append("eixo_proximo")
-
-    if zona_media >= 0.70:
-        motivos.append("zona_media_alta")
-    if extremos <= 0.15:
-        motivos.append("poucos_extremos")
-    if amplitude < 0.50:
-        motivos.append("baixa_amplitude")
-    if qtd_agente > 0:
-        motivos.append("refinado_por_agente")
-
-    confianca = _clamp_v13(score)
-    if confianca >= 0.75:
-        nivel = "alta"
-    elif confianca >= 0.60:
-        nivel = "media"
-    else:
-        nivel = "baixa"
-
-    return {
-        "confianca": confianca,
-        "nivel": nivel,
-        "zona_media": round(zona_media, 3),
-        "extremos": round(extremos, 3),
-        "amplitude": round(amplitude, 3),
-        "perguntas_agente": qtd_agente,
-        "motivos": list(dict.fromkeys(motivos)),
-    }
-
-
-def calcular_confiancas_perfil_v13(respostas, perfil=None, perguntas_agente=None, respostas_agente=None):
-    confiancas = {}
-    for eixo, itens in BLOCOS.items():
-        valores = [int(respostas.get(q)) for q in itens if q in respostas]
-        confiancas[eixo] = calcular_confianca_eixo_v13(
-            eixo, valores, perfil=perfil, perguntas_agente=perguntas_agente, respostas_agente=respostas_agente
-        )
-    return confiancas
-
-
-def identificar_eixos_criticos_v13(perfil, confiancas):
-    medias = perfil.get("medias", {}) if perfil else {}
-    criticos = set()
-
-    # Eixos com menor confiança sempre entram no radar.
-    ordenados_conf = sorted(confiancas.items(), key=lambda x: x[1].get("confianca", 0))
-    for eixo, dados in ordenados_conf[:3]:
-        if dados.get("confianca", 0) < AGENTE_V13_MARGEM_EIXO_CRITICO:
-            criticos.add(eixo)
-
-    # Maior contraste é sempre estruturalmente relevante.
-    contrastes = detectar_contrastes_fortes(medias, limite=1.0) if medias else []
-    for contraste in contrastes[:2]:
-        criticos.add(contraste["eixo_1"])
-        criticos.add(contraste["eixo_2"])
-
-    # Eixos muito altos ou muito baixos sustentam diferenciação do perfil.
-    for eixo, valor in medias.items():
-        if valor >= 4.15 or valor <= 2.15:
-            criticos.add(eixo)
-
-    return list(criticos)
-
-
-def avaliar_prontidao_relatorio_v13(respostas, perfil, perguntas_agente=None, respostas_agente=None):
-    confiancas = calcular_confiancas_perfil_v13(respostas, perfil, perguntas_agente, respostas_agente)
-    eixos_criticos = identificar_eixos_criticos_v13(perfil, confiancas)
-    media_confianca = _media_lista_v13([d.get("confianca", 0) for d in confiancas.values()])
-    menor_confianca = min([d.get("confianca", 0) for d in confiancas.values()] or [0])
-    criticos_baixos = [
-        eixo for eixo in eixos_criticos
-        if confiancas.get(eixo, {}).get("confianca", 0) < AGENTE_V13_MARGEM_EIXO_CRITICO
-    ]
-
-    pronto = (
-        media_confianca >= AGENTE_V13_MARGEM_MEDIA
-        and menor_confianca >= AGENTE_V13_MARGEM_MINIMA_EIXO
-        and not criticos_baixos
-    )
-
-    status = {
-        "pronto": bool(pronto),
-        "media_confianca": round(media_confianca, 3),
-        "menor_confianca": round(menor_confianca, 3),
-        "eixos_criticos": eixos_criticos,
-        "criticos_baixos": criticos_baixos,
-        "margem_media": AGENTE_V13_MARGEM_MEDIA,
-        "margem_eixo_critico": AGENTE_V13_MARGEM_EIXO_CRITICO,
-        "margem_minima_eixo": AGENTE_V13_MARGEM_MINIMA_EIXO,
-    }
-    return bool(pronto), confiancas, status
-
-
-def gerar_perguntas_v13_para_eixos(eixos, perfil, max_perguntas=AGENTE_V13_MAX_PERGUNTAS_POR_RODADA):
-    perguntas = []
-    logs = []
-    usados = {q.get("id") for q in st.session_state.get("agente_ab_questions", []) if q.get("id")}
-    rodada = int(st.session_state.get("agente_v13_rodada", 0) or 0) + 1
-
-    for eixo in eixos:
-        if len(perguntas) >= max_perguntas:
-            break
-        banco = BANCO_PERGUNTAS_AB.get(eixo, [])
-        if not banco:
-            continue
-        fallback = dict(banco[0])
-        fallback["score_ambiguidade"] = 0
-        fallback["taxa_media"] = 0
-        fallback["taxa_extremos"] = 0
-        fallback["metadados_selecao"] = {"eixo": eixo, "motivos": ["v13_confianca_baixa"]}
-        pergunta, log = gerar_pergunta_dinamica_controlada(eixo, fallback, perfil, metadados=fallback["metadados_selecao"])
-
-        # Evita colisão de key/id no Streamlit em rodadas adicionais.
-        base_id = pergunta.get("id", fallback.get("id", eixo.lower()))
-        novo_id = base_id
-        contador = 2
-        while novo_id in usados:
-            novo_id = f"{base_id}_r{rodada}_{contador}"
-            contador += 1
-        pergunta["id"] = novo_id
-        pergunta["rodada_v13"] = rodada
-        pergunta["fonte_v13"] = "confianca_adaptativa"
-        usados.add(novo_id)
-        registrar_pergunta_usada_v14(pergunta)
-        perguntas.append(pergunta)
-        logs.append(log)
-
-    try:
-        st.session_state.agente_ab_dynamic_log = list(st.session_state.get("agente_ab_dynamic_log", [])) + logs
-    except Exception:
-        pass
-    return perguntas
-
-
-def selecionar_eixos_para_nova_rodada_v13(confiancas, status, perguntas_existentes=None):
-    perguntas_existentes = perguntas_existentes if perguntas_existentes is not None else st.session_state.get("agente_ab_questions", [])
-    contagem = _contar_respostas_agente_por_eixo_v13(perguntas_existentes, st.session_state.get("agente_ab_answers", {}))
-
-    candidatos = []
-    for eixo in status.get("criticos_baixos", []) + status.get("eixos_criticos", []):
-        if contagem.get(eixo, 0) >= 2:
-            continue
-        dados = confiancas.get(eixo, {})
-        candidatos.append((eixo, dados.get("confianca", 0)))
-
-    if not candidatos:
-        for eixo, dados in confiancas.items():
-            if contagem.get(eixo, 0) < 2 and dados.get("confianca", 0) < AGENTE_V13_MARGEM_EIXO_CRITICO:
-                candidatos.append((eixo, dados.get("confianca", 0)))
-
-    ordenados = sorted(candidatos, key=lambda x: x[1])
-    return [eixo for eixo, _ in ordenados[:AGENTE_V13_MAX_PERGUNTAS_POR_RODADA]]
-
-
-def registrar_status_v13(confiancas, status):
-    st.session_state.agente_v13_confiancas = confiancas
-    st.session_state.agente_v13_status = status
-    st.session_state.agente_v13_pronto = bool(status.get("pronto", False))
-    historico = list(st.session_state.get("agente_v13_history", []))
-    historico.append({
-        "rodada": int(st.session_state.get("agente_v13_rodada", 0) or 0),
-        "status": status,
-        "confiancas": confiancas,
-        "timestamp": datetime.datetime.now().isoformat(timespec="seconds"),
-    })
-    st.session_state.agente_v13_history = historico[-10:]
 
 # =============================================================
 # ENGINE DE CÁLCULO
@@ -1929,10 +1593,6 @@ def compute_derived_variables(medias, raw, adjusted, followup_answers=None):
     auto_reconhecimento = avg(raw.get(80, 3), raw.get(89, 3), raw.get(76, 3))
     assertividade = avg(raw.get(87, 3), raw.get(88, 3), adjusted.get(36, 3), adjusted.get(30, 3))
     tolerancia_risco = avg(adjusted.get(54, 3), adjusted.get(57, 3), adjusted.get(60, 3), adjusted.get(62, 3))
-    # V14: separa risco de entrada de resistência depois que a execução já começou.
-    # Alto risco_na_largada = mais aversão a começar sem clareza.
-    risco_na_largada = avg(adjusted.get(53, 3), adjusted.get(55, 3), adjusted.get(61, 3), adjusted.get(63, 3), (6 - adjusted.get(54, 3)), (6 - adjusted.get(57, 3)), (6 - adjusted.get(60, 3)))
-    resistencia_na_execucao = avg(adjusted.get(11, 3), adjusted.get(17, 3), raw.get(20, 3), raw.get(82, 3), adjusted.get(43, 3), adjusted.get(45, 3), adjusted.get(48, 3))
     presenca_relacional = avg(raw.get(85, 3), raw.get(86, 3), raw.get(75, 3))
     impulso_social = avg(adjusted.get(21, 3), adjusted.get(22, 3), adjusted.get(24, 3), adjusted.get(26, 3))
     autoexigencia = avg((6 - raw.get(79, 3)), (6 - raw.get(80, 3)), (6 - raw.get(89, 3)))
@@ -1954,9 +1614,6 @@ def compute_derived_variables(medias, raw, adjusted, followup_answers=None):
     merecimento_economico = avg(raw.get(72, 3), raw.get(76, 3), raw.get(80, 3))
     impulso_expansao = avg(adjusted.get(64, 3), adjusted.get(68, 3), adjusted.get(70, 3), adjusted.get(83, 3))
     comparacao_escassez = avg(adjusted.get(65, 3), adjusted.get(67, 3), adjusted.get(73, 3))
-    # V14: separa ver oportunidade de agir concretamente sobre oportunidade.
-    percepcao_de_oportunidade = avg(adjusted.get(64, 3), adjusted.get(68, 3), adjusted.get(70, 3), adjusted.get(83, 3))
-    acao_de_expansao = avg(raw.get(72, 3), raw.get(76, 3), adjusted.get(66, 3), adjusted.get(71, 3), (6 - adjusted.get(69, 3)))
 
     # Ajustes pelos follow-ups
     if followup_answers.get("posicionamento_social") == "Falo de forma direta e tranquila":
@@ -1990,18 +1647,10 @@ def compute_derived_variables(medias, raw, adjusted, followup_answers=None):
         tolerancia_risco = min(5.0, round(tolerancia_risco + 0.20, 2))
         impulso_expansao = min(5.0, round(impulso_expansao + 0.15, 2))
 
-    # Mantém novas derivadas dentro da escala após eventuais ajustes.
-    risco_na_largada = max(1.0, min(5.0, round(risco_na_largada, 2)))
-    resistencia_na_execucao = max(1.0, min(5.0, round(resistencia_na_execucao, 2)))
-    percepcao_de_oportunidade = max(1.0, min(5.0, round(percepcao_de_oportunidade, 2)))
-    acao_de_expansao = max(1.0, min(5.0, round(acao_de_expansao, 2)))
-
     return {
         "auto_reconhecimento": auto_reconhecimento,
         "assertividade": assertividade,
         "tolerancia_risco": tolerancia_risco,
-        "risco_na_largada": risco_na_largada,
-        "resistencia_na_execucao": resistencia_na_execucao,
         "presenca_relacional": presenca_relacional,
         "impulso_social": impulso_social,
         "autoexigencia": autoexigencia,
@@ -2020,8 +1669,6 @@ def compute_derived_variables(medias, raw, adjusted, followup_answers=None):
         "necessidade_previsibilidade": necessidade_previsibilidade,
         "merecimento_economico": merecimento_economico,
         "impulso_expansao": impulso_expansao,
-        "percepcao_de_oportunidade": percepcao_de_oportunidade,
-        "acao_de_expansao": acao_de_expansao,
         "comparacao_escassez": comparacao_escassez,
     }
 
@@ -2154,8 +1801,6 @@ def engine_execucao_decisao(medias, derived, raw, followup_answers=None):
     consc = medias["Conscienciosidade"]
     seg = medias["Seguranca"]
     risco = derived["tolerancia_risco"]
-    risco_entrada = derived.get("risco_na_largada", risco)
-    resistencia_execucao = derived.get("resistencia_na_execucao", 3)
     auto_exec = derived["autonomia_execucao"]
     previs = derived.get("necessidade_previsibilidade", 3)
     planejamento = derived.get("planejamento_antecipado", 3)
@@ -2164,10 +1809,6 @@ def engine_execucao_decisao(medias, derived, raw, followup_answers=None):
     atraso_operacional = derived.get("atraso_operacional", 3)
     sustentacao_pos_inicio = derived.get("sustentacao_pos_inicio", 3)
     risco_exp = followup_answers.get("risco_expansao", "")
-
-    if risco_entrada >= 3.6 and resistencia_execucao >= 3.5:
-        leitura.append("aversao_risco_na_largada_com_resistencia_depois")
-        riscos.append("Você pode evitar começar sem clareza, mas tende a sustentar melhor depois que já existe caminho em andamento.")
 
     if consc >= 3.5:
         leitura.append("execucao_estavel")
@@ -2291,8 +1932,6 @@ def engine_valor_oportunidade(medias, derived, raw, followup_answers=None):
     autoex = derived["autoexigencia"]
     merecimento = derived.get("merecimento_economico", 3)
     impulso_expansao = derived.get("impulso_expansao", 3)
-    percepcao_oportunidade = derived.get("percepcao_de_oportunidade", impulso_expansao)
-    acao_expansao = derived.get("acao_de_expansao", impulso_expansao)
     comparacao_escassez = derived.get("comparacao_escassez", 3)
     rec = followup_answers.get("reconhecimento", "")
     risco_exp = followup_answers.get("risco_expansao", "")
@@ -2308,10 +1947,6 @@ def engine_valor_oportunidade(medias, derived, raw, followup_answers=None):
     if risco <= 2.7 and (merecimento <= 3.2 or comparacao_escassez >= 3.4 or risco_exp == "Esperar informação suficiente antes de agir"):
         leitura.append("ocupacao_de_espaco_passa_por_filtro_de_segurança")
         riscos.append("Você pode exigir garantias demais antes de pedir, propor, cobrar ou ocupar espaço.")
-
-    if percepcao_oportunidade >= 3.6 and acao_expansao <= 3.2:
-        leitura.append("ve_oportunidade_antes_de_transformar_em_acao")
-        riscos.append("Você pode enxergar avanço e mesmo assim demorar para transformar isso em proposta, pedido, preço, negociação ou movimento visível.")
 
     if impulso_expansao <= 3.0 and merecimento <= 3.2:
         leitura.append("avanco_precisa_de_justificativa_forte")
@@ -3422,15 +3057,6 @@ Se a família causal proibida reaparecer como eixo, custo central, fechamento ce
 MODULADOR DE COMPRESSÃO:
 {modulador_tom}
 
-REGRAS V14 DE PRECISÃO ADAPTATIVA:
-- Nunca confunda resistência durante execução com gosto por risco na largada.
-- Se risco_na_largada estiver alto, descreva necessidade de clareza/controle antes do começo, mesmo que resistência_na_execucao também esteja alta.
-- Nunca confunda percepção de oportunidade com ação concreta de expansão.
-- Se percepcao_de_oportunidade estiver alta e acao_de_expansao não acompanhar, escreva: a pessoa vê caminho, mas precisa transformar isso em pedido, proposta, preço, escopo ou negociação.
-- Em Presença Social, descreva o custo real da entrada tardia: perder voz, timing, influência inicial e ser subestimado.
-- Em Conflito, descreva a sequência comportamental: percebe cedo, segura, suaviza, adapta, acumula e fala tarde.
-- Em Mundo Interno, se ruminação for baixa e autoaceitação alta, avalie se existe resolução rápida demais sem aprofundar o desconforto.
-
 DADOS GERAIS DO PERFIL:
 RANKING DOS EIXOS:
 {linhas_ranking}
@@ -3444,9 +3070,7 @@ MAIOR CONTRASTE:
 VARIAVEIS DERIVADAS:
 - auto_reconhecimento: {derived['auto_reconhecimento']:.2f}
 - assertividade: {derived['assertividade']:.2f}
-- tolerancia_risco legado: {derived['tolerancia_risco']:.2f}
-- risco_na_largada: {derived.get('risco_na_largada', 3):.2f}
-- resistencia_na_execucao: {derived.get('resistencia_na_execucao', 3):.2f}
+- tolerancia_risco: {derived['tolerancia_risco']:.2f}
 - presenca_relacional: {derived['presenca_relacional']:.2f}
 - impulso_social: {derived['impulso_social']:.2f}
 - autoexigencia: {derived['autoexigencia']:.2f}
@@ -3460,18 +3084,16 @@ VARIAVEIS DERIVADAS:
 - ruminacao_pos_evento: {derived.get('ruminacao_pos_evento', 3):.2f}
 - necessidade_previsibilidade: {derived.get('necessidade_previsibilidade', 3):.2f}
 - merecimento_economico: {derived.get('merecimento_economico', 3):.2f}
-- impulso_expansao legado: {derived.get('impulso_expansao', 3):.2f}
-- percepcao_de_oportunidade: {derived.get('percepcao_de_oportunidade', 3):.2f}
-- acao_de_expansao: {derived.get('acao_de_expansao', 3):.2f}
+- impulso_expansao: {derived.get('impulso_expansao', 3):.2f}
 - comparacao_escassez: {derived.get('comparacao_escassez', 3):.2f}
 
 MOTORES CAUSAIS DOMINANTES OBRIGATÓRIOS:
 - EIXO CENTRAL deve ser guiado principalmente por flexibilidade_cognitiva={derived.get('flexibilidade_cognitiva', 3):.2f} e conforto_abstracao={derived.get('conforto_abstracao', 3):.2f}. Esta seção deve falar do jeito de pensar, aprender, conectar assuntos, sintetizar ideias e revisar visão. Deve ser a seção mais mental e mais curta do relatório: no máximo 3 parágrafos curtos antes da frase-resumo. Não deve usar como motor principal atraso para agir, merecimento, conflito, visibilidade social, constância, compromisso, sustentação, execução ou continuidade. Não descreva essa seção como se fosse comportamento de trabalho; descreva o padrão organizador da mente.
-- EXECUÇÃO deve ser guiada principalmente por risco_na_largada={derived.get('risco_na_largada', 3):.2f}, resistencia_na_execucao={derived.get('resistencia_na_execucao', 3):.2f}, necessidade_previsibilidade={derived.get('necessidade_previsibilidade', 3):.2f}, planejamento_pratico={derived.get('planejamento_pratico', 3):.2f} e atraso_operacional={derived.get('atraso_operacional', 3):.2f}. Regra V14: NÃO diga que a pessoa gosta de risco ou tem coragem de entrada só porque sustenta depois. Diferencie aversão ao risco na largada de resistência durante a execução. Esta seção deve falar de critério para agir, suficiência de informação, primeiro passo, risco percebido na entrada e timing de decisão. Não deve explicar o bloco por autoestima, mérito, valor ou sensibilidade relacional.
+- EXECUÇÃO deve ser guiada principalmente por tolerancia_risco={derived['tolerancia_risco']:.2f}, necessidade_previsibilidade={derived.get('necessidade_previsibilidade', 3):.2f}, planejamento_pratico={derived.get('planejamento_pratico', 3):.2f} e atraso_operacional={derived.get('atraso_operacional', 3):.2f}. Esta seção deve falar de critério para agir, suficiência de informação, risco percebido e timing de decisão. Não deve explicar o bloco por autoestima, mérito, valor ou sensibilidade relacional.
 - PRESENÇA deve ser guiada principalmente por visibilidade_pessoal={derived['visibilidade_pessoal']:.2f}, assertividade={derived['assertividade']:.2f} e impulso_social={derived['impulso_social']:.2f}. Esta seção deve falar de ritmo de exposição, forma de se posicionar, participação em contexto novo e modo de ganhar presença. Não deve falar de falta de valor, merecimento ou insegurança interna como causa principal.
 - MUNDO INTERNO deve ser guiado principalmente por auto_reconhecimento={derived['auto_reconhecimento']:.2f}, autoexigencia={derived['autoexigencia']:.2f} e ruminacao_pos_evento={derived.get('ruminacao_pos_evento', 3):.2f}. Esta seção deve falar de como o valor assenta por dentro, como o reconhecimento é absorvido e como a pessoa se mede internamente. Não deve virar descrição de decisão, conflito ou negociação.
 - RELAÇÕES deve ser guiada principalmente por evita_conflito={derived['evita_conflito']:.2f}, presenca_relacional={derived['presenca_relacional']:.2f} e sensibilidade_pressao={derived.get('sensibilidade_pressao', 3):.2f}. Esta seção deve falar de custo de tensão interpessoal, manutenção de vínculo, dificuldade de dizer algo difícil e desgaste relacional. Não deve usar dinheiro, valor ou timing estratégico como eixo principal.
-- VALOR deve ser guiado principalmente por merecimento_economico={derived.get('merecimento_economico', 3):.2f}, percepcao_de_oportunidade={derived.get('percepcao_de_oportunidade', 3):.2f}, acao_de_expansao={derived.get('acao_de_expansao', 3):.2f} e comparacao_escassez={derived.get('comparacao_escassez', 3):.2f}. Regra V14: diferencie ver oportunidade de agir sobre oportunidade. Esta seção deve falar de pedido, proposta, cobrança, negociação, escopo, preço, influência e ocupação concreta de espaço. Não deve ser explicada principalmente por necessidade de previsibilidade, leitura social do ambiente ou custo de conflito.
+- VALOR deve ser guiado principalmente por merecimento_economico={derived.get('merecimento_economico', 3):.2f}, impulso_expansao={derived.get('impulso_expansao', 3):.2f} e comparacao_escassez={derived.get('comparacao_escassez', 3):.2f}. Esta seção deve falar de pedido, proposta, cobrança, negociação, escopo, preço, influência e ocupação concreta de espaço. Não deve ser explicada principalmente por necessidade de previsibilidade, leitura social do ambiente ou custo de conflito.
 
 PADROES PRIORIZADOS:
 {linhas_padroes}
@@ -4101,7 +3723,7 @@ with col_title:
         )
     else:
         st.markdown(
-            '<div class="manus-badge">Análise comportamental potencializada por psicologia científica e inteligência artificial avançada</div>',
+            f'<div class="manus-badge">{APP_VERSION} | Análise comportamental potencializada por psicologia científica e inteligência artificial avançada</div>',
             unsafe_allow_html=True
         )
 
@@ -4165,6 +3787,7 @@ if not st.session_state.modo_selecionado:
         if not st.session_state.user_info_completo:
             st.markdown("---")
             st.subheader("Antes de começar")
+            st.caption(f"Versão do teste: {APP_VERSION}")
             st.markdown("Preencha os dados abaixo para personalizar seu relatório. Ao final, você também receberá uma cópia por email.")
             st.markdown("---")
 
@@ -4223,7 +3846,7 @@ elif st.session_state.current_question <= TOTAL:
     start_question_timer(q_num)
     progresso = (st.session_state.current_question - 1) / TOTAL
     st.progress(progresso)
-    st.caption(f"Pergunta {st.session_state.current_question} de {TOTAL}  |  Q{q_num}")
+    st.caption(f"Versão: {APP_VERSION}  |  Pergunta {st.session_state.current_question} de {TOTAL}  |  Q{q_num}")
     st.markdown("### " + questions_display[q_num])
 
     resposta_anterior = st.session_state.responses.get(q_num)
@@ -4398,10 +4021,6 @@ elif not st.session_state.followup_completo:
             st.session_state.perfil_cache = perfil_base
             st.session_state.agente_ab_questions = perguntas_agente
             st.session_state.agente_ab_motivos = motivos_agente
-            st.session_state.agente_v13_rodada = 1 if perguntas_agente else 0
-            st.session_state.agente_v13_confiancas = {}
-            st.session_state.agente_v13_status = {}
-            st.session_state.agente_v13_history = []
             st.session_state.followup_completo = True
 
             if not perguntas_agente:
@@ -4422,47 +4041,32 @@ elif not st.session_state.agente_ab_completo:
         perguntas_agente, motivos_agente = gerar_perguntas_agente_ab(
             respostas_base,
             perfil_base,
-            max_eixos=AGENTE_AB_MAX_PERGUNTAS
+            max_eixos=3
         )
         st.session_state.agente_ab_questions = perguntas_agente
         st.session_state.agente_ab_motivos = motivos_agente
-        st.session_state.agente_v13_rodada = 1 if perguntas_agente else 0
 
     perguntas_agente = st.session_state.get("agente_ab_questions", [])
 
     if not perguntas_agente:
-        perfil_base = gerar_perfil(respostas_base, st.session_state.followup_answers)
-        pronto, confiancas, status = avaliar_prontidao_relatorio_v13(
-            respostas_base, perfil_base, [], {}
-        )
-        registrar_status_v13(confiancas, status)
         st.session_state.agente_ab_completo = True
-        st.session_state.perfil_cache = perfil_base
+        st.session_state.perfil_cache = gerar_perfil(respostas_base, st.session_state.followup_answers)
         save_progress_snapshot()
         st.rerun()
 
-    st.title("Refinamento de precisão")
+    st.title("Refinamento rápido de precisão")
     st.markdown(
-        "Antes de liberar o relatório, o sistema está checando se os pontos principais do perfil "
-        "já têm confiança suficiente. Responda com base no seu comportamento recente."
+        "Algumas respostas ficaram em zona intermediária. "
+        "Para aumentar a precisão do perfil, responda estas perguntas rápidas com base no seu comportamento recente."
     )
     st.markdown("---")
 
     if MODO_TESTE and st.session_state.get("agente_ab_motivos"):
         st.caption("[DEBUG] Motivos do agente: " + ", ".join(st.session_state.agente_ab_motivos))
-    if MODO_TESTE and st.session_state.get("agente_v13_status"):
-        st.caption("[DEBUG V14] Status confiança: " + json.dumps(st.session_state.agente_v13_status, ensure_ascii=False))
-
-    respostas_agente = st.session_state.get("agente_ab_answers", {})
-    pendentes = [p for p in perguntas_agente if p.get("id") not in respostas_agente]
-
-    if not pendentes:
-        # Caso raro: todas já foram respondidas e a tela foi recarregada antes do botão.
-        pendentes = []
 
     completas = True
 
-    for pergunta in pendentes:
+    for pergunta in perguntas_agente:
         st.markdown(f"**{pergunta.get('titulo', pergunta['eixo'])}**")
         st.caption(pergunta["pergunta"])
 
@@ -4483,79 +4087,30 @@ elif not st.session_state.agente_ab_completo:
 
         st.markdown("---")
 
-    if not pendentes:
-        st.info("Todas as perguntas desta rodada já foram respondidas. Clique para avaliar se o relatório já pode ser liberado.")
-
     if completas:
-        botao_label = "Avaliar confiança e continuar"
-        if st.button(botao_label, type="primary"):
-            todas_perguntas = st.session_state.get("agente_ab_questions", [])
+        if st.button("Gerar relatório com refinamento", type="primary"):
             ajustes_agente = aplicar_respostas_agente_ab(
-                todas_perguntas,
+                perguntas_agente,
                 st.session_state.agente_ab_answers
             )
+
             st.session_state.agente_ab_ajustes = ajustes_agente
 
             respostas_refinadas = aplicar_ajustes_calibracao(
-                respostas_base, ajustes_agente
+                respostas_base,
+                ajustes_agente
             ) if ajustes_agente else dict(respostas_base)
 
-            perfil_refinado = gerar_perfil(
+            salvar_ultimo_teste(respostas_refinadas)
+            st.session_state.perfil_cache = gerar_perfil(
                 respostas_refinadas,
                 st.session_state.followup_answers
             )
-
-            pronto, confiancas, status = avaliar_prontidao_relatorio_v13(
-                respostas_refinadas,
-                perfil_refinado,
-                todas_perguntas,
-                st.session_state.agente_ab_answers
-            )
-            registrar_status_v13(confiancas, status)
-
-            total_perguntas = len(todas_perguntas)
-            rodada_atual = int(st.session_state.get("agente_v13_rodada", 0) or 1)
-            atingiu_limite = (
-                rodada_atual >= AGENTE_V13_MAX_RODADAS
-                or total_perguntas >= AGENTE_V13_MAX_PERGUNTAS_TOTAL
-            )
-
-            if pronto or atingiu_limite:
-                salvar_ultimo_teste(respostas_refinadas)
-                st.session_state.perfil_cache = perfil_refinado
-                st.session_state.agente_ab_completo = True
-                st.session_state.agente_v13_pronto = bool(pronto)
-                if atingiu_limite and not pronto:
-                    status["liberado_por_limite"] = True
-                    st.session_state.agente_v13_status = status
-                save_progress_snapshot()
-                st.rerun()
-
-            eixos_nova_rodada = selecionar_eixos_para_nova_rodada_v13(
-                confiancas, status, todas_perguntas
-            )
-            vagas = max(0, AGENTE_V13_MAX_PERGUNTAS_TOTAL - total_perguntas)
-            novas_perguntas = gerar_perguntas_v13_para_eixos(
-                eixos_nova_rodada,
-                perfil_refinado,
-                max_perguntas=min(AGENTE_V13_MAX_PERGUNTAS_POR_RODADA, vagas)
-            )
-
-            if not novas_perguntas:
-                salvar_ultimo_teste(respostas_refinadas)
-                st.session_state.perfil_cache = perfil_refinado
-                st.session_state.agente_ab_completo = True
-                status["liberado_sem_novas_perguntas"] = True
-                st.session_state.agente_v13_status = status
-                save_progress_snapshot()
-                st.rerun()
-
-            st.session_state.agente_ab_questions = todas_perguntas + novas_perguntas
-            st.session_state.agente_v13_rodada = rodada_atual + 1
+            st.session_state.agente_ab_completo = True
             save_progress_snapshot()
             st.rerun()
     else:
-        st.warning("Responda todas as perguntas desta rodada para continuar.")
+        st.warning("Responda todas as perguntas rápidas para continuar.")
 
 else:
     st.title("Seu Relatório de Perfil")
@@ -4584,17 +4139,19 @@ else:
             + " ajuste(s) de desempate."
         )
 
-    with st.spinner("Gerando sua análise profunda..."):
-        relatorio_ai, tracos_forcas_exib, tracos_desafios_exib = gerar_relatorio(perfil)
+    # V14.1: não regenerar o relatório principal em todo rerun.
+    # Isso evita que o clique no botão da Leitura de Funcionamento Real reinicie o fluxo
+    # ou substitua o relatório oficial antes de gerar a leitura complementar.
+    if not st.session_state.get("relatorio_gerado"):
+        with st.spinner("Gerando sua análise profunda..."):
+            relatorio_ai, tracos_forcas_exib, tracos_desafios_exib = gerar_relatorio(perfil)
 
-    # V7.9: o relatório principal não recebe mais um bloco automático de traços no final,
-    # para evitar re-resumo redundante e reintrodução da mesma tese em formato comprimido.
-    relatorio = relatorio_ai
-
-    if st.session_state.get("relatorio_gerado", "") != relatorio:
-        st.session_state.relatorio_gerado = relatorio
+        # V7.9: o relatório principal não recebe mais um bloco automático de traços no final,
+        # para evitar re-resumo redundante e reintrodução da mesma tese em formato comprimido.
+        st.session_state.relatorio_gerado = relatorio_ai
         st.session_state.relatorio_sem_filtro = ""
 
+    relatorio = st.session_state.get("relatorio_gerado", "")
     st.markdown(relatorio)
 
     if MODO_TESTE:
@@ -4651,10 +4208,11 @@ else:
                         "Verifique sua caixa de entrada (ou spam)."
                     )
 
-        salvar_ultimo_teste(respostas_finais)
-        salvar_research_export(respostas_finais)
         st.session_state.dados_registrados = True
-        clear_progress_snapshot()
+        # V14.1: não limpar o snapshot automaticamente aqui.
+        # Em produção, o usuário ainda pode clicar na leitura complementar; se a sessão reiniciar,
+        # o snapshot permite restaurar o estado em vez de voltar para a tela inicial.
+        # O snapshot será limpo pelos botões de reset/refazer teste.
 
     st.markdown("---")
     st.subheader("Leitura complementar")
@@ -4663,6 +4221,27 @@ else:
     if st.button("Ler Leitura de Funcionamento Real", key="btn_relatorio_sem_filtro"):
         with st.spinner("Gerando a Leitura de Funcionamento Real..."):
             st.session_state.relatorio_sem_filtro = gerar_leitura_funcionamento_real(relatorio)
+
+        # V14.2: no modo normal, enviar também a Leitura de Funcionamento Real por email
+        # assim que ela for gerada. O relatório principal continua sendo enviado automaticamente
+        # quando o relatório oficial é registrado.
+        if not MODO_TESTE and not st.session_state.get("relatorio_extra_enviado"):
+            user_info_extra = st.session_state.get("user_info", {}) or {}
+            nome_usuario_extra = user_info_extra.get("nome", "")
+            email_usuario_extra = user_info_extra.get("email", "")
+            if email_usuario_extra and st.session_state.get("relatorio_sem_filtro"):
+                corpo_email_extra = (
+                    relatorio                    + "\n\n---\n\nLEITURA DE FUNCIONAMENTO REAL\n\n"
+                    + st.session_state.relatorio_sem_filtro
+                )
+                ok_email_extra, _ = enviar_email(email_usuario_extra, nome_usuario_extra, corpo_email_extra)
+                if ok_email_extra:
+                    st.session_state.relatorio_extra_enviado = True
+                    st.success(
+                        "A Leitura de Funcionamento Real também foi enviada para **"
+                        + email_usuario_extra
+                        + "**."
+                    )
 
     if st.session_state.get("relatorio_sem_filtro"):
         st.markdown("### Leitura de Funcionamento Real")
@@ -4721,11 +4300,6 @@ else:
         st.session_state.agente_ab_ajustes = {}
         st.session_state.agente_ab_motivos = []
         st.session_state.agente_ab_dynamic_log = []
-        st.session_state.agente_v13_confiancas = {}
-        st.session_state.agente_v13_rodada = 0
-        st.session_state.agente_v13_pronto = False
-        st.session_state.agente_v13_status = {}
-        st.session_state.agente_v13_history = []
 
     with col1:
         if st.button("Refazer o teste"):
