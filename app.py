@@ -3,9 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V17.2
+# Version: V18
 # Data: 2026-05-04
-# Patch: V17.2 adiciona módulo Direção Profissional com 10 arquétipos, potencial empreendedor e email separado
+# Patch: V18 adiciona empreendedorismo por subtipo, ativação por estrutura e caminhos práticos para tirar ideias do papel
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
 # Patch: V11 agente A/B fixo com detector de ambiguidade e seleção automática de eixos
 # Patch: V10.1 refina Leitura de Funcionamento Real com cenas concretas, neutralidade natural e ações imediatas
@@ -124,7 +124,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V17.2"
+APP_VERSION = "V18"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -3525,31 +3525,160 @@ def _dp_nivel(score):
     return "baixa"
 
 
-def calcular_score_empreendedor(perfil):
-    medias = perfil.get("medias", {}) or {}
-    derived = perfil.get("derived", {}) or {}
-    score = 0
-    if derived.get("autonomia_execucao", 3) >= 3.5:
-        score += 20
-    if derived.get("impulso_expansao", 3) >= 3.5:
-        score += 20
-    if derived.get("merecimento_economico", 3) >= 3.5:
-        score += 15
-    if derived.get("tolerancia_risco", 3) >= 3.3:
-        score += 15
-    if derived.get("visibilidade_pessoal", 3) >= 3.2:
-        score += 10
-    if derived.get("assertividade", 3) >= 3.3:
-        score += 10
-    if derived.get("sustentacao_pos_inicio", 3) >= 3.4:
-        score += 10
-    if medias.get("Seguranca", 3) >= 3.8:
-        score -= 15
-    if derived.get("atraso_operacional", 3) >= 3.8:
-        score -= 10
-    score = max(0, min(100, int(score)))
-    return {"score": score, "nivel": _dp_nivel(score)}
+def calcular_perfil_empreendedor(perfil):
+    """Classifica empreendedorismo por subtipo, não apenas por intensidade.
 
+    A leitura correta não é "serve/não serve para empreender". O objetivo é
+    identificar qual formato de empreendedorismo tende a combinar com o perfil:
+    expansivo, estratégico, técnico, intraempreendedor ou relacional.
+    """
+    medias = perfil.get("medias", {}) or {}
+    d = perfil.get("derived", {}) or {}
+
+    def m(k):
+        return float(medias.get(k, 3.0) or 3.0)
+
+    def dv(k):
+        return float(d.get(k, 3.0) or 3.0)
+
+    impulso = dv("impulso_expansao")
+    merecimento = dv("merecimento_economico")
+    risco = dv("tolerancia_risco")
+    autonomia = dv("autonomia_execucao")
+    sustentacao = dv("sustentacao_pos_inicio")
+    visibilidade = dv("visibilidade_pessoal")
+    assertividade = dv("assertividade")
+    atraso = dv("atraso_operacional")
+    estrutura = dv("necessidade_previsibilidade")
+    presenca_relacional = dv("presenca_relacional")
+    evita_conflito = dv("evita_conflito")
+    abertura = m("Abertura")
+    consc = m("Conscienciosidade")
+    ext = m("Extroversao")
+    amab = m("Amabilidade")
+
+    score_base = 0
+    if impulso >= 3.5:
+        score_base += 22
+    if merecimento >= 3.5:
+        score_base += 18
+    if risco >= 3.3:
+        score_base += 16
+    if autonomia >= 3.4:
+        score_base += 12
+    if sustentacao >= 3.4:
+        score_base += 10
+    if visibilidade >= 3.2:
+        score_base += 8
+    if assertividade >= 3.2:
+        score_base += 8
+    if abertura >= 3.5:
+        score_base += 6
+
+    # Penalidades leves: elas não anulam potencial empreendedor; apenas mudam o formato.
+    if atraso >= 4.0:
+        score_base -= 6
+    if estrutura >= 4.0:
+        score_base -= 4
+    if visibilidade <= 2.5:
+        score_base -= 4
+
+    score_base = max(0, min(100, int(score_base)))
+
+    ativacao = None
+    if atraso >= 4.0 and impulso >= 4.0:
+        ativacao = "estrutura"
+    elif visibilidade <= 2.5 and impulso >= 3.7:
+        ativacao = "exposicao_controlada"
+    elif estrutura >= 4.0 and risco >= 3.7:
+        ativacao = "clareza_minima"
+
+    # Subtipo por padrão dominante.
+    if score_base < 35 and impulso < 3.4:
+        subtipo = "Perfil Profissional Estruturado"
+        nivel = "baixo"
+        titulo = "potencial empreendedor pouco saliente"
+        descricao = (
+            "Seu perfil tende a render melhor com direção clara, papel definido e risco mais controlado. "
+            "Isso não significa incapacidade empreendedora; significa que o caminho de criação exige mais estrutura externa, parceria ou contexto já formado."
+        )
+    elif ext >= 3.8 and visibilidade >= 3.6 and assertividade >= 3.5 and impulso >= 3.7:
+        subtipo = "Empreendedor Expansivo"
+        nivel = "alto"
+        titulo = "potencial empreendedor expansivo"
+        descricao = (
+            "Você tende a empreender melhor quando pode aparecer, vender, abrir portas, assumir frente e transformar presença em movimento. "
+            "Seu caminho favorece criação de mercado, influência, relacionamento ativo e tomada de iniciativa visível."
+        )
+    elif impulso >= 4.0 and merecimento >= 4.0 and risco >= 3.7 and (atraso >= 3.8 or estrutura >= 3.8):
+        subtipo = "Empreendedor Estratégico"
+        nivel = "presente"
+        titulo = "potencial empreendedor estratégico"
+        descricao = (
+            "Você vê crescimento, reconhece oportunidade e tem senso de valor. O ponto crítico não é falta de potencial empreendedor. "
+            "É o formato do início. Você tende a funcionar melhor quando a ideia ganha estrutura mínima, primeiro passo claro e caminho inicial organizado."
+        )
+    elif consc >= 3.7 and visibilidade <= 3.0 and autonomia >= 3.4:
+        subtipo = "Empreendedor Técnico"
+        nivel = "presente"
+        titulo = "potencial empreendedor técnico"
+        descricao = (
+            "Você tende a empreender melhor pela entrega, pela solução e pela qualidade do que constrói. "
+            "Seu caminho favorece produto, serviço especializado, operação bem feita e crescimento baseado em competência concreta."
+        )
+    elif amab >= 3.5 and presenca_relacional >= 3.6 and impulso >= 3.5:
+        subtipo = "Empreendedor Relacional"
+        nivel = "presente"
+        titulo = "potencial empreendedor relacional"
+        descricao = (
+            "Você tende a empreender melhor por confiança, rede, relacionamento e continuidade. "
+            "Seu caminho favorece serviços consultivos, parcerias, comunidades, atendimento de alto valor e negócios construídos por vínculo."
+        )
+    else:
+        subtipo = "Intraempreendedor"
+        nivel = "moderado"
+        titulo = "potencial intraempreendedor"
+        descricao = (
+            "Você possui elementos empreendedores, mas tende a render melhor quando existe uma estrutura de base: empresa, equipe, projeto, plataforma ou mercado já parcialmente formado. "
+            "Seu caminho favorece criar, melhorar e expandir dentro de algo que já tem algum chão."
+        )
+
+    # Se existe núcleo empreendedor forte, nunca chamar de baixo apenas por baixa exposição ou atraso.
+    if impulso >= 4.0 and merecimento >= 4.0 and risco >= 4.0 and nivel == "baixo":
+        subtipo = "Empreendedor Estratégico"
+        nivel = "presente"
+        titulo = "potencial empreendedor estratégico"
+        descricao = (
+            "Você apresenta núcleo empreendedor claro: vê oportunidade, aceita risco com base e reconhece valor. "
+            "O entrave está em dar forma ao início e transformar visão em primeiro movimento concreto."
+        )
+        ativacao = ativacao or "estrutura"
+
+    return {
+        "score": score_base,
+        "nivel": nivel,
+        "titulo": titulo,
+        "subtipo": subtipo,
+        "descricao": descricao,
+        "ativacao": ativacao,
+        "indicadores": {
+            "impulso_expansao": impulso,
+            "merecimento_economico": merecimento,
+            "tolerancia_risco": risco,
+            "autonomia_execucao": autonomia,
+            "sustentacao_pos_inicio": sustentacao,
+            "visibilidade_pessoal": visibilidade,
+            "assertividade": assertividade,
+            "atraso_operacional": atraso,
+            "necessidade_previsibilidade": estrutura,
+        },
+    }
+
+
+def calcular_score_empreendedor(perfil):
+    """Compatibilidade com versões anteriores: retorna score/nivel, mas usando a tipologia V18."""
+    emp = calcular_perfil_empreendedor(perfil)
+    return {"score": emp["score"], "nivel": emp["nivel"], "subtipo": emp["subtipo"]}
 
 def calcular_arquetipos_profissionais(perfil):
     medias = perfil.get("medias", {}) or {}
@@ -3750,7 +3879,7 @@ def gerar_direcao_profissional(perfil):
     top = [a for a in arquetipos if a["score"] >= 50][:4]
     if not top:
         top = arquetipos[:3]
-    empreendedor = calcular_score_empreendedor(perfil)
+    empreendedor = calcular_perfil_empreendedor(perfil)
 
     funcoes = []
     ambientes = []
@@ -3773,30 +3902,17 @@ def gerar_direcao_profissional(perfil):
     ambientes = unique(ambientes, 10)
     alertas = unique(alertas, 10)
 
-    if empreendedor["nivel"] == "alta":
-        emp_txt = (
-            "Você apresenta forte potencial empreendedor. Isso não significa que precise abrir uma empresa, "
-            "mas indica que tende a funcionar bem quando há autonomia, criação de caminho, responsabilidade por resultado, "
-            "exposição e necessidade de transformar oportunidade em movimento concreto. Seu ponto de atenção é foco: "
-            "a energia de expansão precisa virar direção, prioridade e execução visível."
-        )
-    elif empreendedor["nivel"] == "moderada":
-        emp_txt = (
-            "Você possui elementos importantes de perfil empreendedor, especialmente para atuar como intraempreendedor dentro de uma organização. "
-            "Pode performar bem liderando projetos, abrindo frentes, melhorando processos ou conduzindo expansão controlada, desde que exista alguma estrutura mínima para sustentar o movimento."
-        )
-    else:
-        emp_txt = (
-            "Seu perfil não aponta tendência empreendedora dominante neste momento. Isso não significa incapacidade. "
-            "Significa que você tende a render melhor quando existe direção mais clara, risco mais controlado e estrutura suficiente para sustentar decisões."
-        )
-
     linhas = []
     linhas.append("# Direção Profissional")
     linhas.append("**Onde você tende a brilhar com mais consistência**")
     linhas.append("")
-    linhas.append("Esta leitura traduz seu perfil comportamental em possibilidades profissionais. Ela não define seu destino nem substitui experiência, formação ou contexto de vida. Ela mostra ambientes, funções e caminhos onde seus padrões tendem a encontrar mais tração.")
+    linhas.append(
+        "Esta leitura traduz seu perfil comportamental em possibilidades profissionais. "
+        "Ela não define seu destino nem substitui experiência, formação ou contexto de vida. "
+        "Ela mostra ambientes, funções e caminhos onde seus padrões tendem a encontrar mais tração."
+    )
     linhas.append("")
+
     linhas.append("## Seus arquétipos profissionais mais fortes")
     for i, a in enumerate(top[:4], start=1):
         linhas.append(f"### {i}. {a['nome']} — aderência {a['aderencia']} ({a['score']}/100)")
@@ -3823,9 +3939,85 @@ def gerar_direcao_profissional(perfil):
     linhas.append("")
 
     linhas.append("## Potencial empreendedor")
-    linhas.append(f"**Nível estimado:** {empreendedor['nivel']} ({empreendedor['score']}/100)")
-    linhas.append(emp_txt)
+    linhas.append(f"**Tipo identificado:** {empreendedor['subtipo']} ({empreendedor['score']}/100)")
+    linhas.append(f"**Leitura:** {empreendedor['titulo']}.")
+    linhas.append(empreendedor["descricao"])
     linhas.append("")
+
+    if empreendedor.get("subtipo") == "Empreendedor Estratégico" or empreendedor.get("ativacao") == "estrutura":
+        linhas.append("### Ativação do seu potencial")
+        linhas.append(
+            "Seu perfil tende a destravar quando a ideia ganha forma. "
+            "O problema principal não é falta de ambição, visão ou capacidade. "
+            "O ponto que define seu movimento é a presença de estrutura mínima para começar."
+        )
+        linhas.append("")
+        linhas.append("Você tende a funcionar melhor quando:")
+        linhas.append("- o primeiro passo está visível")
+        linhas.append("- a sequência inicial faz sentido")
+        linhas.append("- existe um caminho simples para sair da intenção e entrar em ação")
+        linhas.append("- a ideia foi convertida em tarefa, prazo, escopo ou protótipo")
+        linhas.append("")
+        linhas.append("**Seu padrão invisível:** você pode parecer travar por falta de coragem, mas muitas vezes trava por falta de forma. Quando a forma aparece, sua energia volta a andar.")
+        linhas.append("")
+
+        linhas.append("### Onde encontrar a estrutura que você precisa")
+        linhas.append(
+            "A estrutura que destrava você não precisa nascer toda de dentro de você. "
+            "Ela pode vir de ferramentas, pessoas, modelos, ambientes e acordos inteligentes."
+        )
+        linhas.append("")
+        linhas.append("**Caminhos práticos:**")
+        linhas.append("- **Usar inteligência artificial como organizadora de pensamento:** transformar ideias soltas em etapas, listas, roteiros, planos, páginas, scripts e próximos passos.")
+        linhas.append("- **Procurar parceria com pessoa executora:** alguém com ritmo operacional pode complementar sua visão, especialmente em troca de participação, comissão, equity ou divisão de resultado.")
+        linhas.append("- **Começar com escopo mínimo:** trocar o projeto completo por uma primeira versão pequena, testável e possível de colocar no ar.")
+        linhas.append("- **Usar templates, checklists e frameworks:** qualquer ferramenta que transforma ideia em sequência já reduz a névoa do começo.")
+        linhas.append("- **Entrar em ambientes com estrutura pronta:** plataformas digitais, marketplaces, comunidades, incubadoras, grupos de empreendedores, redes profissionais ou cursos práticos podem fornecer o trilho inicial.")
+        linhas.append("- **Criar uma troca inteligente quando falta dinheiro:** oferecer participação, comissão futura, parceria de receita ou troca de conhecimento por execução.")
+        linhas.append("")
+        linhas.append("**Regra central:** você não precisa de perfeição. Precisa de forma suficiente para começar.")
+        linhas.append("")
+    elif empreendedor.get("subtipo") == "Empreendedor Expansivo":
+        linhas.append("### Ativação do seu potencial")
+        linhas.append(
+            "Seu potencial cresce quando existe mercado, conversa, exposição e movimento. "
+            "Você tende a destravar colocando a ideia diante de pessoas reais, testando oferta e ajustando pelo retorno do ambiente."
+        )
+        linhas.append("- crie conversas antes de criar sistemas grandes")
+        linhas.append("- teste proposta com público real")
+        linhas.append("- use sua presença para abrir portas")
+        linhas.append("- proteja foco para não transformar oportunidade em dispersão")
+        linhas.append("")
+    elif empreendedor.get("subtipo") == "Empreendedor Técnico":
+        linhas.append("### Ativação do seu potencial")
+        linhas.append(
+            "Seu potencial cresce quando a entrega vira prova. Você tende a destravar construindo algo concreto, mostrando resultado e deixando a qualidade abrir espaço."
+        )
+        linhas.append("- transforme habilidade em produto simples")
+        linhas.append("- documente resultado")
+        linhas.append("- venda a solução, não apenas o esforço")
+        linhas.append("- procure alguém que ajude com exposição, venda ou distribuição")
+        linhas.append("")
+    elif empreendedor.get("subtipo") == "Empreendedor Relacional":
+        linhas.append("### Ativação do seu potencial")
+        linhas.append(
+            "Seu potencial cresce quando confiança vira oportunidade. Você tende a destravar por conversas, rede, reputação e continuidade."
+        )
+        linhas.append("- converse com pessoas que já confiam em você")
+        linhas.append("- transforme relacionamento em proposta clara")
+        linhas.append("- crie ofertas consultivas ou recorrentes")
+        linhas.append("- use vínculo como ponte, não como substituto da negociação")
+        linhas.append("")
+    elif empreendedor.get("subtipo") == "Intraempreendedor":
+        linhas.append("### Ativação do seu potencial")
+        linhas.append(
+            "Seu potencial cresce melhor dentro de uma estrutura já existente. Você pode criar muito quando existe empresa, equipe, projeto, plataforma ou contexto que dê chão para a ação."
+        )
+        linhas.append("- assuma projetos internos de melhoria")
+        linhas.append("- proponha novas frentes dentro de algo que já existe")
+        linhas.append("- procure ambientes que valorizem autonomia com suporte")
+        linhas.append("- use recursos existentes para reduzir risco inicial")
+        linhas.append("")
 
     linhas.append("## Áreas que talvez você ainda não tenha considerado")
     sugestoes_inesperadas = []
@@ -3838,12 +4030,16 @@ def gerar_direcao_profissional(perfil):
         sugestoes_inesperadas += ["customer success estratégico", "gestão de contas-chave", "mediação organizacional", "desenvolvimento de pessoas"]
     if "executor_alta_confiabilidade" in top_ids or "resolvedor_pratico" in top_ids:
         sugestoes_inesperadas += ["implantação de projetos", "operações críticas", "gestão de processos", "coordenação de execução"]
+    if empreendedor.get("subtipo") == "Empreendedor Estratégico":
+        sugestoes_inesperadas += ["negócio digital estruturado", "produto online de nicho", "parceria com executor", "consultoria com processo definido", "projeto com sócio operacional"]
     for item in unique(sugestoes_inesperadas, 10):
         linhas.append(f"- {item}")
     linhas.append("")
 
     linhas.append("## Frase final")
-    if top:
+    if empreendedor.get("subtipo") == "Empreendedor Estratégico":
+        linhas.append("Você tende a crescer quando visão encontra estrutura e estrutura vira primeiro movimento concreto.")
+    elif top:
         linhas.append(top[0]["frase"])
     else:
         linhas.append("Seu melhor caminho profissional aparece quando ambiente, autonomia e tipo de desafio combinam com seu modo real de funcionar.")
