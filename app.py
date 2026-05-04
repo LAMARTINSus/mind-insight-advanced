@@ -3,11 +3,12 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V17.1.1
-# Data: 2026-05-02
+# Version: V17.2
+# Data: 2026-05-04
+# Patch: V17.2 adiciona módulo Direção Profissional com 10 arquétipos, potencial empreendedor e email separado
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
 # Patch: V11 agente A/B fixo com detector de ambiguidade e seleção automática de eixos
-# Patch: V10.1 refina Leitura Prática do Perfil com cenas concretas, neutralidade natural e ações imediatas
+# Patch: V10.1 refina Leitura de Funcionamento Real com cenas concretas, neutralidade natural e ações imediatas
 # Patch: Google Sheets Research Logging + timestamps/tempo por pergunta gravados para benchmark
 # Patch anterior: Instrumentação científica + navegação com botão Voltar + rastreamento de tempo e mudanças de resposta
 # Patch anterior: Polimento final de exclusividade causal + eixo central mais puro + fechamento mais universal da versao sem filtro
@@ -123,13 +124,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V17.1"
+APP_VERSION = "V17.2"
 MODEL_NAME = "gpt-5.4"
-
-REPORT_OFICIAL_TITULO = "Relatório Mind Insight: Perfil Oficial"
-REPORT_OFICIAL_SUBTITULO = "Seu Raio-X Comportamental"
-REPORT_PRATICO_TITULO = "Leitura Prática do Perfil"
-REPORT_PRATICO_SUBTITULO = "Seu manual de como agir"
 
 try:
     import gspread
@@ -253,6 +249,10 @@ DEFAULTS = {
     "agente_ab_motivos": [],
     "agente_ab_dynamic_log": [],
     "relatorio_sem_filtro": "",
+    "relatorio_extra_enviado": False,
+    "relatorio_direcao_profissional": "",
+    "relatorio_direcao_profissional_enviado": False,
+    "direcao_profissional_meta": {},
     "debug_sheet_users": [],
     "debug_sheet_error": "",
     # Instrumentação científica V9.5
@@ -341,7 +341,6 @@ def build_research_export(respostas_finais=None):
         "answer_change_count": dict(st.session_state.get("answer_change_count", {})),
         "answer_change_log": list(st.session_state.get("answer_change_log", [])),
         "response_history": list(st.session_state.get("response_history", [])),
-        "timing_analysis_v17": build_timing_analysis_v171(),
         "calibracao_ajustes": {str(k): v for k, v in st.session_state.get("calibracao_ajustes", {}).items()},
         "followup_answers": dict(st.session_state.get("followup_answers", {})),
         "agente_ab_answers": dict(st.session_state.get("agente_ab_answers", {})),
@@ -351,83 +350,6 @@ def build_research_export(respostas_finais=None):
         "agente_ab_dynamic_log": list(st.session_state.get("agente_ab_dynamic_log", [])),
     }
 
-
-
-
-def obter_timing_data_v171(perfil_carregado=None, ultimo_teste_payload=None, respondendo_perguntas=False):
-    """V17.1: usa timing real quando existir, sem simular nem penalizar ausência."""
-    timing_data = None
-    timing_source = "indisponivel"
-
-    if perfil_carregado and isinstance(perfil_carregado, dict):
-        if perfil_carregado.get("question_time_total"):
-            timing_data = perfil_carregado.get("question_time_total")
-            timing_source = "arquivo"
-        else:
-            timing_source = "arquivo_sem_timing"
-    elif ultimo_teste_payload and isinstance(ultimo_teste_payload, dict):
-        if ultimo_teste_payload.get("question_time_total"):
-            timing_data = ultimo_teste_payload.get("question_time_total")
-            timing_source = "ultimo_teste"
-        else:
-            timing_source = "ultimo_teste_sem_timing"
-    elif MODO_TESTE and respondendo_perguntas:
-        timing_data = st.session_state.get("question_time_total", {})
-        timing_source = "debug_resposta_real"
-    elif not MODO_TESTE:
-        timing_data = st.session_state.get("question_time_total", {})
-        timing_source = "producao"
-    else:
-        timing_source = "debug_carregado_sem_timing"
-
-    n = len(timing_data) if isinstance(timing_data, dict) else 0
-    return timing_data, timing_source, n
-
-def build_timing_analysis_v171():
-    timing_data, timing_source, n = obter_timing_data_v171(
-        respondendo_perguntas=bool(st.session_state.get("question_time_total"))
-    )
-    if not timing_data or n < 10:
-        return {
-            "available": False,
-            "reason": "dados_de_tempo_insuficientes",
-            "source": timing_source,
-            "n": n,
-            "confidence_modifier": 0.0,
-            "flags": [],
-            "by_axis": {},
-        }
-    tempos = []
-    for v in timing_data.values():
-        try:
-            tempos.append(float(v))
-        except Exception:
-            pass
-    if not tempos:
-        return {"available": False, "reason": "timing_invalido", "source": timing_source, "n": 0, "confidence_modifier": 0.0, "flags": [], "by_axis": {}}
-    media = round(sum(tempos) / len(tempos), 3)
-    maximo = round(max(tempos), 3)
-    minimo = round(min(tempos), 3)
-    flags = []
-    modifier = 0.0
-    if media < 1.2:
-        flags.append("respostas_muito_rapidas")
-        modifier -= 0.03
-    if media > 45:
-        flags.append("tempo_alto_generalizado")
-        modifier -= 0.02
-    return {
-        "available": True,
-        "reason": "ok",
-        "source": timing_source,
-        "n": len(tempos),
-        "tempo_medio": media,
-        "tempo_minimo": minimo,
-        "tempo_maximo": maximo,
-        "confidence_modifier": round(modifier, 3),
-        "flags": flags,
-        "by_axis": {},
-    }
 
 def _safe_json_for_sheet(obj, max_chars=45000):
     """Serializa JSON para célula do Google Sheets sem quebrar o append_row."""
@@ -663,6 +585,8 @@ def restore_progress_snapshot(snapshot):
     st.session_state.question_started_at = time.time()
     st.session_state.question_timer_q = None
     st.session_state.relatorio_sem_filtro = ""
+    st.session_state.relatorio_direcao_profissional = ""
+    st.session_state.relatorio_direcao_profissional_enviado = False
     st.session_state.perfil_cache = None
     st.session_state.dados_registrados = False
     return True
@@ -913,40 +837,33 @@ def registrar_no_sheets(dados):
         tb = traceback.format_exc().replace("\n", " | ")
         return False, str(e) + " | DETALHE: " + tb
 
-def enviar_email(destinatario, nome, relatorio_texto, assunto=None, titulo=None, subtitulo=None):
+def enviar_email(destinatario, nome, relatorio_texto, assunto=None, titulo_email=None, intro=None):
     try:
         gmail_user = st.secrets.get("GMAIL_USER", "")
         gmail_pass = st.secrets.get("GMAIL_APP_PASSWORD", "")
         if not gmail_user or not gmail_pass:
             return False, "GMAIL_USER ou GMAIL_APP_PASSWORD nao configurados em secrets"
 
-        assunto = assunto or ("Seu Perfil Oficial Mind Insight - " + APP_VERSION)
-        titulo = titulo or REPORT_OFICIAL_TITULO
-        subtitulo = subtitulo or REPORT_OFICIAL_SUBTITULO
-
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = assunto
+        msg["Subject"] = assunto or "Seu Relatório Mind Insight"
         msg["From"] = "Mind Insight <" + gmail_user + ">"
         msg["To"] = destinatario
 
         texto_plain = (
             "Olá " + nome + ",\n\n"
-            + titulo + "\n"
-            + subtitulo + "\n"
-            + "Versão do teste: " + APP_VERSION + "\n\n"
+            + (intro or "Aqui está o seu relatório completo de perfil comportamental gerado pelo Mind Insight.") + "\n\n"
             + relatorio_texto
-            + "\n\n---\nMind Insight | Análise comportamental de alta precisão"
+            + "\n\n---\nMind Insight | Análise comportamental potencializada por psicologia científica e inteligência artificial avançada"
         )
 
         html_body = (
-            "<html><body style='font-family:Arial,sans-serif;max-width:760px;margin:auto;padding:24px;line-height:1.5'>"
-            "<h2 style='color:#1a1a1a;margin-bottom:4px'>" + titulo + "</h2>"
-            "<p style='color:#555;margin-top:0'><strong>" + subtitulo + "</strong></p>"
+            "<html><body style='font-family:Arial,sans-serif;max-width:700px;margin:auto;padding:20px'>"
+            "<h2 style='color:#1a1a1a'>" + (titulo_email or "Seu Relatório Mind Insight") + "</h2>"
             "<p>Olá <strong>" + nome + "</strong>,</p>"
-            "<p><strong>Versão do teste:</strong> " + APP_VERSION + "</p>"
+            "<p>" + (intro or "Aqui está o seu relatório completo de perfil comportamental.") + "</p>"
             "<hr>"
             + relatorio_texto.replace("\n", "<br>")
-            + "<hr><p style='color:#888;font-size:0.85em'>Mind Insight | Análise comportamental de alta precisão</p>"
+            + "<hr><p style='color:#888;font-size:0.85em'>Mind Insight | Análise comportamental potencializada por psicologia científica e inteligência artificial avançada</p>"
             "</body></html>"
         )
 
@@ -3380,7 +3297,7 @@ def gerar_leitura_funcionamento_real(relatorio_oficial):
         return "Erro: OPENAI_API_KEY nao encontrada em Secrets."
 
     prompt = f"""
-Você vai transformar o relatório oficial abaixo em uma LEITURA PRÁTICA DO PERFIL.
+Você vai transformar o relatório oficial abaixo em uma LEITURA DE FUNCIONAMENTO REAL.
 
 Essa saída NÃO é um novo diagnóstico.
 Ela NÃO pode reinterpretar o perfil.
@@ -3388,7 +3305,7 @@ Ela NÃO pode criar traços novos.
 Ela deve usar apenas o conteúdo do relatório oficial como fonte e reorganizar esse conteúdo em uma leitura mais clara, direta, concreta e acionável.
 
 NOME DA SAÍDA:
-Leitura Prática do Perfil
+Leitura de Funcionamento Real
 
 OBJETIVO:
 Mostrar com precisão:
@@ -3560,7 +3477,7 @@ RELATÓRIO OFICIAL A TRANSFORMAR:
                 {
                     "role": "system",
                     "content": (
-                        "Você transforma relatórios comportamentais oficiais em uma Leitura Prática do Perfil. "
+                        "Você transforma relatórios comportamentais oficiais em uma Leitura de Funcionamento Real. "
                         "Você preserva fidelidade ao relatório oficial, não reanalisa, não inventa traços e não aumenta gravidade sem base. "
                         "Sua escrita é direta, concreta, humana e neutra em gênero. "
                         "Você separa fortalezas de padrões que travam: fortalezas devem ser fechadas como fortalezas, sem virar acusação. "
@@ -3580,13 +3497,358 @@ RELATÓRIO OFICIAL A TRANSFORMAR:
         texto = response.choices[0].message.content
         return sanitize_report_output_v81(texto)
     except AuthenticationError:
-        return "Erro ao gerar a Leitura Prática do Perfil: falha de autenticacao com a OpenAI."
+        return "Erro ao gerar a Leitura de Funcionamento Real: falha de autenticacao com a OpenAI."
     except Exception as e:
-        return f"Erro ao gerar a Leitura Prática do Perfil: {e}"
+        return f"Erro ao gerar a Leitura de Funcionamento Real: {e}"
 
 
 def gerar_relatorio_sem_filtro(relatorio_oficial):
     return gerar_leitura_funcionamento_real(relatorio_oficial)
+
+
+# =============================================================
+# DIREÇÃO PROFISSIONAL — ARQUÉTIPOS E POTENCIAL EMPREENDEDOR V17.2
+# =============================================================
+
+def _dp_get(perfil, grupo, chave, padrao=3.0):
+    try:
+        return float((perfil.get(grupo, {}) or {}).get(chave, padrao))
+    except Exception:
+        return float(padrao)
+
+
+def _dp_nivel(score):
+    if score >= 75:
+        return "alta"
+    if score >= 55:
+        return "moderada"
+    return "baixa"
+
+
+def calcular_score_empreendedor(perfil):
+    medias = perfil.get("medias", {}) or {}
+    derived = perfil.get("derived", {}) or {}
+    score = 0
+    if derived.get("autonomia_execucao", 3) >= 3.5:
+        score += 20
+    if derived.get("impulso_expansao", 3) >= 3.5:
+        score += 20
+    if derived.get("merecimento_economico", 3) >= 3.5:
+        score += 15
+    if derived.get("tolerancia_risco", 3) >= 3.3:
+        score += 15
+    if derived.get("visibilidade_pessoal", 3) >= 3.2:
+        score += 10
+    if derived.get("assertividade", 3) >= 3.3:
+        score += 10
+    if derived.get("sustentacao_pos_inicio", 3) >= 3.4:
+        score += 10
+    if medias.get("Seguranca", 3) >= 3.8:
+        score -= 15
+    if derived.get("atraso_operacional", 3) >= 3.8:
+        score -= 10
+    score = max(0, min(100, int(score)))
+    return {"score": score, "nivel": _dp_nivel(score)}
+
+
+def calcular_arquetipos_profissionais(perfil):
+    medias = perfil.get("medias", {}) or {}
+    d = perfil.get("derived", {}) or {}
+
+    def m(k):
+        return float(medias.get(k, 3.0) or 3.0)
+
+    def dv(k):
+        return float(d.get(k, 3.0) or 3.0)
+
+    arquetipos = [
+        {
+            "id": "estrategista_conector",
+            "nome": "Estrategista Conector",
+            "descricao": "Você tende a brilhar quando precisa ligar pontos, interpretar cenários e transformar informação solta em direção clara.",
+            "score": 0,
+            "regras": [
+                (m("Abertura") >= 3.8, 30),
+                (dv("flexibilidade_cognitiva") >= 3.6, 25),
+                (dv("conforto_abstracao") >= 3.6, 25),
+                (m("Conscienciosidade") >= 3.2, 10),
+                (dv("clareza_direcao") >= 3.3, 10),
+            ],
+            "funcoes": ["estratégia", "consultoria", "produto", "inovação", "conteúdo", "planejamento"],
+            "ambientes": ["problemas complexos", "liberdade intelectual", "espaço para criar conexões", "mudança de cenário"],
+            "alertas": ["tarefas muito repetitivas", "ambientes que só executam sem pensar", "rotina sem desafio mental"],
+            "frase": "Você tende a funcionar melhor onde pensar bem muda o rumo do trabalho.",
+        },
+        {
+            "id": "executor_alta_confiabilidade",
+            "nome": "Executor de Alta Confiabilidade",
+            "descricao": "Você tende a brilhar quando existe responsabilidade real, processo claro e necessidade de sustentar entrega com consistência.",
+            "score": 0,
+            "regras": [
+                (m("Conscienciosidade") >= 3.8, 30),
+                (dv("autonomia_execucao") >= 3.7, 25),
+                (dv("sustentacao_pos_inicio") >= 3.7, 25),
+                (dv("planejamento_pratico") >= 3.4, 10),
+                (dv("atraso_operacional") <= 2.8, 10),
+            ],
+            "funcoes": ["operações", "gestão de projetos", "coordenação", "administração", "processos", "compliance", "logística"],
+            "ambientes": ["metas claras", "autonomia com responsabilidade", "cobrança objetiva", "processos bem definidos"],
+            "alertas": ["liderança desorganizada", "mudança sem critério", "ambiente caótico sem prioridade"],
+            "frase": "Você tende a render mais onde confiança, continuidade e entrega contam de verdade.",
+        },
+        {
+            "id": "comunicador_influencia",
+            "nome": "Comunicador de Influência",
+            "descricao": "Você tende a brilhar quando precisa aparecer, se posicionar, explicar, negociar ou mover pessoas por meio da comunicação.",
+            "score": 0,
+            "regras": [
+                (m("Extroversao") >= 3.8, 30),
+                (dv("visibilidade_pessoal") >= 3.7, 25),
+                (dv("assertividade") >= 3.6, 25),
+                (dv("impulso_social") >= 3.6, 10),
+                (m("Neuroticismo") <= 3.2, 10),
+            ],
+            "funcoes": ["vendas", "apresentações", "relacionamento", "liderança comercial", "treinamento", "representação institucional"],
+            "ambientes": ["interação constante", "negociação", "público", "influência", "relacionamento ativo"],
+            "alertas": ["trabalho isolado", "função silenciosa demais", "ambiente com pouca troca"],
+            "frase": "Você tende a ganhar força onde sua presença precisa ser vista e ouvida.",
+        },
+        {
+            "id": "lider_movimento",
+            "nome": "Líder de Movimento",
+            "descricao": "Você tende a brilhar quando precisa conduzir pessoas, organizar direção e transformar decisão em movimento coletivo.",
+            "score": 0,
+            "regras": [
+                (m("Extroversao") >= 3.7, 20),
+                (m("Conscienciosidade") >= 3.6, 20),
+                (dv("assertividade") >= 3.7, 20),
+                (dv("autonomia_execucao") >= 3.7, 20),
+                (dv("visibilidade_pessoal") >= 3.5, 10),
+                (dv("evita_conflito") <= 3.0, 10),
+            ],
+            "funcoes": ["liderança de equipe", "gerência operacional", "coordenação comercial", "implantação de projetos", "gestão de iniciativas"],
+            "ambientes": ["equipe para conduzir", "metas claras", "espaço para decisão", "movimento e responsabilidade"],
+            "alertas": ["autoridade sem autonomia", "excesso de aprovação", "ambientes excessivamente políticos"],
+            "frase": "Você tende a render mais quando pode transformar clareza em direção para outras pessoas.",
+        },
+        {
+            "id": "guardiao_relacoes",
+            "nome": "Guardião de Relações",
+            "descricao": "Você tende a brilhar quando precisa cuidar de vínculo, criar confiança e sustentar relações com presença e sensibilidade.",
+            "score": 0,
+            "regras": [
+                (m("Amabilidade") >= 3.7, 30),
+                (dv("presenca_relacional") >= 3.6, 25),
+                (dv("evita_conflito") >= 3.3, 20),
+                (m("Neuroticismo") <= 3.4, 10),
+                (dv("assertividade") >= 2.8, 15),
+            ],
+            "funcoes": ["RH", "customer success", "atendimento consultivo", "mediação", "suporte de alto valor", "onboarding"],
+            "ambientes": ["relações contínuas", "cuidado com pessoas", "construção de confiança", "acompanhamento próximo"],
+            "alertas": ["ambientes agressivos", "conflitos constantes", "cobrança sem sensibilidade"],
+            "frase": "Você tende a funcionar melhor onde a relação é parte central do resultado.",
+        },
+        {
+            "id": "mediador_firme",
+            "nome": "Mediador Firme",
+            "descricao": "Você tende a brilhar quando precisa equilibrar cuidado com clareza, relação com limite e escuta com posicionamento.",
+            "score": 0,
+            "regras": [
+                (m("Amabilidade") >= 3.5, 25),
+                (dv("assertividade") >= 3.6, 25),
+                (dv("evita_conflito") <= 2.6, 25),
+                (dv("presenca_relacional") >= 3.3, 15),
+                (m("Neuroticismo") <= 3.2, 10),
+            ],
+            "funcoes": ["gestão de pessoas", "negociação", "relacionamento estratégico", "liderança", "gestão de contas importantes"],
+            "ambientes": ["conversas difíceis", "negociação", "relações estratégicas", "ambientes que precisam de firmeza sem ruptura"],
+            "alertas": ["culturas muito passivas", "ambientes onde clareza é confundida com dureza"],
+            "frase": "Você tende a gerar valor quando a verdade precisa ser dita sem destruir a relação.",
+        },
+        {
+            "id": "expansor_oportunidades",
+            "nome": "Expansor de Oportunidades",
+            "descricao": "Você tende a brilhar quando precisa enxergar crescimento, abrir caminhos, propor avanço e transformar valor em movimento.",
+            "score": 0,
+            "regras": [
+                (m("Abundancia") >= 3.8, 30),
+                (dv("impulso_expansao") >= 3.7, 25),
+                (dv("merecimento_economico") >= 3.5, 20),
+                (dv("visibilidade_pessoal") >= 3.2, 10),
+                (dv("assertividade") >= 3.2, 15),
+            ],
+            "funcoes": ["desenvolvimento de negócios", "vendas consultivas", "parcerias", "empreendedorismo", "marketing estratégico", "abertura de mercado"],
+            "ambientes": ["crescimento", "metas", "oportunidade", "criação de novos caminhos", "negociação"],
+            "alertas": ["burocracia excessiva", "teto baixo", "pouca possibilidade de avanço"],
+            "frase": "Você tende a render mais onde crescimento precisa virar ação concreta.",
+        },
+        {
+            "id": "analista_risco_criterio",
+            "nome": "Analista de Risco e Critério",
+            "descricao": "Você tende a brilhar quando precisão, regra, previsibilidade e análise cuidadosa protegem decisões importantes.",
+            "score": 0,
+            "regras": [
+                (m("Seguranca") >= 3.6, 30),
+                (dv("necessidade_previsibilidade") >= 3.6, 25),
+                (dv("planejamento_pratico") >= 3.4, 20),
+                (m("Conscienciosidade") >= 3.4, 15),
+                (dv("tolerancia_risco") <= 3.0, 10),
+            ],
+            "funcoes": ["compliance", "qualidade", "financeiro", "auditoria", "análise de risco", "documentação", "jurídico operacional"],
+            "ambientes": ["precisão", "regra clara", "previsibilidade", "responsabilidade técnica"],
+            "alertas": ["improviso constante", "decisões rápidas sem base", "pressão para arriscar no escuro"],
+            "frase": "Você tende a brilhar onde erro custa caro e critério protege o resultado.",
+        },
+        {
+            "id": "resolvedor_pratico",
+            "nome": "Resolvedor Prático",
+            "descricao": "Você tende a brilhar quando existe problema concreto, necessidade de ação e autonomia para resolver sem excesso de teoria.",
+            "score": 0,
+            "regras": [
+                (m("Conscienciosidade") >= 3.4, 25),
+                (dv("tolerancia_risco") >= 3.3, 20),
+                (dv("atraso_operacional") <= 2.8, 20),
+                (dv("autonomia_execucao") >= 3.4, 20),
+                (dv("clareza_direcao") >= 3.2, 15),
+            ],
+            "funcoes": ["operações de campo", "implantação", "atendimento crítico", "coordenação prática", "troubleshooting", "gestão de crise operacional"],
+            "ambientes": ["problemas concretos", "urgência saudável", "autonomia para resolver", "ação rápida"],
+            "alertas": ["excesso de teoria", "reuniões longas", "pouca ação", "ambientes lentos demais"],
+            "frase": "Você tende a funcionar melhor onde problema vira ação e ação vira solução.",
+        },
+        {
+            "id": "criador_educador",
+            "nome": "Criador Educador",
+            "descricao": "Você tende a brilhar quando precisa traduzir conhecimento, desenvolver pessoas, explicar ideias e tornar algo complexo mais acessível.",
+            "score": 0,
+            "regras": [
+                (m("Abertura") >= 3.5, 25),
+                (m("Amabilidade") >= 3.4, 20),
+                (dv("presenca_relacional") >= 3.3, 20),
+                (dv("visibilidade_pessoal") >= 3.2, 15),
+                (dv("conforto_abstracao") >= 3.4, 10),
+                (dv("assertividade") >= 3.0, 10),
+            ],
+            "funcoes": ["treinamento", "ensino", "mentoria", "conteúdo educacional", "comunicação institucional", "facilitação"],
+            "ambientes": ["explicar ideias", "desenvolver pessoas", "traduzir conhecimento", "facilitar aprendizado"],
+            "alertas": ["ambientes onde ensinar não é valorizado", "trabalho sem troca", "rotina sem espaço para comunicação"],
+            "frase": "Você tende a brilhar quando sua clareza ajuda outras pessoas a crescerem.",
+        },
+    ]
+
+    for a in arquetipos:
+        score = sum(pontos for cond, pontos in a.get("regras", []) if cond)
+        a["score"] = max(0, min(100, int(score)))
+        a["aderencia"] = _dp_nivel(a["score"])
+        a.pop("regras", None)
+
+    return sorted(arquetipos, key=lambda x: x["score"], reverse=True)
+
+
+def gerar_direcao_profissional(perfil):
+    arquetipos = calcular_arquetipos_profissionais(perfil)
+    top = [a for a in arquetipos if a["score"] >= 50][:4]
+    if not top:
+        top = arquetipos[:3]
+    empreendedor = calcular_score_empreendedor(perfil)
+
+    funcoes = []
+    ambientes = []
+    alertas = []
+    for a in top[:3]:
+        funcoes.extend(a.get("funcoes", [])[:4])
+        ambientes.extend(a.get("ambientes", [])[:3])
+        alertas.extend(a.get("alertas", [])[:3])
+
+    def unique(seq, limit=12):
+        out = []
+        for item in seq:
+            if item not in out:
+                out.append(item)
+            if len(out) >= limit:
+                break
+        return out
+
+    funcoes = unique(funcoes, 14)
+    ambientes = unique(ambientes, 10)
+    alertas = unique(alertas, 10)
+
+    if empreendedor["nivel"] == "alta":
+        emp_txt = (
+            "Você apresenta forte potencial empreendedor. Isso não significa que precise abrir uma empresa, "
+            "mas indica que tende a funcionar bem quando há autonomia, criação de caminho, responsabilidade por resultado, "
+            "exposição e necessidade de transformar oportunidade em movimento concreto. Seu ponto de atenção é foco: "
+            "a energia de expansão precisa virar direção, prioridade e execução visível."
+        )
+    elif empreendedor["nivel"] == "moderada":
+        emp_txt = (
+            "Você possui elementos importantes de perfil empreendedor, especialmente para atuar como intraempreendedor dentro de uma organização. "
+            "Pode performar bem liderando projetos, abrindo frentes, melhorando processos ou conduzindo expansão controlada, desde que exista alguma estrutura mínima para sustentar o movimento."
+        )
+    else:
+        emp_txt = (
+            "Seu perfil não aponta tendência empreendedora dominante neste momento. Isso não significa incapacidade. "
+            "Significa que você tende a render melhor quando existe direção mais clara, risco mais controlado e estrutura suficiente para sustentar decisões."
+        )
+
+    linhas = []
+    linhas.append("# Direção Profissional")
+    linhas.append("**Onde você tende a brilhar com mais consistência**")
+    linhas.append("")
+    linhas.append("Esta leitura traduz seu perfil comportamental em possibilidades profissionais. Ela não define seu destino nem substitui experiência, formação ou contexto de vida. Ela mostra ambientes, funções e caminhos onde seus padrões tendem a encontrar mais tração.")
+    linhas.append("")
+    linhas.append("## Seus arquétipos profissionais mais fortes")
+    for i, a in enumerate(top[:4], start=1):
+        linhas.append(f"### {i}. {a['nome']} — aderência {a['aderencia']} ({a['score']}/100)")
+        linhas.append(a["descricao"])
+        linhas.append(f"**Onde pode brilhar:** {', '.join(a.get('funcoes', [])[:6])}.")
+        linhas.append(f"**Ambientes favoráveis:** {', '.join(a.get('ambientes', [])[:4])}.")
+        linhas.append(f"**Atenção com:** {', '.join(a.get('alertas', [])[:4])}.")
+        linhas.append(f"**Frase-chave:** {a['frase']}")
+        linhas.append("")
+
+    linhas.append("## Áreas e funções com maior aderência")
+    for item in funcoes:
+        linhas.append(f"- {item}")
+    linhas.append("")
+
+    linhas.append("## Ambientes onde você tende a performar melhor")
+    for item in ambientes:
+        linhas.append(f"- {item}")
+    linhas.append("")
+
+    linhas.append("## Ambientes que podem reduzir sua performance")
+    for item in alertas:
+        linhas.append(f"- {item}")
+    linhas.append("")
+
+    linhas.append("## Potencial empreendedor")
+    linhas.append(f"**Nível estimado:** {empreendedor['nivel']} ({empreendedor['score']}/100)")
+    linhas.append(emp_txt)
+    linhas.append("")
+
+    linhas.append("## Áreas que talvez você ainda não tenha considerado")
+    sugestoes_inesperadas = []
+    top_ids = {a["id"] for a in top[:4]}
+    if "comunicador_influencia" in top_ids or "expansor_oportunidades" in top_ids:
+        sugestoes_inesperadas += ["parcerias estratégicas", "desenvolvimento de mercado", "relacionamento institucional", "treinamento comercial"]
+    if "estrategista_conector" in top_ids:
+        sugestoes_inesperadas += ["consultoria estratégica", "desenvolvimento de produtos", "planejamento de expansão", "conteúdo especializado"]
+    if "mediador_firme" in top_ids or "guardiao_relacoes" in top_ids:
+        sugestoes_inesperadas += ["customer success estratégico", "gestão de contas-chave", "mediação organizacional", "desenvolvimento de pessoas"]
+    if "executor_alta_confiabilidade" in top_ids or "resolvedor_pratico" in top_ids:
+        sugestoes_inesperadas += ["implantação de projetos", "operações críticas", "gestão de processos", "coordenação de execução"]
+    for item in unique(sugestoes_inesperadas, 10):
+        linhas.append(f"- {item}")
+    linhas.append("")
+
+    linhas.append("## Frase final")
+    if top:
+        linhas.append(top[0]["frase"])
+    else:
+        linhas.append("Seu melhor caminho profissional aparece quando ambiente, autonomia e tipo de desafio combinam com seu modo real de funcionar.")
+
+    return "\n".join(linhas), {"arquetipos": arquetipos, "empreendedor": empreendedor}
 
 
 # =============================================================
@@ -3673,9 +3935,6 @@ def render_debug(perfil):
 
     st.subheader("9.5 Engine Extra - Valor/Oportunidade")
     st.json(perfil.get("engine_valor_oportunidade", {}))
-
-    st.subheader("9.6 Camada V17.1 - Tempo e Consistência")
-    st.json(build_timing_analysis_v171())
 
     st.subheader("10. Qualidade Estatística")
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -3812,7 +4071,7 @@ with col_title:
         )
     else:
         st.markdown(
-            f'<div class="manus-badge">{APP_VERSION} | Análise comportamental de alta precisão | Produção</div>',
+            '<div class="manus-badge">Análise comportamental potencializada por psicologia científica e inteligência artificial avançada</div>',
             unsafe_allow_html=True
         )
 
@@ -3876,7 +4135,6 @@ if not st.session_state.modo_selecionado:
         if not st.session_state.user_info_completo:
             st.markdown("---")
             st.subheader("Antes de começar")
-            st.markdown(f"**Versão do teste: {APP_VERSION}**")
             st.markdown("Preencha os dados abaixo para personalizar seu relatório. Ao final, você também receberá uma cópia por email.")
             st.markdown("---")
 
@@ -3935,7 +4193,7 @@ elif st.session_state.current_question <= TOTAL:
     start_question_timer(q_num)
     progresso = (st.session_state.current_question - 1) / TOTAL
     st.progress(progresso)
-    st.caption(f"Versão: {APP_VERSION}  |  Pergunta {st.session_state.current_question} de {TOTAL}  |  Q{q_num}")
+    st.caption(f"Pergunta {st.session_state.current_question} de {TOTAL}  |  Q{q_num}")
     st.markdown("### " + questions_display[q_num])
 
     resposta_anterior = st.session_state.responses.get(q_num)
@@ -4202,12 +4460,10 @@ elif not st.session_state.agente_ab_completo:
         st.warning("Responda todas as perguntas rápidas para continuar.")
 
 else:
-    st.title(REPORT_OFICIAL_TITULO)
-    st.caption(REPORT_OFICIAL_SUBTITULO)
+    st.title("Relatório Mind Insight: Perfil Oficial")
+    st.caption("Seu Raio-X Comportamental")
     if MODO_TESTE:
         st.caption(f"Versão: {APP_VERSION} | MODO TESTE ATIVO")
-    else:
-        st.caption(f"Versão: {APP_VERSION}")
 
     if st.session_state.perfil_cache is not None:
         perfil = st.session_state.perfil_cache
@@ -4241,6 +4497,10 @@ else:
     if st.session_state.get("relatorio_gerado", "") != relatorio:
         st.session_state.relatorio_gerado = relatorio
         st.session_state.relatorio_sem_filtro = ""
+        st.session_state.relatorio_extra_enviado = False
+        st.session_state.relatorio_direcao_profissional = ""
+        st.session_state.relatorio_direcao_profissional_enviado = False
+        st.session_state.direcao_profissional_meta = {}
 
     st.markdown(relatorio)
 
@@ -4291,7 +4551,14 @@ else:
             nome_usuario = user_info.get("nome", "")
             email_usuario = user_info.get("email", "")
             if email_usuario:
-                ok_email, _ = enviar_email(email_usuario, nome_usuario, relatorio)
+                ok_email, _ = enviar_email(
+                    email_usuario,
+                    nome_usuario,
+                    "Versão do teste: " + APP_VERSION + "\n\nRELATÓRIO MIND INSIGHT: PERFIL OFICIAL\nSeu Raio-X Comportamental\n\n" + relatorio,
+                    assunto="Seu Perfil Oficial Mind Insight",
+                    titulo_email="Relatório Mind Insight: Perfil Oficial",
+                    intro="Seu Raio-X Comportamental. Aqui está seu relatório principal de perfil comportamental."
+                )
                 if ok_email:
                     st.success(
                         "Uma cópia do seu relatório foi enviada para **" + email_usuario + "**. "
@@ -4302,38 +4569,67 @@ else:
         clear_progress_snapshot()
 
     st.markdown("---")
-    st.subheader(REPORT_PRATICO_TITULO)
-    st.caption(REPORT_PRATICO_SUBTITULO + ". Uma leitura prática do mesmo perfil, com fortalezas, padrões que travam, consequências práticas e alavancas de ação.")
+    st.subheader("Leitura Prática do Perfil")
+    st.caption("Seu manual de como agir. Uma leitura complementar do mesmo perfil, com fortalezas, padrões que travam, consequências práticas e alavancas de ação.")
 
     if st.button("Ver Leitura Prática do Perfil", key="btn_relatorio_sem_filtro"):
-        with st.spinner("Gerando sua Leitura Prática do Perfil..."):
+        with st.spinner("Gerando a Leitura Prática do Perfil..."):
             st.session_state.relatorio_sem_filtro = gerar_leitura_funcionamento_real(relatorio)
-
-        # V17.1: se a pessoa solicitar a leitura prática no modo produção,
-        # enviar um segundo email contendo somente a leitura prática, sem repetir o Perfil Oficial.
         if not MODO_TESTE and not st.session_state.get("relatorio_extra_enviado"):
             user_info_extra = st.session_state.get("user_info", {}) or {}
-            nome_usuario_extra = user_info_extra.get("nome", "")
             email_usuario_extra = user_info_extra.get("email", "")
+            nome_usuario_extra = user_info_extra.get("nome", "")
             if email_usuario_extra and st.session_state.get("relatorio_sem_filtro"):
                 ok_email_extra, msg_email_extra = enviar_email(
                     email_usuario_extra,
                     nome_usuario_extra,
-                    st.session_state.relatorio_sem_filtro,
-                    assunto="Sua Leitura Prática do Perfil — Mind Insight - " + APP_VERSION,
-                    titulo=REPORT_PRATICO_TITULO,
-                    subtitulo=REPORT_PRATICO_SUBTITULO,
+                    "Versão do teste: " + APP_VERSION + "\n\nLEITURA PRÁTICA DO PERFIL\nSeu manual de como agir\n\n" + st.session_state.relatorio_sem_filtro,
+                    assunto="Sua Leitura Prática do Perfil — Mind Insight",
+                    titulo_email="Leitura Prática do Perfil",
+                    intro="Seu manual de como agir. Esta é a leitura prática complementar do seu Perfil Oficial."
                 )
                 if ok_email_extra:
                     st.session_state.relatorio_extra_enviado = True
                     st.success("A Leitura Prática do Perfil foi enviada para **" + email_usuario_extra + "**.")
-                else:
-                    st.warning("A leitura foi gerada, mas não foi possível enviar o email: " + str(msg_email_extra))
+                elif MODO_TESTE:
+                    st.warning("[DEBUG] Email da Leitura Prática não enviado: " + str(msg_email_extra))
 
     if st.session_state.get("relatorio_sem_filtro"):
-        st.markdown("### " + REPORT_PRATICO_TITULO)
-        st.caption(REPORT_PRATICO_SUBTITULO)
+        st.markdown("### Leitura Prática do Perfil")
+        st.caption("Seu manual de como agir.")
         st.markdown(st.session_state.relatorio_sem_filtro)
+        st.markdown("---")
+
+    st.markdown("---")
+    st.subheader("Direção Profissional")
+    st.caption("Onde você tende a brilhar com mais consistência. Sugestões de caminhos, ambientes e potencial empreendedor com base no seu perfil comportamental.")
+
+    if st.button("Ver Direção Profissional", key="btn_direcao_profissional"):
+        with st.spinner("Gerando sua Direção Profissional..."):
+            st.session_state.relatorio_direcao_profissional, st.session_state.direcao_profissional_meta = gerar_direcao_profissional(perfil)
+        if not MODO_TESTE and not st.session_state.get("relatorio_direcao_profissional_enviado"):
+            user_info_dp = st.session_state.get("user_info", {}) or {}
+            email_usuario_dp = user_info_dp.get("email", "")
+            nome_usuario_dp = user_info_dp.get("nome", "")
+            if email_usuario_dp and st.session_state.get("relatorio_direcao_profissional"):
+                ok_email_dp, msg_email_dp = enviar_email(
+                    email_usuario_dp,
+                    nome_usuario_dp,
+                    "Versão do teste: " + APP_VERSION + "\n\nDIREÇÃO PROFISSIONAL\nOnde você tende a brilhar com mais consistência\n\n" + st.session_state.relatorio_direcao_profissional,
+                    assunto="Sua Direção Profissional — Mind Insight",
+                    titulo_email="Direção Profissional",
+                    intro="Onde você tende a brilhar com mais consistência. Esta leitura traduz seu perfil em possibilidades profissionais."
+                )
+                if ok_email_dp:
+                    st.session_state.relatorio_direcao_profissional_enviado = True
+                    st.success("A Direção Profissional foi enviada para **" + email_usuario_dp + "**.")
+                elif MODO_TESTE:
+                    st.warning("[DEBUG] Email da Direção Profissional não enviado: " + str(msg_email_dp))
+
+    if st.session_state.get("relatorio_direcao_profissional"):
+        st.markdown("### Direção Profissional")
+        st.caption("Onde você tende a brilhar com mais consistência.")
+        st.markdown(st.session_state.relatorio_direcao_profissional)
         st.markdown("---")
 
     if MODO_TESTE:
