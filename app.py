@@ -3,8 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V15.2
-# Data: 2026-05-03
+# Version: V17
+# Data: 2026-05-04
+# Patch: V17 adiciona Camada Comportamental Invisível: análise de tempo de resposta, hesitação, mudança de respostas e ajuste leve de confiança
 # Patch: V15.2 corrige helpers de memória do agente e bloqueio de repetição sem quebrar o fluxo
 # Patch: V15.1 evita repetição de perguntas do agente, mostra versão nas duas modalidades e envia Leitura de Funcionamento Real por email
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
@@ -125,7 +126,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V15.2"
+APP_VERSION = "V17"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -249,6 +250,8 @@ DEFAULTS = {
     "agente_ab_ajustes": {},
     "agente_ab_motivos": [],
     "agente_ab_dynamic_log": [],
+    "timing_analysis_v17": {},
+    "timing_confidence_flags_v17": [],
     "relatorio_sem_filtro": "",
     "relatorio_extra_enviado": False,
     "agente_memoria_perguntas": [],
@@ -327,6 +330,188 @@ def record_question_response(q_num, valor, source="next"):
     return event
 
 
+
+
+# =============================================================
+# V17 - CAMADA COMPORTAMENTAL INVISÍVEL
+# =============================================================
+
+def _percentil_v17(valores, pct):
+    """Percentil simples sem dependência extra. Retorna 0 quando não há dados."""
+    try:
+        vals = sorted(float(v) for v in valores if v is not None)
+    except Exception:
+        vals = []
+    if not vals:
+        return 0.0
+    if len(vals) == 1:
+        return round(vals[0], 3)
+    pos = (len(vals) - 1) * float(pct)
+    lo = int(pos)
+    hi = min(lo + 1, len(vals) - 1)
+    frac = pos - lo
+    return round(vals[lo] + (vals[hi] - vals[lo]) * frac, 3)
+
+
+def _coletar_tempos_por_pergunta_v17():
+    """Retorna tempos acumulados por pergunta a partir da instrumentação já existente."""
+    tempos = {}
+    raw = st.session_state.get("question_time_total", {}) or {}
+    if isinstance(raw, dict):
+        for k, v in raw.items():
+            try:
+                tempos[str(int(k))] = max(0.0, float(v))
+            except Exception:
+                continue
+    return tempos
+
+
+def calcular_timing_analysis_v17(respostas=None):
+    """Analisa tempo de resposta sem alterar diretamente o perfil.
+
+    Princípio da V17: tempo não define traço. Ele modula confiança e ajuda o
+    agente a decidir onde investigar melhor. Se não houver dados de tempo
+    suficientes, a camada fica neutra.
+    """
+    respostas = respostas if respostas is not None else dict(st.session_state.get("responses", {}))
+    tempos = _coletar_tempos_por_pergunta_v17()
+    pares = []
+    for q, ans in (respostas or {}).items():
+        q_key = str(q)
+        if q_key not in tempos:
+            continue
+        try:
+            pares.append({"q": int(q), "answer": int(ans), "time_sec": float(tempos[q_key])})
+        except Exception:
+            continue
+
+    if len(pares) < 8:
+        return {
+            "available": False,
+            "reason": "dados_de_tempo_insuficientes",
+            "n": len(pares),
+            "confidence_modifier": 0.0,
+            "flags": [],
+            "by_axis": {},
+        }
+
+    vals = [p["time_sec"] for p in pares]
+    media = round(sum(vals) / len(vals), 3)
+    minimo = round(min(vals), 3)
+    maximo = round(max(vals), 3)
+    p25 = _percentil_v17(vals, 0.25)
+    mediana = _percentil_v17(vals, 0.50)
+    p75 = _percentil_v17(vals, 0.75)
+    # Limites híbridos: relativos ao próprio usuário, mas com piso/teto razoáveis.
+    limite_curto = max(1.2, min(p25, mediana * 0.55 if mediana else p25))
+    limite_longo = max(10.0, p75 * 1.8, mediana * 2.2 if mediana else p75)
+
+    neutras_rapidas = []
+    extremos_lentos = []
+    extremos_rapidos = []
+    respostas_lentas = []
+    respostas_mudadas = st.session_state.get("answer_change_count", {}) or {}
+
+    for p in pares:
+        ans = p["answer"]
+        t = p["time_sec"]
+        if ans == 3 and t <= limite_curto:
+            neutras_rapidas.append(p)
+        if ans in [1, 5] and t >= limite_longo:
+            extremos_lentos.append(p)
+        if ans in [1, 5] and t <= limite_curto:
+            extremos_rapidos.append(p)
+        if t >= limite_longo:
+            respostas_lentas.append(p)
+
+    taxa_neutras_rapidas = len(neutras_rapidas) / len(pares)
+    taxa_extremos_lentos = len(extremos_lentos) / len(pares)
+    taxa_extremos_rapidos = len(extremos_rapidos) / len(pares)
+    taxa_lentas = len(respostas_lentas) / len(pares)
+    total_mudancas = sum(int(v or 0) for v in respostas_mudadas.values()) if isinstance(respostas_mudadas, dict) else 0
+
+    flags = []
+    modifier = 0.0
+    if taxa_neutras_rapidas >= 0.18:
+        flags.append("possivel_fuga_neutra_rapida")
+        modifier -= 0.06
+    if taxa_extremos_lentos >= 0.18:
+        flags.append("possivel_extremo_forcado")
+        modifier -= 0.06
+    if total_mudancas >= 4:
+        flags.append("muitas_mudancas_de_resposta")
+        modifier -= 0.05
+    if taxa_extremos_rapidos >= 0.25 and taxa_extremos_lentos < 0.10:
+        flags.append("extremos_automaticos_consistentes")
+        modifier += 0.03
+    if taxa_lentas >= 0.35:
+        flags.append("tempo_alto_generalizado")
+        modifier -= 0.03
+
+    by_axis = {}
+    try:
+        blocos = globals().get("BLOCOS", {}) or {}
+        for eixo, qs in blocos.items():
+            eixo_pares = [p for p in pares if p["q"] in qs]
+            if not eixo_pares:
+                continue
+            eixo_vals = [p["time_sec"] for p in eixo_pares]
+            eixo_neutras_rapidas = [p for p in eixo_pares if p["answer"] == 3 and p["time_sec"] <= limite_curto]
+            eixo_extremos_lentos = [p for p in eixo_pares if p["answer"] in [1, 5] and p["time_sec"] >= limite_longo]
+            by_axis[eixo] = {
+                "n": len(eixo_pares),
+                "tempo_medio": round(sum(eixo_vals) / len(eixo_vals), 3),
+                "neutras_rapidas": len(eixo_neutras_rapidas),
+                "extremos_lentos": len(eixo_extremos_lentos),
+                "sinal_ambivalencia_tempo": round((len(eixo_neutras_rapidas) + len(eixo_extremos_lentos)) / len(eixo_pares), 3),
+            }
+    except Exception:
+        by_axis = {}
+
+    modifier = max(-0.15, min(0.08, round(modifier, 3)))
+    return {
+        "available": True,
+        "n": len(pares),
+        "tempo_medio": media,
+        "tempo_minimo": minimo,
+        "tempo_maximo": maximo,
+        "tempo_p25": p25,
+        "tempo_mediana": mediana,
+        "tempo_p75": p75,
+        "limite_curto": round(limite_curto, 3),
+        "limite_longo": round(limite_longo, 3),
+        "neutras_rapidas": len(neutras_rapidas),
+        "extremos_lentos": len(extremos_lentos),
+        "extremos_rapidos": len(extremos_rapidos),
+        "respostas_lentas": len(respostas_lentas),
+        "taxa_neutras_rapidas": round(taxa_neutras_rapidas, 3),
+        "taxa_extremos_lentos": round(taxa_extremos_lentos, 3),
+        "taxa_extremos_rapidos": round(taxa_extremos_rapidos, 3),
+        "taxa_lentas": round(taxa_lentas, 3),
+        "total_mudancas_resposta": int(total_mudancas),
+        "confidence_modifier": modifier,
+        "flags": flags,
+        "by_axis": by_axis,
+    }
+
+
+def _timing_axis_bonus_v17(eixo):
+    """Retorna pequeno reforço de prioridade do agente quando tempo sugere ambivalência naquele eixo."""
+    analise = st.session_state.get("timing_analysis_v17", {}) or {}
+    if not analise.get("available"):
+        return 0.0, []
+    dados = (analise.get("by_axis", {}) or {}).get(eixo, {}) or {}
+    sinal = float(dados.get("sinal_ambivalencia_tempo", 0) or 0)
+    motivos = []
+    bonus = 0.0
+    if sinal >= 0.25:
+        bonus += 0.20
+        motivos.append("ambivalencia_temporal_no_eixo")
+    elif sinal >= 0.15:
+        bonus += 0.10
+        motivos.append("sinal_temporal_moderado")
+    return round(bonus, 3), motivos
+
 def build_research_export(respostas_finais=None):
     """Monta um pacote técnico para análise científica posterior."""
     respostas_finais = respostas_finais if respostas_finais is not None else dict(st.session_state.get("responses", {}))
@@ -348,6 +533,8 @@ def build_research_export(respostas_finais=None):
         "agente_ab_motivos": list(st.session_state.get("agente_ab_motivos", [])),
         "agente_ab_questions": list(st.session_state.get("agente_ab_questions", [])),
         "agente_ab_dynamic_log": list(st.session_state.get("agente_ab_dynamic_log", [])),
+        "timing_analysis_v17": calcular_timing_analysis_v17(respostas_finais),
+        "timing_confidence_flags_v17": list((calcular_timing_analysis_v17(respostas_finais) or {}).get("flags", [])),
     }
 
 
@@ -409,6 +596,9 @@ def build_research_sheet_fields(respostas_finais=None):
         "research_events_json": _safe_json_for_sheet(eventos),
         "research_per_question_json": _safe_json_for_sheet(per_question),
         "research_meta": _safe_json_for_sheet(export),
+        "timing_analysis_v17_json": _safe_json_for_sheet(export.get("timing_analysis_v17", {})),
+        "timing_confidence_modifier_v17": (export.get("timing_analysis_v17", {}) or {}).get("confidence_modifier", ""),
+        "timing_flags_v17": ";".join((export.get("timing_analysis_v17", {}) or {}).get("flags", []) or []),
     }
 
 
@@ -513,6 +703,8 @@ def save_progress_snapshot():
         "agente_ab_ajustes": {str(k): v for k, v in st.session_state.get("agente_ab_ajustes", {}).items()},
         "agente_ab_motivos": list(st.session_state.get("agente_ab_motivos", [])),
         "agente_ab_dynamic_log": list(st.session_state.get("agente_ab_dynamic_log", [])),
+        "timing_analysis_v17": dict(st.session_state.get("timing_analysis_v17", {}) or {}),
+        "timing_confidence_flags_v17": list(st.session_state.get("timing_confidence_flags_v17", []) or []),
         "session_id": st.session_state.get("session_id", ""),
         "question_time_total": dict(st.session_state.get("question_time_total", {})),
         "question_time_events": list(st.session_state.get("question_time_events", [])),
@@ -576,6 +768,8 @@ def restore_progress_snapshot(snapshot):
     st.session_state.agente_ab_ajustes = _normalize_int_dict(snapshot.get("agente_ab_ajustes", {}))
     st.session_state.agente_ab_motivos = list(snapshot.get("agente_ab_motivos", []))
     st.session_state.agente_ab_dynamic_log = list(snapshot.get("agente_ab_dynamic_log", []))
+    st.session_state.timing_analysis_v17 = dict(snapshot.get("timing_analysis_v17", {}) or {})
+    st.session_state.timing_confidence_flags_v17 = list(snapshot.get("timing_confidence_flags_v17", []) or [])
     st.session_state.session_id = snapshot.get("session_id", st.session_state.get("session_id", "")) or str(uuid.uuid4())
     st.session_state.question_time_total = dict(snapshot.get("question_time_total", {}))
     st.session_state.question_time_events = list(snapshot.get("question_time_events", []))
@@ -769,6 +963,9 @@ def registrar_no_sheets(dados):
             "research_events_json",
             "research_per_question_json",
             "research_meta",
+            "timing_analysis_v17_json",
+            "timing_confidence_modifier_v17",
+            "timing_flags_v17",
         ]
 
         question_headers = ["Q" + str(i) for i in QUESTION_KEYS]
@@ -821,6 +1018,9 @@ def registrar_no_sheets(dados):
             "research_events_json": dados.get("research_events_json", ""),
             "research_per_question_json": dados.get("research_per_question_json", ""),
             "research_meta": dados.get("research_meta", ""),
+            "timing_analysis_v17_json": dados.get("timing_analysis_v17_json", ""),
+            "timing_confidence_modifier_v17": dados.get("timing_confidence_modifier_v17", ""),
+            "timing_flags_v17": dados.get("timing_flags_v17", ""),
         }
 
         respostas = dados.get("respostas", {}) or {}
@@ -1157,6 +1357,10 @@ def selecionar_eixos_para_agente(respostas, perfil, max_eixos=3):
         if eixo in ["Conscienciosidade", "Seguranca", "Amabilidade", "Abundancia"]:
             score += 0.15
             motivos.append("impacto_pratico")
+        bonus_tempo_v17, motivos_tempo_v17 = _timing_axis_bonus_v17(eixo)
+        if bonus_tempo_v17:
+            score += bonus_tempo_v17
+            motivos.extend(motivos_tempo_v17)
         candidatos.append({
             "eixo": eixo,
             "score": round(score, 3),
@@ -1196,6 +1400,8 @@ def selecionar_eixos_para_agente(respostas, perfil, max_eixos=3):
 
 
 def agente_deve_ativar(respostas, perfil):
+    timing_v17 = calcular_timing_analysis_v17(respostas)
+    st.session_state.timing_analysis_v17 = timing_v17
     compressao = calcular_compressao_respostas(respostas)
     eixos_proximos = detectar_eixos_proximos(perfil.get("medias", {}))
     contrastes_fortes = detectar_contrastes_fortes(perfil.get("medias", {}), limite=1.0)
@@ -1208,7 +1414,10 @@ def agente_deve_ativar(respostas, perfil):
         motivos.append("amplitude_comprimida")
     if contrastes_fortes:
         motivos.append("contraste_dominante")
-    return bool(motivos), motivos
+    if timing_v17.get("available") and timing_v17.get("flags"):
+        motivos.append("sinais_temporais_v17")
+        motivos.extend(["tempo_" + str(x) for x in timing_v17.get("flags", [])])
+    return bool(motivos), list(dict.fromkeys(motivos))
 
 
 def _extrair_json_objeto(texto):
@@ -2611,6 +2820,7 @@ def gerar_perfil(respostas, followup_answers=None):
         "engine_relacoes_limites": engine_relacoes,
         "engine_valor_oportunidade": engine_valor,
         "followup_answers": followup_answers or {},
+        "timing_analysis_v17": calcular_timing_analysis_v17(respostas),
     }
 
 
@@ -2982,6 +3192,9 @@ def gerar_relatorio(perfil):
     tensoes_v62 = perfil.get("tensoes_v62", [])
     comportamentos_v62 = perfil.get("comportamentos_v62", [])
     followup_answers = perfil.get("followup_answers", {})
+    timing_analysis_v17 = perfil.get("timing_analysis_v17", calcular_timing_analysis_v17(perfil.get("respostas_brutas", {}))) or {}
+    timing_flags_v17 = ", ".join(timing_analysis_v17.get("flags", []) or []) if timing_analysis_v17.get("available") else "dados de tempo insuficientes"
+    timing_modifier_v17 = timing_analysis_v17.get("confidence_modifier", 0.0)
     resumo_base = gerar_resumo_base(perfil)
     section_map = build_section_map_v71(perfil)
     subfacetas = perfil.get("subfacetas", {})
@@ -3203,6 +3416,12 @@ COMPORTAMENTOS DOMINANTES:
 
 FOLLOW-UPS:
 {linhas_followups}
+
+CAMADA V17 - TEMPO DE RESPOSTA E CONSISTÊNCIA:
+- disponibilidade de dados de tempo: {timing_analysis_v17.get('available', False)}
+- flags de tempo: {timing_flags_v17}
+- ajuste leve de confiança: {timing_modifier_v17}
+Regra: use estes sinais apenas como modulador de confiança e para justificar cautela quando necessário. Nunca afirme que uma pessoa é insegura, impulsiva ou indecisa apenas porque demorou ou respondeu rápido.
 
 RESUMO BASE:
 {resumo_base}
@@ -3684,6 +3903,22 @@ def render_debug(perfil):
 
     st.subheader("9.5 Engine Extra - Valor/Oportunidade")
     st.json(perfil.get("engine_valor_oportunidade", {}))
+
+    st.subheader("9.6 Camada V17 - Tempo e Consistência")
+    try:
+        timing_v17 = perfil.get("timing_analysis_v17", calcular_timing_analysis_v17(perfil.get("respostas_brutas", {}))) or {}
+        if timing_v17.get("available"):
+            cta, ctb, ctc, ctd = st.columns(4)
+            cta.metric("Tempo médio", str(timing_v17.get("tempo_medio", "")))
+            ctb.metric("Mediana", str(timing_v17.get("tempo_mediana", "")))
+            ctc.metric("Flags", str(len(timing_v17.get("flags", []) or [])))
+            ctd.metric("Modificador", str(timing_v17.get("confidence_modifier", 0)))
+            st.json(timing_v17)
+        else:
+            st.info("Dados de tempo insuficientes para análise V17 nesta sessão.")
+            st.json(timing_v17)
+    except Exception as e:
+        st.warning("Não foi possível renderizar a camada V17: " + str(e))
 
     st.subheader("10. Qualidade Estatística")
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -4231,10 +4466,14 @@ else:
         )
     if st.session_state.get("agente_ab_ajustes"):
         st.success(
-            "Refinamento V15.1 aplicado com "
+            "Refinamento " + APP_VERSION + " aplicado com "
             + str(len(st.session_state.get("agente_ab_ajustes", {})))
             + " ajuste(s) de desempate."
         )
+
+    timing_status_v17 = perfil.get("timing_analysis_v17", {}) or {}
+    if timing_status_v17.get("available") and timing_status_v17.get("flags"):
+        st.info("Camada V17 aplicada: padrões de tempo e consistência foram usados apenas para ajustar confiança e orientar refinamentos, sem alterar diretamente os traços.")
 
     with st.spinner("Gerando sua análise profunda..."):
         relatorio_ai, tracos_forcas_exib, tracos_desafios_exib = gerar_relatorio(perfil)
@@ -4387,6 +4626,8 @@ else:
         st.session_state.agente_ab_ajustes = {}
         st.session_state.agente_ab_motivos = []
         st.session_state.agente_ab_dynamic_log = []
+        st.session_state.timing_analysis_v17 = {}
+        st.session_state.timing_confidence_flags_v17 = []
         st.session_state.agente_memoria_perguntas = []
         st.session_state.agente_memoria_familias = []
         st.session_state.relatorio_extra_enviado = False
