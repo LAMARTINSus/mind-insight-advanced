@@ -3,8 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V18.1
+# Version: V18.2
 # Data: 2026-05-04
+# Patch: V18.2 impede rerun/reset ao baixar arquivos técnicos no modo debug
 # Patch: V18 adiciona empreendedorismo por subtipo, ativação por estrutura e caminhos práticos para tirar ideias do papel
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
 # Patch: V11 agente A/B fixo com detector de ambiguidade e seleção automática de eixos
@@ -124,7 +125,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V18.1"
+APP_VERSION = "V18.2"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -4860,6 +4861,7 @@ else:
             data=_json_bytes,
             file_name="ultimo_teste.json",
             mime="application/json",
+            on_click="ignore",
             help="Baixe este arquivo e adicione ao seu repositório GitHub junto com o app.py."
         )
 
@@ -4873,6 +4875,7 @@ else:
             data=_research_bytes,
             file_name="research_export.json",
             mime="application/json",
+            on_click="ignore",
             help="Inclui tempos por pergunta, mudanças de resposta, histórico de respostas e metadados da sessão."
         )
 
