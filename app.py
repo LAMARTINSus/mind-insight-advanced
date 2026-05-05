@@ -3,9 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V18.2
-# Data: 2026-05-04
-# Patch: V18.2 impede rerun/reset ao baixar arquivos técnicos no modo debug
+# Version: V19
+# Data: 2026-05-05
+# Patch: V19 redesign visual premium: tema futurista, botões modernos, cards, dashboard e relatório estilizado
 # Patch: V18 adiciona empreendedorismo por subtipo, ativação por estrutura e caminhos práticos para tirar ideias do papel
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
 # Patch: V11 agente A/B fixo com detector de ambiguidade e seleção automática de eixos
@@ -125,7 +125,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V18.2"
+APP_VERSION = "V19"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -174,40 +174,141 @@ ULTIMO_TESTE = {
 # =============================================================
 
 st.set_page_config(
-    page_title="Mind Insight",
+    page_title="Mind Insight V19",
     page_icon="🧠",
     layout="wide"
 )
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
-html, body, [class*="css"] { font-family: 'IBM Plex Sans', sans-serif; }
-h1, h2, h3 { font-family: 'IBM Plex Mono', monospace; }
-.stButton>button {
-    background-color: #1a1a1a;
-    color: #f0f0f0;
-    border: 1px solid #444;
-    border-radius: 4px;
-    padding: 0.5rem 2rem;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.85rem;
-    letter-spacing: 0.05em;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;600;700&display=swap');
+
+:root {
+    --mi-bg: #070A12;
+    --mi-card: rgba(18, 25, 43, 0.78);
+    --mi-border: rgba(94, 234, 212, 0.18);
+    --mi-border-soft: rgba(255,255,255,0.08);
+    --mi-text: #F4F7FB;
+    --mi-muted: #A9B4C7;
+    --mi-cyan: #22D3EE;
+    --mi-blue: #38BDF8;
+    --mi-purple: #8B5CF6;
+    --mi-pink: #EC4899;
 }
-.stButton>button:hover { background-color: #333; border-color: #888; }
-.manus-badge {
-    font-size: 0.75rem;
-    color: #888;
-    font-family: 'IBM Plex Mono', monospace;
-    margin-top: -0.5rem;
-    margin-bottom: 1rem;
+
+html, body, [class*="css"], .stApp { font-family: 'Inter', sans-serif; color: var(--mi-text); }
+.stApp {
+    background:
+        radial-gradient(circle at 12% 10%, rgba(34, 211, 238, 0.16), transparent 26%),
+        radial-gradient(circle at 88% 6%, rgba(139, 92, 246, 0.16), transparent 28%),
+        radial-gradient(circle at 50% 105%, rgba(56, 189, 248, 0.10), transparent 35%),
+        linear-gradient(180deg, #070A12 0%, #0A1020 52%, #060913 100%);
 }
-.small-note {
-    font-size: 0.85rem;
-    color: #666;
-}
+.block-container { padding-top: 2.2rem; padding-bottom: 4rem; max-width: 1180px; }
+h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.035em; color: var(--mi-text); }
+h1 { font-size: 3rem !important; line-height: 1.02 !important; }
+h2 { font-size: 2rem !important; margin-top: 2rem !important; }
+h3 { font-size: 1.35rem !important; }
+p, li, .stMarkdown, label { color: var(--mi-text); }
+#MainMenu, footer, header { visibility: hidden; }
+.mi-hero { position: relative; padding: 30px 34px; border: 1px solid var(--mi-border); border-radius: 28px; background: linear-gradient(135deg, rgba(18, 25, 43, 0.92), rgba(16, 20, 36, 0.72)); box-shadow: 0 24px 80px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.07); overflow: hidden; margin-bottom: 24px; }
+.mi-hero:before { content: ""; position:absolute; width:420px; height:420px; top:-230px; right:-160px; background: radial-gradient(circle, rgba(34,211,238,0.28), rgba(139,92,246,0.08), transparent 70%); filter: blur(8px); }
+.mi-hero-title { font-family:'Space Grotesk', sans-serif; font-size:3.2rem; line-height:.98; letter-spacing:-.06em; font-weight:700; margin:0; background:linear-gradient(90deg,#F8FAFC,#67E8F9 45%,#C4B5FD 85%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.mi-hero-subtitle { margin-top:12px; color:var(--mi-muted); font-size:1.05rem; max-width:760px; }
+.mi-badge-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }
+.mi-badge { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px; font-size:.78rem; font-weight:700; letter-spacing:.02em; color:#CFFAFE; background:rgba(34,211,238,.10); border:1px solid rgba(34,211,238,.22); }
+.mi-card { padding:22px 24px; border-radius:22px; background:var(--mi-card); border:1px solid var(--mi-border-soft); box-shadow:0 18px 50px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.05); margin:16px 0; backdrop-filter:blur(16px); }
+.mi-card-title { font-family:'Space Grotesk', sans-serif; font-size:1.25rem; font-weight:700; margin-bottom:6px; color:#E0F2FE; }
+.mi-card-text { color:var(--mi-muted); font-size:.98rem; line-height:1.58; }
+.mi-section-label { color:var(--mi-cyan); font-weight:800; text-transform:uppercase; letter-spacing:.13em; font-size:.74rem; margin-bottom:8px; }
+.mi-mini-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin:18px 0; }
+.mi-mini-card { padding:16px; border-radius:18px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.08); }
+.mi-mini-number { font-size:1.5rem; font-weight:800; color:var(--mi-cyan); }
+.mi-mini-label { font-size:.82rem; color:var(--mi-muted); }
+.mi-report-shell { padding:28px; border-radius:28px; background:rgba(8,13,25,.58); border:1px solid rgba(255,255,255,.08); box-shadow:inset 0 1px 0 rgba(255,255,255,.05); margin-top:18px; }
+.mi-highlight { padding:16px 18px; border-left:4px solid var(--mi-cyan); border-radius:16px; background:linear-gradient(90deg,rgba(34,211,238,.12),rgba(139,92,246,.06)); color:var(--mi-text); margin:14px 0; }
+
+div.stButton > button, div.stDownloadButton > button, button[kind="primary"] { border:1px solid rgba(34,211,238,.26) !important; border-radius:999px !important; padding:.78rem 1.25rem !important; background:linear-gradient(135deg,#06B6D4 0%,#2563EB 48%,#7C3AED 100%) !important; color:white !important; font-weight:800 !important; letter-spacing:.01em !important; box-shadow:0 12px 32px rgba(37,99,235,.25),0 0 0 1px rgba(255,255,255,.06) inset !important; transition:all .22s ease !important; }
+div.stButton > button:hover, div.stDownloadButton > button:hover { transform:translateY(-2px) scale(1.01); box-shadow:0 18px 44px rgba(34,211,238,.28),0 0 22px rgba(139,92,246,.25) !important; border-color:rgba(103,232,249,.55) !important; }
+div.stButton > button:disabled { opacity:.45; transform:none; }
+.stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div, textarea { background:rgba(255,255,255,.06) !important; color:var(--mi-text) !important; border:1px solid rgba(255,255,255,.12) !important; border-radius:14px !important; }
+div[role="radiogroup"] { background:rgba(18,25,43,.68); border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:12px 16px; }
+.stProgress > div > div > div > div { background:linear-gradient(90deg,#22D3EE,#8B5CF6,#EC4899) !important; }
+.stProgress > div > div > div { background:rgba(255,255,255,.08) !important; border-radius:999px !important; }
+small, .stCaption, [data-testid="stCaptionContainer"] { color:var(--mi-muted) !important; }
+.stAlert { border-radius:18px !important; border:1px solid rgba(34,211,238,.14) !important; background:rgba(18,25,43,.78) !important; }
+[data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li { line-height:1.72; }
+[data-testid="stMarkdownContainer"] code { background:rgba(34,211,238,.10); border:1px solid rgba(34,211,238,.16); border-radius:8px; color:#BAE6FD; padding:2px 6px; }
+.fade-in { animation:miFade .45s ease-out; }
+@keyframes miFade { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 </style>
 """, unsafe_allow_html=True)
+
+
+# =============================================================
+# UI PREMIUM HELPERS V19
+# =============================================================
+
+def mi_hero(title="Mind Insight™", subtitle="Análise comportamental potencializada por psicologia científica e inteligência artificial avançada", eyebrow=None):
+    modo = "MODO TESTE ATIVO" if MODO_TESTE else "Produção"
+    eyebrow_html = f'<div class="mi-badge">{eyebrow}</div>' if eyebrow else ''
+    st.markdown(f"""
+    <div class="mi-hero fade-in">
+        {eyebrow_html}
+        <div class="mi-hero-title">{title}</div>
+        <div class="mi-hero-subtitle">{subtitle}</div>
+        <div class="mi-badge-row">
+            <span class="mi-badge">{APP_VERSION}</span>
+            <span class="mi-badge">{modo}</span>
+            <span class="mi-badge">Perfil Oficial • Leitura Prática • Direção Profissional</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def mi_card(title, text="", label=None):
+    label_html = f'<div class="mi-section-label">{label}</div>' if label else ''
+    st.markdown(f"""
+    <div class="mi-card fade-in">
+        {label_html}
+        <div class="mi-card-title">{title}</div>
+        <div class="mi-card-text">{text}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def mi_open_card(label=None):
+    label_html = f'<div class="mi-section-label">{label}</div>' if label else ''
+    st.markdown(f'<div class="mi-card fade-in">{label_html}', unsafe_allow_html=True)
+
+
+def mi_close_card():
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def mi_report_header(title, subtitle):
+    st.markdown(f"""
+    <div class="mi-hero fade-in">
+        <div class="mi-section-label">{APP_VERSION}</div>
+        <div class="mi-hero-title" style="font-size:2.35rem;">{title}</div>
+        <div class="mi-hero-subtitle">{subtitle}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def mi_metric_cards(items):
+    html = '<div class="mi-mini-grid">'
+    for number, label in items:
+        html += f'<div class="mi-mini-card"><div class="mi-mini-number">{number}</div><div class="mi-mini-label">{label}</div></div>'
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def mi_render_report(text):
+    st.markdown('<div class="mi-report-shell fade-in">', unsafe_allow_html=True)
+    st.markdown(text)
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 # =============================================================
@@ -4267,31 +4368,18 @@ def aplicar_ajustes_calibracao(respostas_originais, ajustes):
 # INTERFACE
 # =============================================================
 
-col_logo, col_title = st.columns([1, 5])
-with col_logo:
-    try:
-        st.image("logo_mindinsight.png", width=220)
-    except Exception:
-        st.write("🧠")
-with col_title:
-    st.markdown("<h1 style='margin-bottom:0'>Mind Insight™</h1>", unsafe_allow_html=True)
-    if MODO_TESTE:
-        st.markdown(
-            f'<div class="manus-badge">{APP_VERSION} | Inferência comportamental profunda | MODO TESTE ATIVO</div>',
-            unsafe_allow_html=True
-        )
-    else:
-        st.markdown(
-            '<div class="manus-badge">Análise comportamental potencializada por psicologia científica e inteligência artificial avançada</div>',
-            unsafe_allow_html=True
-        )
+mi_hero(
+    title="Mind Insight™",
+    subtitle="Análise comportamental de alta precisão com inteligência avançada, perguntas adaptativas e leituras práticas personalizadas.",
+    eyebrow="Plataforma de inteligência comportamental"
+)
 
 maybe_autosave_progress()
 
 if not st.session_state.modo_selecionado:
     if MODO_TESTE:
         st.markdown("---")
-        st.subheader("[MODO TESTE] Como você quer começar?")
+        mi_card("Como você quer começar?", "Escolha se deseja responder do zero, reutilizar o último teste local ou carregar um usuário salvo na planilha.", "MODO TESTE")
         st.caption("Você pode responder do zero, reutilizar o último teste local ou carregar um usuário já salvo na planilha.")
 
         col_a, col_b = st.columns(2)
@@ -4345,7 +4433,7 @@ if not st.session_state.modo_selecionado:
     else:
         if not st.session_state.user_info_completo:
             st.markdown("---")
-            st.subheader("Antes de começar")
+            mi_card("Antes de começar", "Preencha seus dados para personalizar o relatório e receber uma cópia por email.", "PERFIL DO USUÁRIO")
             st.markdown("Preencha os dados abaixo para personalizar seu relatório. Ao final, você também receberá uma cópia por email.")
             st.markdown("---")
 
@@ -4405,6 +4493,7 @@ elif st.session_state.current_question <= TOTAL:
     progresso = (st.session_state.current_question - 1) / TOTAL
     st.progress(progresso)
     st.caption(f"Pergunta {st.session_state.current_question} de {TOTAL}  |  Q{q_num}")
+    mi_open_card("PERGUNTA")
     st.markdown("### " + questions_display[q_num])
 
     resposta_anterior = st.session_state.responses.get(q_num)
@@ -4450,7 +4539,7 @@ elif not st.session_state.calibracao_completa:
 
     statements = st.session_state.calibracao_statements
 
-    st.title("Verificação Rápida do Perfil")
+    mi_report_header("Verificação Rápida do Perfil", "Algumas respostas precisam de uma checagem curta para aumentar a precisão.")
     st.markdown(
         "Antes do relatório final, preciso confirmar algumas leituras principais. "
         "Isso melhora a precisão quando o perfil está mais sutil ou comprimido."
@@ -4540,7 +4629,7 @@ elif not st.session_state.followup_completo:
         st.session_state.followup_completo = True
         st.rerun()
 
-    st.title("Perguntas Adaptativas")
+    mi_report_header("Perguntas Adaptativas", "Perguntas de desempate para resolver ambiguidades específicas do perfil.")
     st.markdown(
         "Com base no seu perfil inicial, selecionei algumas perguntas extras para resolver ambiguidades específicas. "
         "Isso aprofunda a leitura sem transformar a experiência em outro teste."
@@ -4612,7 +4701,7 @@ elif not st.session_state.agente_ab_completo:
         save_progress_snapshot()
         st.rerun()
 
-    st.title("Refinamento rápido de precisão")
+    mi_report_header("Refinamento rápido de precisão", "Ajuste final para aumentar confiança antes de liberar o relatório.")
     st.markdown(
         "Algumas respostas ficaram em zona intermediária. "
         "Para aumentar a precisão do perfil, responda estas perguntas rápidas com base no seu comportamento recente."
@@ -4671,7 +4760,7 @@ elif not st.session_state.agente_ab_completo:
         st.warning("Responda todas as perguntas rápidas para continuar.")
 
 else:
-    st.title("Relatório Mind Insight: Perfil Oficial")
+    mi_report_header("Relatório Mind Insight: Perfil Oficial", "Seu Raio-X Comportamental")
     st.caption("Seu Raio-X Comportamental")
     if MODO_TESTE:
         st.caption(f"Versão: {APP_VERSION} | MODO TESTE ATIVO")
@@ -4717,7 +4806,7 @@ else:
         st.session_state.relatorio_direcao_profissional_enviado = False
         st.session_state.direcao_profissional_meta = {}
 
-    st.markdown(relatorio)
+    mi_render_report(relatorio)
 
     if MODO_TESTE:
         render_debug(perfil)
@@ -4815,7 +4904,7 @@ else:
     if st.session_state.get("relatorio_sem_filtro"):
         st.markdown("### Leitura Prática do Perfil")
         st.caption("Seu manual de como agir.")
-        st.markdown(st.session_state.relatorio_sem_filtro)
+        mi_render_report(st.session_state.relatorio_sem_filtro)
         st.markdown("---")
 
     st.markdown("---")
@@ -4847,7 +4936,7 @@ else:
     if st.session_state.get("relatorio_direcao_profissional"):
         st.markdown("### Direção Profissional")
         st.caption("Onde você tende a brilhar com mais consistência.")
-        st.markdown(st.session_state.relatorio_direcao_profissional)
+        mi_render_report(st.session_state.relatorio_direcao_profissional)
         st.markdown("---")
 
     if MODO_TESTE:
