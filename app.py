@@ -3,14 +3,15 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V19.2
+# Version: V19.3
 # Data: 2026-05-05
+# Patch: V19.3 limpa duplicações de títulos e padroniza Leitura Prática do Perfil
 # Patch: V19.2 padroniza Direção Profissional com níveis Essencial, Apoio e Desenvolvimento
 # Patch: V19 redesign visual premium: tema futurista, botões modernos, cards, dashboard e relatório estilizado
 # Patch: V18 adiciona empreendedorismo por subtipo, ativação por estrutura e caminhos práticos para tirar ideias do papel
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
 # Patch: V11 agente A/B fixo com detector de ambiguidade e seleção automática de eixos
-# Patch: V10.1 refina Leitura de Funcionamento Real com cenas concretas, neutralidade natural e ações imediatas
+# Patch: V10.1 refina Leitura Prática do Perfil com cenas concretas, neutralidade natural e ações imediatas
 # Patch: Google Sheets Research Logging + timestamps/tempo por pergunta gravados para benchmark
 # Patch anterior: Instrumentação científica + navegação com botão Voltar + rastreamento de tempo e mudanças de resposta
 # Patch anterior: Polimento final de exclusividade causal + eixo central mais puro + fechamento mais universal da versao sem filtro
@@ -126,7 +127,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V19.2"
+APP_VERSION = "V19.3"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -175,7 +176,7 @@ ULTIMO_TESTE = {
 # =============================================================
 
 st.set_page_config(
-    page_title="Mind Insight V19",
+    page_title="Mind Insight V19.3",
     page_icon="🧠",
     layout="wide"
 )
@@ -3414,7 +3415,7 @@ def gerar_leitura_funcionamento_real(relatorio_oficial):
         return "Erro: OPENAI_API_KEY nao encontrada em Secrets."
 
     prompt = f"""
-Você vai transformar o relatório oficial abaixo em uma LEITURA DE FUNCIONAMENTO REAL.
+Você vai transformar o relatório oficial abaixo em uma LEITURA PRÁTICA DO PERFIL.
 
 Essa saída NÃO é um novo diagnóstico.
 Ela NÃO pode reinterpretar o perfil.
@@ -3422,7 +3423,7 @@ Ela NÃO pode criar traços novos.
 Ela deve usar apenas o conteúdo do relatório oficial como fonte e reorganizar esse conteúdo em uma leitura mais clara, direta, concreta e acionável.
 
 NOME DA SAÍDA:
-Leitura de Funcionamento Real
+Leitura Prática do Perfil
 
 OBJETIVO:
 Mostrar com precisão:
@@ -3594,7 +3595,7 @@ RELATÓRIO OFICIAL A TRANSFORMAR:
                 {
                     "role": "system",
                     "content": (
-                        "Você transforma relatórios comportamentais oficiais em uma Leitura de Funcionamento Real. "
+                        "Você transforma relatórios comportamentais oficiais em uma Leitura Prática do Perfil. "
                         "Você preserva fidelidade ao relatório oficial, não reanalisa, não inventa traços e não aumenta gravidade sem base. "
                         "Sua escrita é direta, concreta, humana e neutra em gênero. "
                         "Você separa fortalezas de padrões que travam: fortalezas devem ser fechadas como fortalezas, sem virar acusação. "
@@ -3614,9 +3615,9 @@ RELATÓRIO OFICIAL A TRANSFORMAR:
         texto = response.choices[0].message.content
         return sanitize_report_output_v81(texto)
     except AuthenticationError:
-        return "Erro ao gerar a Leitura de Funcionamento Real: falha de autenticacao com a OpenAI."
+        return "Erro ao gerar a Leitura Prática do Perfil: falha de autenticacao com a OpenAI."
     except Exception as e:
-        return f"Erro ao gerar a Leitura de Funcionamento Real: {e}"
+        return f"Erro ao gerar a Leitura Prática do Perfil: {e}"
 
 
 def gerar_relatorio_sem_filtro(relatorio_oficial):
@@ -4035,9 +4036,6 @@ def gerar_direcao_profissional(perfil):
     alertas = unique(alertas, 10)
 
     linhas = []
-    linhas.append("# Direção Profissional")
-    linhas.append("**Onde você tende a brilhar com mais consistência**")
-    linhas.append("")
     linhas.append(
         "Esta leitura traduz seu perfil comportamental em possibilidades profissionais. "
         "Ela não define seu destino nem substitui experiência, formação ou contexto de vida. "
@@ -4797,7 +4795,6 @@ elif not st.session_state.agente_ab_completo:
 
 else:
     mi_report_header("Relatório Mind Insight: Perfil Oficial", "Seu Raio-X Comportamental")
-    st.caption("Seu Raio-X Comportamental")
     if MODO_TESTE:
         st.caption(f"Versão: {APP_VERSION} | MODO TESTE ATIVO")
 
@@ -4938,8 +4935,6 @@ else:
                     st.warning("[DEBUG] Email da Leitura Prática não enviado: " + str(msg_email_extra))
 
     if st.session_state.get("relatorio_sem_filtro"):
-        st.markdown("### Leitura Prática do Perfil")
-        st.caption("Seu manual de como agir.")
         mi_render_report(st.session_state.relatorio_sem_filtro)
         st.markdown("---")
 
@@ -4970,8 +4965,6 @@ else:
                     st.warning("[DEBUG] Email da Direção Profissional não enviado: " + str(msg_email_dp))
 
     if st.session_state.get("relatorio_direcao_profissional"):
-        st.markdown("### Direção Profissional")
-        st.caption("Onde você tende a brilhar com mais consistência.")
         mi_render_report(st.session_state.relatorio_direcao_profissional)
         st.markdown("---")
 
