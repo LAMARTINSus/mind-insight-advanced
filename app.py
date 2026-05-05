@@ -3,9 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V19.1
+# Version: V19.2
 # Data: 2026-05-05
-# Patch: V19.1 corrige preservação da tela de resultado em reruns dos botões opcionais
+# Patch: V19.2 padroniza Direção Profissional com níveis Essencial, Apoio e Desenvolvimento
 # Patch: V19 redesign visual premium: tema futurista, botões modernos, cards, dashboard e relatório estilizado
 # Patch: V18 adiciona empreendedorismo por subtipo, ativação por estrutura e caminhos práticos para tirar ideias do papel
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
@@ -126,7 +126,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V19.1"
+APP_VERSION = "V19.2"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -3635,11 +3635,26 @@ def _dp_get(perfil, grupo, chave, padrao=3.0):
 
 
 def _dp_nivel(score):
+    """Rótulo humano para o módulo Direção Profissional.
+
+    Evita linguagem fria como "aderência alta (75/100)" na interface.
+    O score continua existindo internamente, mas o usuário vê um mapa de uso:
+    Essencial, Apoio ou Desenvolvimento.
+    """
     if score >= 75:
-        return "alta"
+        return "Essencial"
     if score >= 55:
-        return "moderada"
-    return "baixa"
+        return "Apoio"
+    return "Desenvolvimento"
+
+
+def _dp_nivel_descricao(nivel):
+    descricoes = {
+        "Essencial": "Onde sua força aparece naturalmente",
+        "Apoio": "Onde você atua com consistência",
+        "Desenvolvimento": "Onde precisa de estrutura para render",
+    }
+    return descricoes.get(nivel, "Onde seu perfil pode ser aplicado com atenção ao contexto")
 
 
 def calcular_perfil_empreendedor(perfil):
@@ -4030,9 +4045,15 @@ def gerar_direcao_profissional(perfil):
     )
     linhas.append("")
 
-    linhas.append("## Seus arquétipos profissionais mais fortes")
+    linhas.append("## Seus arquétipos profissionais")
+    linhas.append("**Essencial:** Onde sua força aparece naturalmente")
+    linhas.append("**Apoio:** Onde você atua com consistência")
+    linhas.append("**Desenvolvimento:** Onde precisa de estrutura para render")
+    linhas.append("")
     for i, a in enumerate(top[:4], start=1):
-        linhas.append(f"### {i}. {a['nome']} — aderência {a['aderencia']} ({a['score']}/100)")
+        nivel = a.get("aderencia", "Apoio")
+        linhas.append(f"### {i}. {a['nome']} — {nivel}")
+        linhas.append(f"*{_dp_nivel_descricao(nivel)}*")
         linhas.append(a["descricao"])
         linhas.append(f"**Onde pode brilhar:** {', '.join(a.get('funcoes', [])[:6])}.")
         linhas.append(f"**Ambientes favoráveis:** {', '.join(a.get('ambientes', [])[:4])}.")
@@ -4040,7 +4061,7 @@ def gerar_direcao_profissional(perfil):
         linhas.append(f"**Frase-chave:** {a['frase']}")
         linhas.append("")
 
-    linhas.append("## Áreas e funções com maior aderência")
+    linhas.append("## Áreas e funções com maior conexão com seu perfil")
     for item in funcoes:
         linhas.append(f"- {item}")
     linhas.append("")
@@ -4056,7 +4077,7 @@ def gerar_direcao_profissional(perfil):
     linhas.append("")
 
     linhas.append("## Potencial empreendedor")
-    linhas.append(f"**Tipo identificado:** {empreendedor['subtipo']} ({empreendedor['score']}/100)")
+    linhas.append(f"**Tipo identificado:** {empreendedor['subtipo']}")
     linhas.append(f"**Leitura:** {empreendedor['titulo']}.")
     linhas.append(empreendedor["descricao"])
     linhas.append("")
