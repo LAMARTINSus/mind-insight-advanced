@@ -3,7 +3,7 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V18
+# Version: V18.1
 # Data: 2026-05-04
 # Patch: V18 adiciona empreendedorismo por subtipo, ativação por estrutura e caminhos práticos para tirar ideias do papel
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
@@ -124,7 +124,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V18"
+APP_VERSION = "V18.1"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -2822,6 +2822,20 @@ def sanitize_report_output_v81(texto):
     texto = texto.replace("\r\n", "\n")
     texto = neutralize_gendered_language_v86(texto)
 
+    # V18.1: bloqueia neutralidade artificial que pode escapar da IA
+    # sem alterar a lógica do perfil.
+    substituicoes_neutralidade_artificial = {
+        "contide": "com postura mais reservada",
+        "sensate": "com postura sensata",
+        "preparade": "com preparo",
+        "travade": "em estado de trava",
+        "cansade": "com cansaço",
+        "calade": "em silêncio",
+        "lembrade": "com lembrança",
+    }
+    for termo, repl in substituicoes_neutralidade_artificial.items():
+        texto = re.sub(r"\b" + re.escape(termo) + r"\b", repl, texto, flags=re.IGNORECASE)
+
     padroes_linha_proibida = [
         r"^\s*se quiser.*$",
         r"^\s*se desejar.*$",
@@ -4683,14 +4697,18 @@ else:
             + " ajuste(s) de desempate."
         )
 
-    with st.spinner("Gerando sua análise profunda..."):
-        relatorio_ai, tracos_forcas_exib, tracos_desafios_exib = gerar_relatorio(perfil)
+    # V18.1: o relatório principal precisa ficar congelado após gerado.
+    # Botões opcionais do resultado causam rerun no Streamlit; se o relatório for
+    # regenerado a cada rerun, o app pode limpar relatórios extras ou voltar ao fluxo inicial.
+    if st.session_state.get("relatorio_gerado"):
+        relatorio = st.session_state.relatorio_gerado
+    else:
+        with st.spinner("Gerando sua análise profunda..."):
+            relatorio_ai, tracos_forcas_exib, tracos_desafios_exib = gerar_relatorio(perfil)
 
-    # V7.9: o relatório principal não recebe mais um bloco automático de traços no final,
-    # para evitar re-resumo redundante e reintrodução da mesma tese em formato comprimido.
-    relatorio = relatorio_ai
-
-    if st.session_state.get("relatorio_gerado", "") != relatorio:
+        # V7.9: o relatório principal não recebe mais um bloco automático de traços no final,
+        # para evitar re-resumo redundante e reintrodução da mesma tese em formato comprimido.
+        relatorio = relatorio_ai
         st.session_state.relatorio_gerado = relatorio
         st.session_state.relatorio_sem_filtro = ""
         st.session_state.relatorio_extra_enviado = False
@@ -4762,7 +4780,10 @@ else:
                     )
 
         st.session_state.dados_registrados = True
-        clear_progress_snapshot()
+        # V18.1: não limpar o snapshot automaticamente ao exibir o relatório.
+        # Isso protege a tela de resultado durante reruns causados por botões opcionais.
+        # O snapshot é limpo apenas em Refazer teste / Voltar ao início.
+        # clear_progress_snapshot()
 
     st.markdown("---")
     st.subheader("Leitura Prática do Perfil")
