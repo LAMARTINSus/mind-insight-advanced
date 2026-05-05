@@ -3,8 +3,9 @@
 
 # =============================================================
 # MIND INSIGHT ADVANCED AI
-# Version: V19
+# Version: V19.1
 # Data: 2026-05-05
+# Patch: V19.1 corrige preservação da tela de resultado em reruns dos botões opcionais
 # Patch: V19 redesign visual premium: tema futurista, botões modernos, cards, dashboard e relatório estilizado
 # Patch: V18 adiciona empreendedorismo por subtipo, ativação por estrutura e caminhos práticos para tirar ideias do papel
 # Patch: V12 adiciona agente dinâmico controlado para perguntas A/B geradas sob validação rígida
@@ -125,7 +126,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from openai import OpenAI, AuthenticationError
 
-APP_VERSION = "V19"
+APP_VERSION = "V19.1"
 MODEL_NAME = "gpt-5.4"
 
 try:
@@ -4481,10 +4482,24 @@ if not st.session_state.modo_selecionado:
                             save_progress_snapshot()
                             st.rerun()
         else:
-            st.session_state.responses = {}
-            st.session_state.current_question = 1
-            st.session_state.modo_selecionado = True
-            st.rerun()
+            # V19.1: em produção, um rerun disparado por botões do resultado
+            # não pode reiniciar o teste só porque modo_selecionado voltou falso.
+            # Se já existe relatório, agente concluído ou respostas completas,
+            # preservamos o estado final e voltamos para a tela de resultado.
+            if (
+                st.session_state.get("relatorio_gerado")
+                or st.session_state.get("agente_ab_completo")
+                or len(st.session_state.get("responses", {})) >= TOTAL
+            ):
+                st.session_state.modo_selecionado = True
+                if st.session_state.get("current_question", 0) < TOTAL + 1:
+                    st.session_state.current_question = TOTAL + 1
+                st.rerun()
+            else:
+                st.session_state.responses = {}
+                st.session_state.current_question = 1
+                st.session_state.modo_selecionado = True
+                st.rerun()
 
 elif st.session_state.current_question <= TOTAL:
     idx = st.session_state.current_question - 1
